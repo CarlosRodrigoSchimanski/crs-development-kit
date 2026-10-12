@@ -17,15 +17,17 @@ namespace lve {
 
         std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-        VkPipelineViewportStateCreateInfo viewportInfo;
-        VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
-        VkPipelineRasterizationStateCreateInfo rasterizationInfo;
-        VkPipelineMultisampleStateCreateInfo multisampleInfo;
-        VkPipelineColorBlendAttachmentState colorBlendAttachment;
-        VkPipelineColorBlendStateCreateInfo colorBlendInfo;
-        VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
-        std::vector<VkDynamicState>dynamicStateEnables;
-        VkPipelineDynamicStateCreateInfo dynamicStateInfo;
+        //{} em tudo: cada campo nasce zerado, então o defaultPipelineConfigInfo só precisa
+        //preencher o que não é zero
+        VkPipelineViewportStateCreateInfo viewportInfo{};
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
+        VkPipelineRasterizationStateCreateInfo rasterizationInfo{};
+        VkPipelineMultisampleStateCreateInfo multisampleInfo{};
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        VkPipelineColorBlendStateCreateInfo colorBlendInfo{};
+        VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
+        std::vector<VkDynamicState> dynamicStateEnables{};
+        VkPipelineDynamicStateCreateInfo dynamicStateInfo{};
         VkPipelineLayout pipelineLayout = nullptr;
         VkRenderPass renderPass = nullptr;
         uint32_t subpass = 0;
@@ -66,13 +68,11 @@ namespace lve {
                 const PipelineConfigInfo& configInfo
             );
 
-            void createShaderModule(const std::vector<char> &code, VkShaderModule *shaderModule);
+            VkShaderModule createShaderModule(const std::vector<char> &code);
 
             //referência ao device: assim como o pipeline depende da janela existir,
             //aqui o device precisa existir durante toda a vida do pipeline
             LveDevice &lveDevice;
             VkPipeline graphicsPipeline;
-            VkShaderModule vertShaderModule;
-            VkShaderModule fragShaderModule;
     };
 }

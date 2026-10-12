@@ -19,36 +19,21 @@ namespace lve {
     }
 
     LvePipeline::~LvePipeline() {
-        vkDestroyShaderModule(lveDevice.device(), fragShaderModule, nullptr);
-        vkDestroyShaderModule(lveDevice.device(), vertShaderModule, nullptr);
         vkDestroyPipeline(lveDevice.device(), graphicsPipeline, nullptr);
     }
 
-    //função que lê o arquivo do shader e retorna um vetor de char
     std::vector<char> LvePipeline::readFile(const std::string& filepath) {
-        //abre o arquivo do shader em modo binário
-        //e posiciona o ponteiro no final do arquivo
+        //ios::ate abre já posicionado no fim: o tellg() dá o tamanho do arquivo direto
         std::ifstream file{filepath, std::ios::ate | std::ios::binary};
-
-        //verifica se o arquivo foi aberto com sucesso
         if (!file.is_open()) {
             throw std::runtime_error("failed to open file: " + filepath);
         }
 
-        //obtém o tamanho do arquivo
         size_t fileSize = static_cast<size_t>(file.tellg());
-        //cria um vetor de char com o tamanho do arquivo
         std::vector<char> buffer(fileSize);
-
-        //posiciona o ponteiro no início do arquivo
         file.seekg(0);
-        //lê o conteúdo do arquivo e armazena no vetor
         file.read(buffer.data(), fileSize);
-
-        //fecha o arquivo
-        file.close();
-        //retorna o vetor com o conteúdo do arquivo
-        return buffer;
+        return buffer;  //o ifstream fecha o arquivo sozinho ao sair da função
     }
 
     void LvePipeline::createGraphicsPipeline(
@@ -56,32 +41,24 @@ namespace lve {
             const std::string& fragFilepath,
             const PipelineConfigInfo& configInfo
         ) {
-        //lê os arquivos dos shaders
         assert(configInfo.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
         assert(configInfo.renderPass != VK_NULL_HANDLE && "Cannot create graphics pipeline: no renderPass provided in configInfo");
-        
-        auto vertShaderCode = readFile(vertFilepath);
-        auto fragShaderCode = readFile(fragFilepath);
 
-        createShaderModule(vertShaderCode, &vertShaderModule);
-        createShaderModule(fragShaderCode, &fragShaderModule);
+        //os shader modules só são necessários DURANTE a criação: depois disso o pipeline já tem
+        //o código compilado dentro dele, então são destruídos no fim desta função
+        VkShaderModule vertShaderModule = createShaderModule(readFile(vertFilepath));
+        VkShaderModule fragShaderModule = createShaderModule(readFile(fragFilepath));
 
-        VkPipelineShaderStageCreateInfo shaderStages[2];
+        VkPipelineShaderStageCreateInfo shaderStages[2]{};
         shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
         shaderStages[0].module = vertShaderModule;
         shaderStages[0].pName = "main";
-        shaderStages[0].pNext = nullptr;
-        shaderStages[0].flags = 0;
-        shaderStages[0].pSpecializationInfo = nullptr;
 
         shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
         shaderStages[1].module = fragShaderModule;
         shaderStages[1].pName = "main";
-        shaderStages[1].pNext = nullptr;
-        shaderStages[1].flags = 0;
-        shaderStages[1].pSpecializationInfo = nullptr;
 
         auto& bindingDescriptions = configInfo.bindingDescriptions;
         auto& attributeDescriptions = configInfo.attributeDescriptions;
@@ -108,27 +85,35 @@ namespace lve {
         pipelineInfo.layout = configInfo.pipelineLayout;
         pipelineInfo.renderPass = configInfo.renderPass;
         pipelineInfo.subpass = configInfo.subpass;
-        
+
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
         pipelineInfo.basePipelineIndex = -1;
 
-        if (vkCreateGraphicsPipelines(lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+        VkResult result = vkCreateGraphicsPipelines(
+            lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline);
+
+        //destruídos antes do throw: se a criação falhar eles não vazam
+        vkDestroyShaderModule(lveDevice.device(), fragShaderModule, nullptr);
+        vkDestroyShaderModule(lveDevice.device(), vertShaderModule, nullptr);
+
+        if (result != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline");
         }
-
     }
 
-    void LvePipeline::createShaderModule(const std::vector<char> &code, VkShaderModule *shaderModule) {
+    VkShaderModule LvePipeline::createShaderModule(const std::vector<char> &code) {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.codeSize = code.size();
-        //vulcan espera o código como um array de uint32_t, não de char
-        //um vector garante o alinhamento de memória necessário pra esse cast funcionar
+        //o Vulkan espera o código como um array de uint32_t, não de char;
+        //a memória do vector já vem alinhada o suficiente pra esse cast funcionar
         createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
 
-        if (vkCreateShaderModule(lveDevice.device(), &createInfo, nullptr, shaderModule) != VK_SUCCESS) {
+        VkShaderModule shaderModule;
+        if (vkCreateShaderModule(lveDevice.device(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
             throw std::runtime_error("failed to create shader module");
         }
+        return shaderModule;
     }
 
     void LvePipeline::bind(VkCommandBuffer commandBuffer) {
@@ -143,9 +128,7 @@ namespace lve {
         //sem viewport/scissor fixos: são definidos dinamicamente a cada frame (dynamic state)
         configInfo.viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         configInfo.viewportInfo.viewportCount = 1;
-        configInfo.viewportInfo.pViewports = nullptr;
         configInfo.viewportInfo.scissorCount = 1;
-        configInfo.viewportInfo.pScissors = nullptr;
 
         configInfo.rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         configInfo.rasterizationInfo.depthClampEnable = VK_FALSE;
@@ -155,9 +138,6 @@ namespace lve {
         configInfo.rasterizationInfo.cullMode = VK_CULL_MODE_NONE;
         configInfo.rasterizationInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
         configInfo.rasterizationInfo.depthBiasEnable = VK_FALSE;
-        configInfo.rasterizationInfo.depthBiasConstantFactor = 0.0f; // Optional
-        configInfo.rasterizationInfo.depthBiasClamp = 0.0f; // Optional
-        configInfo.rasterizationInfo.depthBiasSlopeFactor = 0.0f; // Optional
 
         configInfo.multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         configInfo.multisampleInfo.sampleShadingEnable = VK_FALSE;
@@ -169,40 +149,24 @@ namespace lve {
 
         configInfo.colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         configInfo.colorBlendAttachment.blendEnable = VK_FALSE;
-        configInfo.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-        configInfo.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-        configInfo.colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
-        configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-        configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-        configInfo.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
 
         configInfo.colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         configInfo.colorBlendInfo.logicOpEnable = VK_FALSE;
-        configInfo.colorBlendInfo.logicOp = VK_LOGIC_OP_COPY; // Optional
         configInfo.colorBlendInfo.attachmentCount = 1;
         configInfo.colorBlendInfo.pAttachments = &configInfo.colorBlendAttachment;
-        configInfo.colorBlendInfo.blendConstants[0] = 0.0f;
-        configInfo.colorBlendInfo.blendConstants[1] = 0.0f;
-        configInfo.colorBlendInfo.blendConstants[2] = 0.0f;
-        configInfo.colorBlendInfo.blendConstants[3] = 0.0f;
 
         configInfo.depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
         configInfo.depthStencilInfo.depthTestEnable = VK_TRUE;
         configInfo.depthStencilInfo.depthWriteEnable = VK_TRUE;
         configInfo.depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
         configInfo.depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
-        configInfo.depthStencilInfo.minDepthBounds = 0.0f; // Optional
-        configInfo.depthStencilInfo.maxDepthBounds = 1.0f; // Optional
         configInfo.depthStencilInfo.stencilTestEnable = VK_FALSE;
-        configInfo.depthStencilInfo.front = {}; // Optional
-        configInfo.depthStencilInfo.back = {}; // Optional
 
         //estados definidos a cada frame via comando, em vez de fixados no pipeline
         configInfo.dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
         configInfo.dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         configInfo.dynamicStateInfo.pDynamicStates = configInfo.dynamicStateEnables.data();
         configInfo.dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
-        configInfo.dynamicStateInfo.flags = 0;
 
         configInfo.bindingDescriptions = LveModel::Vertex::getBindingDescriptions();
         configInfo.attributeDescriptions = LveModel::Vertex::getAttributeDescriptions();

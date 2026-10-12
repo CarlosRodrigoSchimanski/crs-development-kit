@@ -19,12 +19,8 @@ namespace lve {
         VkBufferUsageFlags usageFlags,
         VkMemoryPropertyFlags memoryPropertyFlags,
         VkDeviceSize minOffsetAlignment)
-        : lveDevice{device},
-          instanceCount{instanceCount},
-          instanceSize{instanceSize},
-          usageFlags{usageFlags},
-          memoryPropertyFlags{memoryPropertyFlags} {
-        alignmentSize = getAlignment(instanceSize, minOffsetAlignment);
+        : lveDevice{device} {
+        VkDeviceSize alignmentSize = getAlignment(instanceSize, minOffsetAlignment);
         bufferSize = alignmentSize * instanceCount;
         device.createBuffer(bufferSize, usageFlags, memoryPropertyFlags, buffer, memory);
     }

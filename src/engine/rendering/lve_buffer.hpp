@@ -37,11 +37,6 @@ namespace lve {
             VkDeviceMemory memory = VK_NULL_HANDLE;
 
             VkDeviceSize bufferSize;
-            uint32_t instanceCount;
-            VkDeviceSize instanceSize;
-            VkDeviceSize alignmentSize;
-            VkBufferUsageFlags usageFlags;
-            VkMemoryPropertyFlags memoryPropertyFlags;
     };
 
 }

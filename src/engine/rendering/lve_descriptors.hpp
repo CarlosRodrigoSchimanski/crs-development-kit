@@ -56,13 +56,11 @@ namespace lve {
                     LveDevice &lveDevice;
                     std::vector<VkDescriptorPoolSize> poolSizes{};
                     uint32_t maxSets = 1000;
-                    VkDescriptorPoolCreateFlags poolFlags = 0;
             };
 
             LveDescriptorPool(
                 LveDevice &lveDevice,
                 uint32_t maxSets,
-                VkDescriptorPoolCreateFlags poolFlags,
                 const std::vector<VkDescriptorPoolSize> &poolSizes);
             ~LveDescriptorPool();
             LveDescriptorPool(const LveDescriptorPool &) = delete;
@@ -89,6 +87,9 @@ namespace lve {
             void overwrite(VkDescriptorSet &set);
 
         private:
+            //parte comum de writeImage/writeBuffer: valida o binding e monta o VkWriteDescriptorSet
+            VkWriteDescriptorSet makeWrite(uint32_t binding) const;
+
             LveDescriptorSetLayout &setLayout;
             LveDescriptorPool &pool;
             std::vector<VkWriteDescriptorSet> writes;
