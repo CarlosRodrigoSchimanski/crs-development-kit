@@ -52,15 +52,14 @@ namespace lve {
         if (size == VK_WHOLE_SIZE) {
             memcpy(mapped, data, bufferSize);
         } else {
-            char *memOffset = (char *)mapped;
-            memOffset += offset;
-            memcpy(memOffset, data, size);
+            //char* pra poder somar o offset em bytes (aritmética com void* não existe em C++)
+            memcpy(static_cast<char *>(mapped) + offset, data, size);
         }
     }
 
     //só necessário pra memória não-coerente: avisa a GPU que a CPU escreveu nesse intervalo
-    VkResult LveBuffer::flush(VkDeviceSize size, VkDeviceSize offset) {
-        VkMappedMemoryRange mappedRange = {};
+    VkResult LveBuffer::flush(VkDeviceSize size, VkDeviceSize offset) const {
+        VkMappedMemoryRange mappedRange{};
         mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
         mappedRange.memory = memory;
         mappedRange.offset = offset;
@@ -68,7 +67,7 @@ namespace lve {
         return vkFlushMappedMemoryRanges(lveDevice.device(), 1, &mappedRange);
     }
 
-    VkDescriptorBufferInfo LveBuffer::descriptorInfo(VkDeviceSize size, VkDeviceSize offset) {
+    VkDescriptorBufferInfo LveBuffer::descriptorInfo(VkDeviceSize size, VkDeviceSize offset) const {
         return VkDescriptorBufferInfo{
             buffer,
             offset,

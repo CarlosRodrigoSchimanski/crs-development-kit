@@ -66,8 +66,7 @@ namespace lve {
             LveDescriptorPool(const LveDescriptorPool &) = delete;
             LveDescriptorPool &operator=(const LveDescriptorPool &) = delete;
 
-            bool allocateDescriptor(
-                const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const;
+            bool allocateDescriptor(VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const;
 
         private:
             LveDevice &lveDevice;
@@ -84,7 +83,7 @@ namespace lve {
             LveDescriptorWriter &writeBuffer(uint32_t binding, VkDescriptorBufferInfo *bufferInfo);
 
             bool build(VkDescriptorSet &set);
-            void overwrite(VkDescriptorSet &set);
+            void overwrite(VkDescriptorSet set);
 
         private:
             //parte comum de writeImage/writeBuffer: valida o binding e monta o VkWriteDescriptorSet

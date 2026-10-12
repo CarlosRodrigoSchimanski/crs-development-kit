@@ -32,9 +32,9 @@ namespace lve {
 
     LveDescriptorSetLayout::LveDescriptorSetLayout(
         LveDevice &lveDevice, std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings)
-        : lveDevice{lveDevice}, bindings{bindings} {
+        : lveDevice{lveDevice}, bindings{std::move(bindings)} {
         std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{};
-        for (const auto &kv : bindings) {
+        for (const auto &kv : this->bindings) {
             setLayoutBindings.push_back(kv.second);
         }
 
@@ -101,7 +101,7 @@ namespace lve {
     }
 
     bool LveDescriptorPool::allocateDescriptor(
-        const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const {
+        VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const {
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = descriptorPool;
@@ -110,10 +110,7 @@ namespace lve {
 
         //poderia criar uma classe "DescriptorPoolManager" pra esse caso, que cria um novo pool
         //quando um pool antigo enche, mas isso está fora do escopo atual
-        if (vkAllocateDescriptorSets(lveDevice.device(), &allocInfo, &descriptor) != VK_SUCCESS) {
-            return false;
-        }
-        return true;
+        return vkAllocateDescriptorSets(lveDevice.device(), &allocInfo, &descriptor) == VK_SUCCESS;
     }
 
     // *************** Descriptor Writer *********************
@@ -164,7 +161,7 @@ namespace lve {
         return true;
     }
 
-    void LveDescriptorWriter::overwrite(VkDescriptorSet &set) {
+    void LveDescriptorWriter::overwrite(VkDescriptorSet set) {
         for (auto &write : writes) {
             write.dstSet = set;
         }
