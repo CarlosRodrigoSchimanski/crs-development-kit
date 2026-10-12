@@ -116,28 +116,29 @@ find_package(Vulkan REQUIRED)
 #nome do executável e arquivo principal
 add_executable(G_E_Youtube
     src/main.cpp
-    src/lve_window.cpp
-    src/lve_device.cpp
-    src/first_app.cpp
-    src/lve_pipeline.cpp
-    src/lve_swap_chain.cpp
-    src/lve_model.cpp
-    src/lve_renderer.cpp
-    src/lve_game_object.cpp
-    src/systems/simple_render_system.cpp
-    src/systems/point_light_system.cpp
-    src/systems/shadow_render_system.cpp
-    src/lve_camera.cpp
-    src/lve_buffer.cpp
-    src/lve_descriptors.cpp
-    src/orbit_camera_controller.cpp
-    src/lve_imgui.cpp
-    src/lve_texture.cpp
-    src/lve_shadow_map.cpp
+    src/engine/core/lve_window.cpp
+    src/engine/core/lve_device.cpp
+    src/app/first_app.cpp
+    src/engine/rendering/lve_pipeline.cpp
+    src/engine/rendering/lve_swap_chain.cpp
+    src/engine/rendering/lve_model.cpp
+    src/engine/rendering/lve_renderer.cpp
+    src/engine/scene/lve_game_object.cpp
+    src/engine/rendering/systems/simple_render_system.cpp
+    src/engine/rendering/systems/point_light_system.cpp
+    src/engine/rendering/systems/shadow_render_system.cpp
+    src/engine/rendering/lve_camera.cpp
+    src/engine/rendering/lve_buffer.cpp
+    src/engine/rendering/lve_descriptors.cpp
+    src/editor/orbit_camera_controller.cpp
+    src/editor/lve_imgui.cpp
+    src/engine/rendering/lve_texture.cpp
+    src/engine/rendering/lve_shadow_map.cpp
     ${IMGUI_SOURCES}
 )
 
-#permite que arquivos em subpastas (ex: src/systems/) incluam headers de src/ pelo nome, sem caminho relativo
+#todo #include do projeto é escrito a partir de src/ (ex: "engine/rendering/lve_model.hpp"),
+#assim o include já diz de qual subsistema o arquivo vem. Regra: engine/ nunca inclui editor/, game/ ou app/
 target_include_directories(G_E_Youtube PRIVATE src ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
 
 #linkando as bibliotecas

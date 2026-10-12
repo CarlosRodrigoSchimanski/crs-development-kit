@@ -4,7 +4,7 @@
 #include <timeapi.h>
 #endif
 
-#include "first_app.hpp"
+#include "app/first_app.hpp"
 #include <stdexcept>
 #include <cstdlib>
 #include <iostream>
