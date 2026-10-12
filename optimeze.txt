@@ -9,6 +9,21 @@ código (Fase 1 e 2), depois a varredura de segurança/correção como último f
 dar o projeto por otimizado (Fase 3), e só então as configurações finais de build (Fase 4).
 
 ===============================================================================
+>>> PONTO DE PARADA (2026-10-12) — git tag: revisao-parada-1 <<<
+===============================================================================
+Fase 0 concluída. Fase 1 (passada geral de simplificação) em andamento, um
+subsistema por vez; em cada um: levantar achados (A simplificação / B correção /
+C cosmético / D fica pra outra fase), usuário aprova, um commit por grupo.
+  ✅ engine/core (window, device, utils)
+  ✅ engine/rendering: swap chain + renderer (inclui o fix do semáforo, item 15/M4)
+  ✅ engine/rendering: pipeline + buffer + descriptors
+  >> PRÓXIMO: engine/rendering: model + texture + shadow_map + camera
+     (boa parte escrita pelo Claude em 2026-10-12 — revisar com o mesmo rigor)
+  -- engine/rendering/systems (simple_render, point_light, shadow_render)
+  -- engine/scene, editor, app
+Depois da Fase 1: Fase 2, 2B (modernização), 3 — ver roadmap item 2.2.
+
+===============================================================================
 FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
 ===============================================================================
 
