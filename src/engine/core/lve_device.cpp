@@ -44,20 +44,20 @@ namespace lve {
         }
     }
 
-    bool QueueFamilyIndices::isComplete() {
+    bool QueueFamilyIndices::isComplete() const {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
 
-    VkInstance LveDevice::instance() { return instance_; }
-    VkPhysicalDevice LveDevice::physicalDevice() { return physicalDevice_; }
-    VkDevice LveDevice::device() { return device_; }
-    VkSurfaceKHR LveDevice::surface() { return surface_; }
-    VkQueue LveDevice::graphicsQueue() { return graphicsQueue_; }
-    VkQueue LveDevice::presentQueue() { return presentQueue_; }
-    VkCommandPool LveDevice::getCommandPool() { return commandPool; }
+    VkInstance LveDevice::instance() const { return instance_; }
+    VkPhysicalDevice LveDevice::physicalDevice() const { return physicalDevice_; }
+    VkDevice LveDevice::device() const { return device_; }
+    VkSurfaceKHR LveDevice::surface() const { return surface_; }
+    VkQueue LveDevice::graphicsQueue() const { return graphicsQueue_; }
+    VkQueue LveDevice::presentQueue() const { return presentQueue_; }
+    VkCommandPool LveDevice::getCommandPool() const { return commandPool; }
 
-    SwapChainSupportDetails LveDevice::getSwapChainSupport() { return querySwapChainSupport(physicalDevice_); }
-    QueueFamilyIndices LveDevice::findPhysicalQueueFamilies() { return findQueueFamilies(physicalDevice_); }
+    SwapChainSupportDetails LveDevice::getSwapChainSupport() const { return querySwapChainSupport(physicalDevice_); }
+    QueueFamilyIndices LveDevice::findPhysicalQueueFamilies() const { return findQueueFamilies(physicalDevice_); }
 
     LveDevice::LveDevice(LveWindow &window) : window{window} {
         createInstance();
@@ -248,7 +248,7 @@ namespace lve {
         return score;
     }
 
-    QueueFamilyIndices LveDevice::findQueueFamilies(VkPhysicalDevice device) {
+    QueueFamilyIndices LveDevice::findQueueFamilies(VkPhysicalDevice device) const {
         QueueFamilyIndices indices;
 
         uint32_t queueFamilyCount = 0;
@@ -295,7 +295,7 @@ namespace lve {
         return requiredExtensions.empty();
     }
 
-    SwapChainSupportDetails LveDevice::querySwapChainSupport(VkPhysicalDevice device) {
+    SwapChainSupportDetails LveDevice::querySwapChainSupport(VkPhysicalDevice device) const {
         SwapChainSupportDetails details;
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface_, &details.capabilities);
 
@@ -368,7 +368,7 @@ namespace lve {
     }
 
     VkFormat LveDevice::findSupportedFormat(
-        const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+        const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const {
         for (VkFormat format : candidates) {
             VkFormatProperties props;
             vkGetPhysicalDeviceFormatProperties(physicalDevice_, format, &props);
@@ -382,7 +382,7 @@ namespace lve {
         throw std::runtime_error("failed to find supported format!");
     }
 
-    uint32_t LveDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    uint32_t LveDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice_, &memProperties);
 

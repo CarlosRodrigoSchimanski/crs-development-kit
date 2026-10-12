@@ -8,7 +8,7 @@
 
 namespace lve {
 
-    // Detalhes que o swap chain (próximo passo) vai precisar consultar
+    // O que a surface suporta (formatos, modos de apresentação, tamanhos): o swap chain consulta pra se configurar
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities;
         std::vector<VkSurfaceFormatKHR> formats;
@@ -20,7 +20,7 @@ namespace lve {
         std::optional<uint32_t> graphicsFamily;
         std::optional<uint32_t> presentFamily;
 
-        bool isComplete();
+        bool isComplete() const;
     };
 
     // Classe responsável por: instance, validation layers, physical device e logical device
@@ -33,36 +33,34 @@ namespace lve {
             static constexpr bool enableValidationLayers = true;
 #endif
 
-            //agora recebe a janela, pois precisa dela pra criar a surface
+            //recebe a janela pra criar a surface
             LveDevice(LveWindow &window);
             ~LveDevice();
 
-            // Regra dos 3: uma LveDevice possui recursos únicos do Vulkan, cópia não é permitida
+            //não copiável: é dono de recursos únicos do Vulkan (instance, device...).
+            //apagar a cópia já impede o move também (o compilador não gera move sozinho nesse caso)
             LveDevice(const LveDevice &) = delete;
             LveDevice &operator=(const LveDevice &) = delete;
-
-            LveDevice(LveDevice &&) = delete;
-            LveDevice &operator=(LveDevice &&)= delete;
 
             //propriedades/limites da GPU escolhida (ex: alinhamento mínimo pra uniform buffer)
             VkPhysicalDeviceProperties properties;
 
-            VkInstance instance();
-            VkPhysicalDevice physicalDevice();
-            VkDevice device();
-            VkSurfaceKHR surface();
-            VkQueue graphicsQueue();
-            VkQueue presentQueue();
-            VkCommandPool getCommandPool();
+            VkInstance instance() const;
+            VkPhysicalDevice physicalDevice() const;
+            VkDevice device() const;
+            VkSurfaceKHR surface() const;
+            VkQueue graphicsQueue() const;
+            VkQueue presentQueue() const;
+            VkCommandPool getCommandPool() const;
 
-            SwapChainSupportDetails getSwapChainSupport();
-            QueueFamilyIndices findPhysicalQueueFamilies();
+            SwapChainSupportDetails getSwapChainSupport() const;
+            QueueFamilyIndices findPhysicalQueueFamilies() const;
 
             //acha, entre os formatos candidatos, o primeiro que a GPU realmente suporta pro uso pedido
             VkFormat findSupportedFormat(
-                const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+                const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const;
             //acha o tipo de memória da GPU compatível com o que está sendo pedido
-            uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+            uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
             //cria uma VkImage já com a memória alocada e vinculada
             void createImageWithInfo(
                 const VkImageCreateInfo &imageInfo,
@@ -90,7 +88,7 @@ namespace lve {
             void pickPhysicalDevice();
             //cria o VkDevice (logical device) e pega as filas gráfica e de apresentação
             void createLogicalDevice();
-            //cria o command pool, usado mais pra frente pra alocar command buffers
+            //cria o command pool de onde saem os command buffers
             void createCommandPool();
 
             //funções auxiliares
@@ -99,10 +97,10 @@ namespace lve {
             void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
             //dá uma nota pra GPU: quanto maior, melhor; 0 = inutilizável
             int rateDeviceSuitability(VkPhysicalDevice device);
-            QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+            QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
             //confere se a GPU suporta as extensões que exigimos (ex: swap chain)
             bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-            SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+            SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
 
             VkInstance instance_;
             VkDebugUtilsMessengerEXT debugMessenger_;

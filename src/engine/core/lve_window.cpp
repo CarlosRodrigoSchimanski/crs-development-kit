@@ -27,11 +27,11 @@ namespace lve {
         glfwTerminate();
     }
 
-    bool LveWindow::shouldClose() {
+    bool LveWindow::shouldClose() const {
         return glfwWindowShouldClose(window);
     }
 
-    bool LveWindow::wasWindowResized(){
+    bool LveWindow::wasWindowResized() const {
         return framebufferResized;
     }
 
@@ -49,7 +49,7 @@ namespace lve {
         return delta;
     }
 
-    VkExtent2D LveWindow::getExtent() {
+    VkExtent2D LveWindow::getExtent() const {
         return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
     }
 

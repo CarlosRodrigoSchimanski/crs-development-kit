@@ -13,16 +13,17 @@ namespace lve {
             LveWindow(int w, int h, std::string name);
             ~LveWindow();
 
-            //codigo para evitar duplicação de ponteiros
+            //não copiável: a cópia teria o mesmo GLFWwindow* e as duas destruiriam a mesma janela.
+            //apagar a cópia já impede o move também (o compilador não gera move sozinho nesse caso)
             LveWindow(const LveWindow&) = delete;
             LveWindow& operator=(const LveWindow&) = delete;
 
             // Função para verificar se a janela deve ser fechada
-            bool shouldClose();
+            bool shouldClose() const;
 
-            VkExtent2D getExtent();
+            VkExtent2D getExtent() const;
 
-            bool wasWindowResized();
+            bool wasWindowResized() const;
             void resetWindowResizedFlag();
             GLFWwindow * getGLFWwindow() const;
 
@@ -33,7 +34,7 @@ namespace lve {
             void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
 
         private:
-            static void framebufferResizedCallback(GLFWwindow *window,int width, int heigth);
+            static void framebufferResizedCallback(GLFWwindow *window,int width, int height);
             //GLFW só avisa roda do mouse via callback, não tem como "perguntar" o valor como as teclas
             static void scrollCallback(GLFWwindow *window, double xoffset, double yoffset);
 
