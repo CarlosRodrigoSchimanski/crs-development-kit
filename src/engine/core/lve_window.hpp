@@ -36,8 +36,6 @@ namespace lve {
             static void framebufferResizedCallback(GLFWwindow *window,int width, int heigth);
             //GLFW só avisa roda do mouse via callback, não tem como "perguntar" o valor como as teclas
             static void scrollCallback(GLFWwindow *window, double xoffset, double yoffset);
-            // Função auxiliar
-            void initWindow();
 
             // Variáveis de membro
             int width;

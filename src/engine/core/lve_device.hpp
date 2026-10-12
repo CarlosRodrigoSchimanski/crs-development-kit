@@ -2,6 +2,7 @@
 
 #include "engine/core/lve_window.hpp"
 
+#include <array>
 #include <optional>
 #include <vector>
 
@@ -25,10 +26,11 @@ namespace lve {
     // Classe responsável por: instance, validation layers, physical device e logical device
     class LveDevice {
         public:
+            //static constexpr: é configuração do programa, não dado de cada LveDevice
 #ifdef NDEBUG
-            const bool enableValidationLayers = false;
+            static constexpr bool enableValidationLayers = false;
 #else
-            const bool enableValidationLayers = true;
+            static constexpr bool enableValidationLayers = true;
 #endif
 
             //agora recebe a janela, pois precisa dela pra criar a surface
@@ -95,7 +97,6 @@ namespace lve {
             bool checkValidationLayerSupport();
             std::vector<const char *> getRequiredExtensions();
             void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
-            void hasGflwRequiredInstanceExtensions();
             //dá uma nota pra GPU: quanto maior, melhor; 0 = inutilizável
             int rateDeviceSuitability(VkPhysicalDevice device);
             QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
@@ -114,8 +115,8 @@ namespace lve {
             VkQueue graphicsQueue_;
             VkQueue presentQueue_;
 
-            const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+            static constexpr std::array<const char *, 1> validationLayers = {"VK_LAYER_KHRONOS_validation"};
             //extensão obrigatória pra poder usar swap chain
-            const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+            static constexpr std::array<const char *, 1> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     };
 }

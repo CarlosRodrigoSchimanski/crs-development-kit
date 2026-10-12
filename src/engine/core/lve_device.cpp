@@ -4,7 +4,6 @@
 #include <iostream>
 #include <set>
 #include <stdexcept>
-#include <unordered_set>
 
 namespace lve {
 
@@ -117,8 +116,6 @@ namespace lve {
         if (vkCreateInstance(&createInfo, nullptr, &instance_) != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance!");
         }
-
-        hasGflwRequiredInstanceExtensions();
     }
 
     void LveDevice::setupDebugMessenger() {
@@ -490,24 +487,5 @@ namespace lve {
         vkQueueWaitIdle(graphicsQueue_);
 
         vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
-    }
-
-    void LveDevice::hasGflwRequiredInstanceExtensions() {
-        uint32_t extensionCount = 0;
-        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-        std::vector<VkExtensionProperties> extensions(extensionCount);
-        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-
-        std::unordered_set<std::string> available;
-        for (const auto &extension : extensions) {
-            available.insert(extension.extensionName);
-        }
-
-        auto requiredExtensions = getRequiredExtensions();
-        for (const auto &required : requiredExtensions) {
-            if (available.find(required) == available.end()) {
-                throw std::runtime_error("extensão obrigatória do GLFW não encontrada");
-            }
-        }
     }
 }
