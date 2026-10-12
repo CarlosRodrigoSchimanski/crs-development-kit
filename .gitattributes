@@ -1,0 +1,13 @@
+# repositório guarda texto em LF; cada sistema recebe o final de linha nativo no checkout
+# (CRLF no Windows, LF no Linux/macOS) — histórico neutro, arquivos "normais" em qualquer máquina
+* text=auto
+
+# scripts de shell quebram com CRLF no Linux: sempre LF
+*.sh text eol=lf
+
+# binários: o git nunca converte nem tenta mostrar diff
+*.png binary
+*.jpg binary
+*.glb binary
+*.spv binary
+*.exe binary
