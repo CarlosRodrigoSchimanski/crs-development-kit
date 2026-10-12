@@ -12,7 +12,11 @@ dar o projeto por otimizado (Fase 3), e só então as configurações finais de 
 FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
 ===============================================================================
 
-1. Separar em pastas por responsabilidade, em vez de tudo solto na raiz
+1. ✅ Separar em pastas por responsabilidade (concluído 2026-10-12): src/{app, editor,
+   engine/{core, rendering/systems, scene}}; includes escritos a partir de src/; regra:
+   engine/ nunca inclui editor/, game/ ou app/. Junto: projeto entrou no git, com
+   .gitattributes (repo em LF, checkout nativo) — assets grandes fora até ter Git LFS.
+   (texto original do item abaixo, mantido pra referência)
    - Hoje todo arquivo (lve_device.cpp, lve_model.cpp, first_app.cpp, etc.) fica solto
      na raiz do projeto, seguindo o estilo do tutorial (feito assim por simplicidade
      pedagógica, já que é um projeto pequeno de aprendizado — não é convenção do C++
