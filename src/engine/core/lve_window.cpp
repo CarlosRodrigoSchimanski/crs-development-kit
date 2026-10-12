@@ -4,12 +4,19 @@
 
 namespace lve {
     LveWindow::LveWindow(int w, int h, std::string name) : width{w}, height{h}, windowName{name} {
-        glfwInit();
+        if (!glfwInit()) {
+            throw std::runtime_error("failed to initialize GLFW!");
+        }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
         window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
+        if (window == nullptr) {
+            //o destrutor não roda se o construtor lança exceção: desfaz o glfwInit aqui mesmo
+            glfwTerminate();
+            throw std::runtime_error("failed to create GLFW window!");
+        }
         glfwSetWindowUserPointer(window,this);
         glfwSetFramebufferSizeCallback(window,framebufferResizedCallback);
         glfwSetScrollCallback(window, scrollCallback);
@@ -53,14 +60,15 @@ namespace lve {
     }
 
     void LveWindow::framebufferResizedCallback(GLFWwindow *window,int width, int height){
-        auto lveWindow = reinterpret_cast<LveWindow*>(glfwGetWindowUserPointer(window));
+        //o user pointer é o próprio LveWindow guardado como void* no construtor; static_cast desfaz isso
+        auto lveWindow = static_cast<LveWindow*>(glfwGetWindowUserPointer(window));
         lveWindow->framebufferResized = true;
         lveWindow->width = width;
         lveWindow->height = height;
     }
 
     void LveWindow::scrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
-        auto lveWindow = reinterpret_cast<LveWindow*>(glfwGetWindowUserPointer(window));
+        auto lveWindow = static_cast<LveWindow*>(glfwGetWindowUserPointer(window));
         lveWindow->scrollDeltaY += static_cast<float>(yoffset);
     }
 }
