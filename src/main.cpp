@@ -17,20 +17,20 @@ int main() {
     timeBeginPeriod(1);
 #endif
 
-    lve::FirstApp app;
-
+    int result = EXIT_SUCCESS;
     try {
+        //criar o app também fica dentro do try: o construtor carrega modelos, cria o device etc.
+        //e pode lançar exceção tanto quanto o run()
+        lve::FirstApp app;
         app.run();
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
-#ifdef _WIN32
-        timeEndPeriod(1);
-#endif
-        return EXIT_FAILURE;
+        result = EXIT_FAILURE;
     }
 
+    //um único caminho de saída: o timeEndPeriod roda dando certo ou dando erro
 #ifdef _WIN32
     timeEndPeriod(1);
 #endif
-    return EXIT_SUCCESS;
+    return result;
 }
