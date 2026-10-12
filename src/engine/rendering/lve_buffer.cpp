@@ -46,7 +46,7 @@ namespace lve {
     }
 
     //copia os dados pro buffer já mapeado; por padrão copia o buffer inteiro
-    void LveBuffer::writeToBuffer(void *data, VkDeviceSize size, VkDeviceSize offset) {
+    void LveBuffer::writeToBuffer(const void *data, VkDeviceSize size, VkDeviceSize offset) {
         assert(mapped && "Cannot copy to unmapped buffer");
 
         if (size == VK_WHOLE_SIZE) {

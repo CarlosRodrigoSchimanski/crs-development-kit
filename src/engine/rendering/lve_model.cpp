@@ -66,7 +66,7 @@ namespace lve {
         };
 
         stagingBuffer.map();
-        stagingBuffer.writeToBuffer((void*)vertices.data());
+        stagingBuffer.writeToBuffer(vertices.data());
 
         vertexBuffer = std::make_unique<LveBuffer>(
             lveDevice,
@@ -100,7 +100,7 @@ namespace lve {
         };
 
         stagingBuffer.map();
-        stagingBuffer.writeToBuffer((void*)indices.data());
+        stagingBuffer.writeToBuffer(indices.data());
 
         indexBuffer = std::make_unique<LveBuffer>(
             lveDevice,
