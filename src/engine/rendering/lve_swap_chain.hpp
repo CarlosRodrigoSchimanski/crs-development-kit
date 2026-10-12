@@ -3,7 +3,6 @@
 #include "engine/core/lve_device.hpp"
 #include <vulkan/vulkan.h>
 
-#include <memory>
 #include <vector>
 
 
@@ -18,8 +17,9 @@ namespace lve {
             static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
             //"previous" é o swap chain antigo, quando esse novo está substituindo ele
-            //(janela redimensionada); nullptr quando é a primeira criação
-            LveSwapChain(LveDevice &deviceRef, VkExtent2D windowExtent, std::shared_ptr<LveSwapChain> previous = nullptr);
+            //(janela redimensionada); nullptr quando é a primeira criação. Só é usado durante
+            //a construção, quem chama continua sendo o dono dele
+            LveSwapChain(LveDevice &deviceRef, VkExtent2D windowExtent, const LveSwapChain *previous = nullptr);
             ~LveSwapChain();
 
             LveSwapChain(const LveSwapChain &) = delete;
@@ -41,10 +41,10 @@ namespace lve {
             //pega o índice da próxima imagem disponível pra desenhar
             VkResult acquireNextImage(uint32_t *imageIndex);
             //envia os comandos gravados pra GPU e apresenta o resultado na tela
-            VkResult submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex);
+            VkResult submitCommandBuffers(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
         private:
-            void createSwapChain();
+            void createSwapChain(VkSwapchainKHR oldSwapchain);
             void createImageViews();
             void createDepthResources();
             void createRenderPass();
@@ -75,9 +75,6 @@ namespace lve {
             VkExtent2D windowExtent;
 
             VkSwapchainKHR swapChain;
-            //swap chain que este está substituindo (se houver); usado em oldSwapchain
-            //na criação, e descartado depois que a criação termina
-            std::shared_ptr<LveSwapChain> oldSwapChain;
 
             //objetos de sincronização entre CPU e GPU (explicados quando forem usados)
             std::vector<VkSemaphore> imageAvailableSemaphores;

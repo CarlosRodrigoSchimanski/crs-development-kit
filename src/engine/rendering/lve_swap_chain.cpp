@@ -8,29 +8,22 @@
 
 namespace lve {
 
-    LveSwapChain::LveSwapChain(LveDevice &deviceRef, VkExtent2D extent, std::shared_ptr<LveSwapChain> previous)
-        : device{deviceRef}, windowExtent{extent}, oldSwapChain{std::move(previous)} {
-        createSwapChain();
+    LveSwapChain::LveSwapChain(LveDevice &deviceRef, VkExtent2D extent, const LveSwapChain *previous)
+        : device{deviceRef}, windowExtent{extent} {
+        createSwapChain(previous == nullptr ? VK_NULL_HANDLE : previous->swapChain);
         createImageViews();
         createRenderPass();
         createDepthResources();
         createFramebuffers();
         createSyncObjects();
-
-        //já usamos o antigo (se houver) pra criar o novo; não precisa mais dele
-        oldSwapChain = nullptr;
     }
 
     LveSwapChain::~LveSwapChain() {
         for (auto imageView : swapChainImageViews) {
             vkDestroyImageView(device.device(), imageView, nullptr);
         }
-        swapChainImageViews.clear();
 
-        if (swapChain != nullptr) {
-            vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
-            swapChain = nullptr;
-        }
+        vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
 
         for (size_t i = 0; i < depthImages.size(); i++) {
             vkDestroyImageView(device.device(), depthImageViews[i], nullptr);
@@ -87,11 +80,11 @@ namespace lve {
         return result;
     }
 
-    VkResult LveSwapChain::submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex) {
-        if (imagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
-            vkWaitForFences(device.device(), 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
+    VkResult LveSwapChain::submitCommandBuffers(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+        if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
+            vkWaitForFences(device.device(), 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
         }
-        imagesInFlight[*imageIndex] = inFlightFences[currentFrame];
+        imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -103,7 +96,7 @@ namespace lve {
         submitInfo.pWaitDstStageMask = waitStages;
 
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = buffers;
+        submitInfo.pCommandBuffers = &commandBuffer;
 
         VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
         submitInfo.signalSemaphoreCount = 1;
@@ -123,7 +116,7 @@ namespace lve {
         VkSwapchainKHR swapChains[] = {swapChain};
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
-        presentInfo.pImageIndices = imageIndex;
+        presentInfo.pImageIndices = &imageIndex;
 
         auto result = vkQueuePresentKHR(device.presentQueue(), &presentInfo);
 
@@ -134,7 +127,7 @@ namespace lve {
 
     
 
-    void LveSwapChain::createSwapChain() {
+    void LveSwapChain::createSwapChain(VkSwapchainKHR oldSwapchain) {
         SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
 
         VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -180,7 +173,7 @@ namespace lve {
         createInfo.clipped = VK_TRUE;
         //se existe um swap chain anterior (redimensionamento), informa ele aqui;
         //senão, VK_NULL_HANDLE (primeira criação)
-        createInfo.oldSwapchain = oldSwapChain == nullptr ? VK_NULL_HANDLE : oldSwapChain->swapChain;
+        createInfo.oldSwapchain = oldSwapchain;
 
         if (vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
             throw std::runtime_error("failed to create swap chain!");

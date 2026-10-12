@@ -12,7 +12,14 @@ namespace lve {
         createCommandBuffers();
     }
 
-    LveRenderer::~LveRenderer() { freeCommandBuffers();}
+    LveRenderer::~LveRenderer() {
+        //devolve os command buffers pro command pool (que é do device e continua existindo)
+        vkFreeCommandBuffers(
+            lveDevice.device(),
+            lveDevice.getCommandPool(),
+            static_cast<uint32_t>(commandBuffers.size()),
+            commandBuffers.data());
+    }
 
     VkRenderPass LveRenderer::getSwapChainRenderPass() const { return lveSwapChain->getRenderPass(); }
 
@@ -27,20 +34,18 @@ namespace lve {
 
 
     void LveRenderer::recreateSwapChain() {
+        lveWindow.waitWhileMinimized();
         auto extent = lveWindow.getExtent();
-        while (extent.width==0 || extent.height==0){
-            extent = lveWindow.getExtent();
-            glfwWaitEvents();
-        }
         vkDeviceWaitIdle(lveDevice.device());
 
         if (lveSwapChain == nullptr) {
             lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent);
         } else {
-            std::shared_ptr<LveSwapChain> oldSwapChain = std::move(lveSwapChain);
-            lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent, oldSwapChain);
+            //o antigo continua vivo até o fim deste bloco: o novo usa ele durante a criação
+            std::unique_ptr<LveSwapChain> oldSwapChain = std::move(lveSwapChain);
+            lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent, oldSwapChain.get());
 
-            if (!oldSwapChain->compareSwapFormats(*lveSwapChain.get())) {
+            if (!oldSwapChain->compareSwapFormats(*lveSwapChain)) {
                 throw std::runtime_error("swap chain image (or depth) format has changed!");
             }
         }
@@ -62,15 +67,6 @@ namespace lve {
             throw std::runtime_error("failed to allocate command buffers!");
         }
     };
-
-    void LveRenderer::freeCommandBuffers() {
-        vkFreeCommandBuffers(
-            lveDevice.device(),
-            lveDevice.getCommandPool(),
-            static_cast<uint32_t>(commandBuffers.size()),
-            commandBuffers.data());
-        commandBuffers.clear();
-    }
 
     VkCommandBuffer LveRenderer::beginFrame() {
         assert(!isFrameStarted && "Can't call beginFrame while alredy in progress");
@@ -108,7 +104,7 @@ namespace lve {
             throw std::runtime_error("failed to record command buffer!");
         }
 
-        auto result = lveSwapChain->submitCommandBuffers(&commandBuffer, &currentImageIndex);
+        auto result = lveSwapChain->submitCommandBuffers(commandBuffer, currentImageIndex);
         if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || lveWindow.wasWindowResized()) {
             lveWindow.resetWindowResizedFlag();
             recreateSwapChain();

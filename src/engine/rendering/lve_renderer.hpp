@@ -37,8 +37,6 @@ namespace lve {
         private:
             //função createCommandBuffers() que será responsável por criar os command buffers
             void createCommandBuffers();
-            //libera os command buffers já alocados de volta pro command pool
-            void freeCommandBuffers();
             //função 
             void recreateSwapChain();
 

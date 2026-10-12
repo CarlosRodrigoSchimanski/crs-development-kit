@@ -35,6 +35,13 @@ namespace lve {
         return framebufferResized;
     }
 
+    void LveWindow::waitWhileMinimized() {
+        //glfwWaitEvents dorme até chegar um evento; o framebufferResizedCallback atualiza width/height
+        while (width == 0 || height == 0) {
+            glfwWaitEvents();
+        }
+    }
+
     void LveWindow::resetWindowResizedFlag(){
         framebufferResized = false;
     }

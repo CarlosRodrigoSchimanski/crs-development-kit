@@ -24,6 +24,8 @@ namespace lve {
             VkExtent2D getExtent() const;
 
             bool wasWindowResized() const;
+            //bloqueia enquanto a janela estiver minimizada (tamanho 0): não existe swap chain de tamanho 0
+            void waitWhileMinimized();
             void resetWindowResizedFlag();
             GLFWwindow * getGLFWwindow() const;
 
