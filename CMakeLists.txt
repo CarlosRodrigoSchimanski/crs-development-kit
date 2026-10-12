@@ -143,6 +143,12 @@ target_include_directories(G_E_Youtube PRIVATE src ${imgui_SOURCE_DIR} ${imgui_S
 
 #linkando as bibliotecas
 target_link_libraries(G_E_Youtube PRIVATE glfw Vulkan::Vulkan glm::glm tinyobjloader)
+
+#configuração do glm definida UMA vez pro projeto inteiro (antes estava repetida em 7 arquivos):
+#profundidade 0..1 como o Vulkan espera (o padrão do glm é -1..1, do OpenGL). Vale pra todo
+#arquivo, então a ordem dos #include deixa de importar.
+#(GLM_FORCE_RADIANS foi removido: o glm usa radianos sempre desde a 0.9.6, a macro não faz nada)
+target_compile_definitions(G_E_Youtube PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 #winmm: só existe/é necessária no Windows (timeBeginPeriod, usado pelo limitador de FPS)
 if(WIN32)
     target_link_libraries(G_E_Youtube PRIVATE winmm)

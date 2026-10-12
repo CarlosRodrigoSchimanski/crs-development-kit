@@ -7,7 +7,9 @@
 
 
 namespace lve {
-    #define MAX_LIGHTS 10
+    //constexpr em vez de #define: respeita o namespace (lve::MAX_LIGHTS), tem tipo e aparece no debugger
+    //tem que bater com o tamanho do array pointLight[] nos shaders
+    constexpr int MAX_LIGHTS = 10;
 
     struct PointLight {
         glm::vec4 position{};
