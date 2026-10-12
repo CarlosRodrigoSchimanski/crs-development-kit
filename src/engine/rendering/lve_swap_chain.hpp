@@ -76,7 +76,9 @@ namespace lve {
 
             VkSwapchainKHR swapChain;
 
-            //objetos de sincronização entre CPU e GPU (explicados quando forem usados)
+            //sincronização: imageAvailable é por frame em voo (usado ANTES de saber qual imagem vem);
+            //renderFinished é por IMAGEM da swap chain, porque a apresentação da imagem segura o
+            //semáforo até aquela mesma imagem ser adquirida de novo
             std::vector<VkSemaphore> imageAvailableSemaphores;
             std::vector<VkSemaphore> renderFinishedSemaphores;
             std::vector<VkFence> inFlightFences;

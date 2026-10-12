@@ -37,11 +37,12 @@ namespace lve {
 
         vkDestroyRenderPass(device.device(), renderPass, nullptr);
 
-        //sincronização entre CPU e GPU: um jogo de semáforos/fences por frame "em voo"
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            vkDestroySemaphore(device.device(), renderFinishedSemaphores[i], nullptr);
             vkDestroySemaphore(device.device(), imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device.device(), inFlightFences[i], nullptr);
+        }
+        for (auto semaphore : renderFinishedSemaphores) {
+            vkDestroySemaphore(device.device(), semaphore, nullptr);
         }
     }
 
@@ -98,7 +99,8 @@ namespace lve {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &commandBuffer;
 
-        VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+        //indexado pela imagem, não pelo frame: ver comentário no header
+        VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[imageIndex]};
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -204,7 +206,7 @@ namespace lve {
             viewInfo.subresourceRange.layerCount = 1;
 
             if (vkCreateImageView(device.device(), &viewInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create texture image view!");
+                throw std::runtime_error("failed to create swap chain image view!");
             }
         }
     }
@@ -330,14 +332,14 @@ namespace lve {
             viewInfo.subresourceRange.layerCount = 1;
 
             if (vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create texture image view!");
+                throw std::runtime_error("failed to create depth image view!");
             }
         }
     }
 
     void LveSwapChain::createSyncObjects() {
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        renderFinishedSemaphores.resize(imageCount());
         inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
         imagesInFlight.resize(imageCount(), VK_NULL_HANDLE);
 
@@ -352,10 +354,13 @@ namespace lve {
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             if (vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) !=
                     VK_SUCCESS ||
-                vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) !=
-                    VK_SUCCESS ||
                 vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
                 throw std::runtime_error("failed to create synchronization objects for a frame!");
+            }
+        }
+        for (auto &semaphore : renderFinishedSemaphores) {
+            if (vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create render finished semaphore!");
             }
         }
     }

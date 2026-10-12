@@ -143,7 +143,7 @@ M3. Synchronization2 (core no 1.3): vkCmdPipelineBarrier2 / vkQueueSubmit2, com
     estágios e acessos declarados juntos (mais legível, menos erro). Junto com M2, as
     barreiras de layout que hoje vivem nas subpass dependencies viram barreiras explícitas.
 
-M4. Semáforo por imagem da swap chain (= item 15 da Fase 3, aviso real no console).
+M4. ✅ (resolvido 2026-10-12 na Fase 1, ver item 15) Semáforo por imagem da swap chain (= item 15 da Fase 3, aviso real no console).
     Resolver junto com M2/M3, já que mexe no mesmo fluxo de frame.
 
 M5. Alocação de memória: hoje cada buffer/imagem faz o próprio vkAllocateMemory
@@ -201,7 +201,8 @@ FASE 3 — Varredura final de segurança/correção (fazer por ÚLTIMO, é o fil
       em vez de seguir o padrão já estabelecido (LveWindow, LveDevice, LvePipeline,
       LveSwapChain).
 
-15. Reuso de semáforo do swap chain (aviso real já visto no console)
+15. ✅ (resolvido 2026-10-12: renderFinishedSemaphores agora é por imagem da swap chain,
+    indexado pelo imageIndex; validation layer sem nenhum aviso) Reuso de semáforo do swap chain (aviso real já visto no console)
     - Aviso da validation layer: "vkQueueSubmit(): pSignalSemaphores[0] ... may still be in
       use by VkSwapchainKHR" — acontece porque imageAvailableSemaphores/renderFinishedSemaphores
       são indexados por currentFrame (0/1, de MAX_FRAMES_IN_FLIGHT) em vez de pelo índice real

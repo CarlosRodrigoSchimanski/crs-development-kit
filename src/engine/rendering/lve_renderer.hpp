@@ -22,12 +22,12 @@ namespace lve {
             LveRenderer& operator=(const LveRenderer&) = delete;
 
             VkRenderPass getSwapChainRenderPass() const;
-            float getAscpectRation() const;
+            float getAspectRatio() const;
             uint32_t getImageCount() const;
 
             VkCommandBuffer getCurrentCommandBuffer() const;
 
-            int getFameIndex() const;
+            int getFrameIndex() const;
 
             VkCommandBuffer beginFrame();
             void endFrame();

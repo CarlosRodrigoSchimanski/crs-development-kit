@@ -23,7 +23,7 @@ namespace lve {
 
     VkRenderPass LveRenderer::getSwapChainRenderPass() const { return lveSwapChain->getRenderPass(); }
 
-    float LveRenderer::getAscpectRation() const {return lveSwapChain->extentAspectRatio();}
+    float LveRenderer::getAspectRatio() const {return lveSwapChain->extentAspectRatio();}
 
     uint32_t LveRenderer::getImageCount() const { return static_cast<uint32_t>(lveSwapChain->imageCount()); }
 
@@ -157,7 +157,7 @@ namespace lve {
         vkCmdEndRenderPass(commandBuffer);
     }
 
-    int LveRenderer::getFameIndex() const {
+    int LveRenderer::getFrameIndex() const {
         assert(isFrameStarted && "Cannot get frame index when frame not in progress");
         return currentFrameIndex;
     }

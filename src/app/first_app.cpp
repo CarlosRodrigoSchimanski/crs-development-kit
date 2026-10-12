@@ -106,12 +106,12 @@ namespace lve {
 
             cameraController.update(lveWindow, camera);
 
-            float aspect = lveRenderer.getAscpectRation();
+            float aspect = lveRenderer.getAspectRatio();
 
             camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
             if (auto commandBuffer = lveRenderer.beginFrame()) {
-                int frameIndex = lveRenderer.getFameIndex();
+                int frameIndex = lveRenderer.getFrameIndex();
 
                 FrameInfo frameInfo{
                     frameIndex, 
