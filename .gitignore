@@ -1,0 +1,14 @@
+# gerado pelo CMake (build e shaders compilados)
+build/
+shaders/*.spv
+
+# sobras de compilação antiga fora do CMake
+main.exe
+main.obj
+
+# estado de janela do ImGui (muda toda vez que roda)
+imgui.ini
+
+# assets grandes (80-177 MB cada): ficam fora até configurar Git LFS
+models/*.glb
+textures/

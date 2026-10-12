@@ -1,0 +1,330 @@
+Lista de otimização/revisão para o fim do projeto
+(cada item aqui é uma CATEGORIA de coisa a procurar no código todo, não um bug específico)
+
+Ordem pensada pra evitar corrigir uma coisa (ex: ponteiros pendurados) e só depois mexer
+em algo estrutural (ex: simplificação, reorganização de dados) que acabe reintroduzindo o
+mesmo tipo de problema. Por isso: primeiro a reorganização puramente mecânica de arquivos
+(Fase 0, não muda comportamento nenhum), depois as mudanças mais invasivas/estruturais de
+código (Fase 1 e 2), depois a varredura de segurança/correção como último filtro antes de
+dar o projeto por otimizado (Fase 3), e só então as configurações finais de build (Fase 4).
+
+===============================================================================
+FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
+===============================================================================
+
+1. Separar em pastas por responsabilidade, em vez de tudo solto na raiz
+   - Hoje todo arquivo (lve_device.cpp, lve_model.cpp, first_app.cpp, etc.) fica solto
+     na raiz do projeto, seguindo o estilo do tutorial (feito assim por simplicidade
+     pedagógica, já que é um projeto pequeno de aprendizado — não é convenção do C++
+     nem limitação da linguagem).
+   - Pra um projeto maior (o RPG de verdade), faz sentido separar por pasta/responsabilidade,
+     parecido com o que engines de produção fazem (ex: Unreal com Source/Runtime/{Core,
+     RenderCore, Engine,...}, Godot com core/, scene/, servers/...). Sugestão de divisão
+     inicial: engine/ (classes Lve* genéricas, reaproveitáveis em qualquer jogo) vs.
+     game/ (lógica específica do RPG: combate, inventário, etc.), com subpastas por
+     subsistema (rendering/, physics/, etc.) conforme cada uma crescer.
+   - Fazer essa reorganização PRIMEIRO, antes de qualquer outra fase: é uma mudança
+     puramente mecânica (mover arquivo, ajustar #include e caminhos no CMakeLists.txt),
+     sem alterar lógica nenhuma — o menor risco possível de introduzir um bug novo. Com
+     a estrutura já limpa, fica mais fácil revisar as fases seguintes organizadas por
+     subsistema, em vez de vasculhar uma pasta única com dezenas de arquivos misturados.
+
+===============================================================================
+FASE 1 — Simplificação estrutural (fazer depois da Fase 0)
+===============================================================================
+
+2. Diretriz de estilo: simplificar tudo que puder, mesmo onde eu segui o tutorial à risca
+   - Já aconteceu várias vezes: meu código chega no mesmo resultado (semanticamente
+     equivalente) do tutorial usando menos estrutura — ex: valor padrão em vez de dois
+     construtores sobrecarregados + "Extract Method" (função init() separada). Ambos
+     obedecem DRY, só que por caminhos diferentes.
+   - Isso vale nos dois sentidos: tanto pra manter as partes onde eu já simplifiquei
+     (não "corrigir" pra bater 1:1 com o vídeo só por bater), quanto pra revisar as
+     partes onde eu segui o padrão dele exatamente como está — porque, com pouca
+     experiência, eu não consigo sempre perceber na hora se aquela complexidade
+     (função extra, sobrecarga, indireção) é necessária ou se é só o jeito dele
+     organizar, sem necessidade real.
+   - Instrução pra revisão final: passar por TODO o projeto (não só onde eu já
+     desviei) procurando trechos que fazem a mesma coisa com menos código/estrutura, e
+     simplificar. Só manter a versão mais complexa se ela resolver algo de verdade
+     (funcionalidade ou bug real) que a versão simples não resolveria — não por ser
+     "o jeito do tutorial".
+   - Fazer essa passada ANTES da Fase 3 (ponteiros/RAII/destruição), já que reescrever
+     código é exatamente o tipo de mudança que pode reintroduzir um dangling pointer ou
+     quebrar uma ordem de destruição sem querer.
+
+3. Macro de pré-processador onde um constexpr/const resolveria melhor
+   - Bug já identificado: MAX_LIGHTS (lve_frameInfo.hpp) foi declarado como
+     "#define MAX_LIGHTS 10" dentro de "namespace lve { ... }". Isso funciona, mas é
+     enganoso: #define é processado pelo pré-processador, que não entende chaves de
+     namespace — a macro vira global no arquivo (e em qualquer outro que incluir esse
+     header), não "lve::MAX_LIGHTS" como as chaves sugerem visualmente. Só não deu
+     problema ainda porque nenhum outro lugar do projeto usa esse nome.
+   - Instrução pra revisão final: procurar todo #define usado como constante (não como
+     inclusão condicional de header, esse uso é legítimo) e trocar por
+     "constexpr int MAX_LIGHTS = 10;" (ou equivalente) — isso sim respeita namespace de
+     verdade, tem tipo, e aparece no debugger/autocomplete do jeito que uma macro nunca
+     aparece.
+
+===============================================================================
+FASE 2 — Otimizações de performance/arquitetura (mudanças mais aditivas)
+===============================================================================
+
+4. Auditoria de staging buffer (otimização de memória)
+   - Critério: buffers escritos UMA VEZ (ou raramente) e lidos MUITAS VEZES pela GPU
+     (vertex buffer, index buffer, malha estática) deveriam usar staging buffer +
+     copyBuffer pra ficar em memória DEVICE_LOCAL (mais rápida pra GPU ler).
+   - Buffers escritos TODO FRAME pela CPU (ex: um futuro uniform buffer de câmera que
+     muda a cada frame) devem continuar em HOST_VISIBLE direto — staging não ajuda
+     nesse caso, só adiciona uma cópia extra sem necessidade.
+   - Já conferidos: createVertexBuffers (✅ usa staging), createIndexBuffers (✅ usa staging).
+   - Conferir também qualquer buffer novo que aparecer depois (uniform buffers,
+     texturas, instance data, etc.) contra esse mesmo critério.
+
+5. Layout de dados (cache-friendliness)
+   - Preferir estruturas de dados compactas e contíguas em vez de objetos genéricos com
+     muitos campos não usados (a lição da comparação UPBGE vs. engine sob medida).
+
+6. Batching de draw calls
+   - Agrupar objetos que usam o mesmo pipeline/material em vez de emitir uma chamada de
+     desenho separada pra cada um.
+
+7. Culling (frustum/occlusion)
+   - Quando a cena tiver muitos objetos, conferir se objetos fora da câmera/escondidos
+     atrás de outros estão sendo descartados antes de desenhar.
+
+8. Stutter de compilação de pipeline/shader
+   - Garantir que todo VkPipeline necessário é criado antecipadamente (carregamento/início),
+     nunca na primeira vez que é usado durante o gameplay de verdade.
+
+9. Redundância de cálculo aceitável hoje, revisar se virar hot path
+   - Ex: findQueueFamilies rodando mais de uma vez na inicialização (pickPhysicalDevice,
+     createLogicalDevice, createCommandPool). Não otimizar agora, só revisitar se algo
+     parecido aparecer rodando por frame, não só na inicialização.
+
+10. Desenhar durante o arrasto de redimensionamento (Windows)
+   - No Windows, o SO trava o loop principal (glfwPollEvents) durante o arrasto de
+     redimensionar a janela — drawFrame() não roda até soltar o mouse, então a imagem
+     "congela" durante o arrasto (só atualiza no final). No Linux/macOS isso normalmente
+     não acontece, porque o loop de eventos deles não bloqueia da mesma forma.
+   - Correção: chamar drawFrame() (ou equivalente) de dentro do próprio
+     framebufferResizedCallback, já que esse callback continua sendo chamado pelo SO
+     mesmo com o loop principal travado.
+   - Exige dar a LveWindow uma forma de acionar FirstApp::drawFrame() sem quebrar a
+     separação engine/jogo (hoje LveWindow não conhece FirstApp de propósito) — por
+     exemplo, guardando um std::function/callback que FirstApp registra.
+   - Confirmado que não atrapalha portabilidade pra Linux: o mecanismo em si (GLFW +
+     Vulkan) é multiplataforma; no Linux só ficaria redundante (desenha um pouco mais
+     que o necessário durante o resize), sem quebrar nada.
+
+===============================================================================
+FASE 2B — Modernização (o tutorial tem 4+ anos e simplifica de propósito)
+===============================================================================
+
+Itens confirmados no código em 2026-10-12. Fica ANTES da Fase 3 porque são mudanças
+invasivas (reescrevem criação de recurso, sincronização e render pass) — exatamente o
+tipo de coisa que a varredura de ponteiros/RAII/destruição precisa revisar depois.
+
+M1. Versão da API: appInfo.apiVersion = VK_API_VERSION_1_0 (lve_device.cpp). A GPU
+    (RTX 5060) e o SDK (1.4) suportam 1.3+; subir pra 1.3 libera os itens M2 e M3 como
+    recursos do core, sem extensão.
+
+M2. Dynamic rendering (core no 1.3) no lugar de VkRenderPass + VkFramebuffer
+    - Swap chain, shadow map e ImGui hoje criam render pass/framebuffer à moda antiga.
+      Com dynamic rendering o passe é aberto direto com vkCmdBeginRendering, apontando
+      as imagens na hora — some boa parte do código de render pass/framebuffer e de
+      recriação na troca de tamanho da janela.
+
+M3. Synchronization2 (core no 1.3): vkCmdPipelineBarrier2 / vkQueueSubmit2, com
+    estágios e acessos declarados juntos (mais legível, menos erro). Junto com M2, as
+    barreiras de layout que hoje vivem nas subpass dependencies viram barreiras explícitas.
+
+M4. Semáforo por imagem da swap chain (= item 15 da Fase 3, aviso real no console).
+    Resolver junto com M2/M3, já que mexe no mesmo fluxo de frame.
+
+M5. Alocação de memória: hoje cada buffer/imagem faz o próprio vkAllocateMemory
+    (createBuffer/createImageWithInfo). O Vulkan limita o número de alocações
+    (maxMemoryAllocationCount, tipicamente 4096) e alocar é caro — o certo é poucas
+    alocações grandes subdivididas. Solução padrão: VMA (Vulkan Memory Allocator).
+
+M6. Uploads síncronos: endSingleTimeCommands faz vkQueueWaitIdle a cada cópia (vertex,
+    index, textura, cada transição de layout da textura) — a CPU para e espera a GPU a
+    cada upload. Agrupar uploads num command buffer só por carga, e LveTexture deixar
+    de ter o próprio código duplicado de command buffer de uso único.
+
+M7. Bibliotecas: stb no GIT_TAG master (não fixado — o build pode mudar sozinho);
+    tinyobjloader v1.0.7 antiga (precisa do hack CMAKE_POLICY_VERSION_MINIMUM) —
+    atualizar ou remover o suporte a OBJ de vez, já que o formato do jogo é glTF.
+
+M8. Defines do GLM (GLM_FORCE_RADIANS / GLM_FORCE_DEPTH_ZERO_TO_ONE) repetidos em 12
+    lugares no src/ — centralizar (no CMake via target_compile_definitions, ou num header
+    único). Hoje, se um arquivo incluir glm antes do define, a convenção de profundidade
+    fica diferente entre arquivos sem nenhum erro de compilação.
+
+===============================================================================
+FASE 3 — Varredura final de segurança/correção (fazer por ÚLTIMO, é o filtro final)
+===============================================================================
+
+11. Ponteiros pendurados (dangling pointers)
+    - Procurar por qualquer struct que guarda um ponteiro/referência pra um campo dele mesmo
+      (ex: algo.ponteiro = &algo.outroCampo) e que depois é copiado ou retornado por valor.
+    - Bug já identificado: PipelineConfigInfo::viewportInfo (pViewports/pScissors apontando
+      pra viewport/scissor do mesmo struct, dentro de defaultPipelineConfigInfo, que retorna
+      por valor) — já corrigido, mas é exatamente o tipo de bug que as Fases 0-2 podem
+      reintroduzir sem querer, por isso essa checagem vem depois delas.
+
+12. Ordem de destruição dos recursos Vulkan
+    - Em cada destrutor (LveDevice, LveSwapChain, LvePipeline, etc.), conferir se a ordem
+      de destruição é o inverso exato da ordem de criação.
+
+13. Vazamento de recurso (resource leak)
+    - Todo vkCreate*/vkAllocate* deve ter um vkDestroy*/vkFree* correspondente em algum lugar.
+    - Conferir se todo caminho de erro (throw) não deixa recurso já criado sem limpar.
+
+14. Consistência de RAII
+    - Conferir se toda classe que adquire um recurso (Vulkan, memória, arquivo, etc.) em
+      algum construtor libera esse mesmo recurso no destrutor correspondente.
+    - Prestar atenção especial em classes adicionadas mais pra frente no projeto: se algum
+      recurso novo foi alocado com "new"/malloc solto (sem RAII, sem ponteiro inteligente)
+      em vez de seguir o padrão já estabelecido (LveWindow, LveDevice, LvePipeline,
+      LveSwapChain).
+
+15. Reuso de semáforo do swap chain (aviso real já visto no console)
+    - Aviso da validation layer: "vkQueueSubmit(): pSignalSemaphores[0] ... may still be in
+      use by VkSwapchainKHR" — acontece porque imageAvailableSemaphores/renderFinishedSemaphores
+      são indexados por currentFrame (0/1, de MAX_FRAMES_IN_FLIGHT) em vez de pelo índice real
+      da imagem adquirida (0/1/2, de imageCount()). Padrão "clássico" de tutorial, pego por
+      validation layers mais recentes/rigorosas.
+    - Correção sugerida pela própria mensagem: um semáforo por imagem do swap chain, indexado
+      pelo imageIndex devolvido em acquireNextImage, não por currentFrame.
+    - Não trava o programa (é aviso, não erro fatal) — não veio de vkDeviceWaitIdle nem de
+      ordem de destruição, esses dois já foram corrigidos.
+
+===============================================================================
+FASE 4 — Configuração final de build (só depois de tudo acima estar revisado)
+===============================================================================
+
+16. LTO (Link-Time Optimization) no build de produção
+    - Confirmar se está ativado no build Release/Shipping (recupera inlining entre .cpp
+      diferentes, que a separação declaração/.cpp abre mão por padrão).
+
+17. NDEBUG no build de produção
+    - Confirmar que valida corretamente: desliga validation layers (enableValidationLayers)
+      e remove os assert() do binário final.
+
+===============================================================================
+NOTA (não é item de revisão, é decisão de projeto)
+===============================================================================
+
+- Formato de modelo 3D escolhido pro jogo: glTF (.glb) — exportado direto do Blender
+  (suporte nativo, File > Export > glTF 2.0). OBJ (usado agora no tutorial) é só pra
+  aprender a base de carregamento de modelo; não serve pro jogo final porque não
+  carrega esqueleto/skinning, necessário pro sistema de equipamento planejado.
+
+===============================================================================
+ROADMAP PÓS-TUTORIAL (o que construir depois de terminar o tutorial do Galea)
+===============================================================================
+
+Isso não é uma lista de revisão/otimização como as fases acima — é a ordem sugerida
+pra CONSTRUIR as próximas partes da engine rumo ao RPG de ação (câmera/movimento estilo
+Infinite Nikki, foco em combate e progressão de equipamento). A ordem segue dependência
+real (o que precisa existir antes de outra coisa fazer sentido), não "o que é mais
+legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for andando.
+
+1. ✅ Tutorial do Galea concluído (31 vídeos, até especular + alpha blending). UBO/
+   descriptor sets e iluminação básica (ambiente/difusa/especular) entregues por ele.
+   Texturas NUNCA fizeram parte da série de verdade (prometidas no vídeo 1, nunca
+   chegaram a aparecer) — por isso viram o primeiro item guiado por mim, não dele.
+   Também já construído, fora do escopo do tutorial oficial: câmera orbital (estilo
+   Blender, substituindo a livre), integração do Dear ImGui (UI de editor), limitador
+   de FPS configurável por câmera com contador na tela.
+
+1.1. ✅ Texturização (concluída 2026-10-12 — guiada por mim) — LveTexture (stb_image +
+     staging buffer + transições de layout + image view + sampler), binding 1 do set
+     global como COMBINED_IMAGE_SAMPLER, simple_shader amostra a textura via UV e
+     multiplica pela cor do vértice antes da iluminação. Melhorias pendentes:
+     mipmaps, anisotropia, textura por objeto/material em vez de uma global.
+
+1.2. ✅ Sombra projetada (concluída 2026-10-12 — guiada por mim) — luz direcional (sol)
+     com sunDirection (aponta PARA o sol, w = intensidade) e lightSpaceMatrix no GlobalUbo;
+     shadowCamera ortográfica (caixa 20x20); LveShadowMap (D32_SFLOAT 2048², render pass só
+     de profundidade); ShadowRenderSystem (depth bias, passe gravado antes do da swap chain);
+     shadow map no binding 2; simple_shader com luz difusa do sol + teste de sombra com PCF 3x3.
+     Também: flag useTexture por objeto (push constant) pra objetos sem textura.
+     Melhorias futuras: caixa do sol seguindo a câmera, cascaded shadow maps (mundo aberto),
+     PCSS (penumbra variável), sombra de point light (cube map).
+
+2. ✅ Carregador glTF (.glb) (concluído 2026-10-12) — cgltf; createModelFromFile escolhe
+   OBJ ou glTF pela extensão; converte Y-up -> Y-down girando 180° em X; achata os nós numa
+   malha só. Textura por material: a imagem de cor embutida no .glb vira a LveTexture do
+   modelo, ligada no set 1 (por objeto) do SimpleRenderSystem; sem textura = branca 1x1.
+   Textura global removida. Pendentes: vários materiais por modelo, normal map (precisa de
+   tangentes), rugosidade/PBR, imagens externas (.gltf + arquivos separados).
+
+2.1. ✅ Caixa do sol segue a câmera (concluído 2026-10-12) — centro da caixa ortográfica
+     do shadow map = alvo da câmera orbital, encaixado na grade de texels pra não tremer;
+     SHADOW_HALF_SIZE / SHADOW_SUN_DISTANCE no topo do first_app.cpp.
+
+2.2. Revisão completa do projeto ANTES do modo Play (decidido 2026-10-12)
+   - Conclusão: o tutorial fez muita simplificação ("gambiarra" pedagógica) e tem 4+
+     anos, então tem coisa desatualizada. Antes de construir editor/Play em cima dessa
+     base, passar TODAS as fases de revisão da lista acima, na ordem:
+       Fase 0  (pastas engine/ vs game/)
+       Fase 1  (simplificação, #define -> constexpr)
+       Fase 2  (staging, layout de dados, batching, culling...)
+       Fase 2B (modernização: Vulkan 1.3, dynamic rendering, sync2, VMA, uploads...)
+       Fase 3  (ponteiros pendurados, ordem de destruição, vazamentos, RAII, semáforos)
+   - Fase 4 (LTO/NDEBUG) continua no fim do projeto: é configuração de build de produção.
+   - Itens da Fase 2 que só fazem sentido com cena grande (batching, culling) podem ficar
+     anotados e voltar quando houver conteúdo pra medir.
+
+3. Câmera de jogo como objeto da cena, e só DEPOIS o modo Play
+   (ordem revista em 2026-10-12, substitui a ordem anterior):
+   - A engine é tratada primeiro como um editor (câmera orbital estilo Blender já
+     existe e é a câmera do editor, continua sendo).
+   - 3a. Antes do Play: criar a câmera de jogo como um objeto da cena — no mínimo com
+     um modelo/ícone visível no editor (tipo o gizmo de câmera do Blender/Unity), pra
+     dar pra posicionar e ver pra onde ela aponta. Ela ainda não precisa seguir
+     personagem nenhum nessa etapa.
+   - 3b. Modo Play no próprio editor (parecido com o "Play in Editor" do Unreal/Godot):
+     um estado editor/play que alterna sem destruir a cena. Ao dar Play, a renderização
+     passa a usar a câmera de jogo da 3a em vez da orbital; ao sair, volta pra orbital.
+   - Mais tarde (com personagem): a câmera de jogo vira terceira pessoa, lendo a
+     posição/rotação do personagem a cada frame e se posicionando atrás/acima dele
+     (setViewTarget/setViewYXZ).
+
+4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
+   suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
+   com o item 3: sobrevoar/inspecionar em modo editor, andar de verdade em modo jogo.
+
+5. Animação esquelética (ossos + skinning) — peça grande e fundamental; tudo que
+   depende de personagem animado (combate, equipamento) espera por essa.
+
+6. Sistema de equipamento via skinning compartilhado (arma/roupa como malha
+   separada, rigged no mesmo esqueleto do personagem, deformada pela mesma paleta
+   de matrizes de osso por frame) — depende do item 5. Correção deliberada de um
+   erro de uma tentativa anterior em Godot (ver memória de longo prazo do projeto).
+
+7. Sistema de combate — depende do item 5, se beneficia do item 6 já existir
+   (feedback visual de arma equipada, etc.).
+
+8. Progressão de equipamento/status (upar, melhorar itens) — mistura de dados e
+   lógica de jogo, pode crescer em paralelo com o item 7.
+
+9. Streaming de mundo + LOD — só quando o terreno/conteúdo real for grande o
+   suficiente pra doer em performance. LOD reduz detalhe do que está longe mas
+   carregado; streaming evita até carregar o que está muito longe. As duas
+   técnicas são necessárias juntas pra um mundo aberto de verdade (nenhuma
+   substitui a outra).
+
+10. Editor de terreno dentro da própria engine (opcional, avançado) — só faz
+    sentido depois dos itens 3 (modo editor já existe) e 4 (terreno já existe).
+    Motivo de preferir isso a esculpir no Blender e exportar: o formato de dados
+    do terreno precisa bater com o esquema de chunk/streaming da própria engine
+    desde a origem (esculpir fora e importar exigiria uma etapa extra de
+    conversão/fatiamento depois); editar dentro da engine também dá referência
+    de escala real (personagem do lado) e a iluminação/renderização verdadeira
+    do jogo, coisa que o viewport do Blender não reproduz fielmente. Também evita
+    costura visível entre pedaços de terreno editados isoladamente em arquivos
+    separados. Alternativa mais barata: esculpir no Blender e importar, aceitando
+    a fricção extra — válido se esse editor nunca virar prioridade.

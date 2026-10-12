@@ -1,0 +1,292 @@
+<title>Vulkan Engine Map</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --ink: #1b2430;
+    --muted: #5b6b7a;
+    --line: #4a5a6a;
+    --box-bg: #ffffff;
+    --box-engine: #dce6ef;
+    --box-raw: #f6f3ec;
+    --ref: #3b6ea5;
+    --accent: #9a2b2b;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161c;
+      --ink: #e7ecf1;
+      --muted: #93a3b3;
+      --line: #7d8fa0;
+      --box-bg: #1c232c;
+      --box-engine: #223142;
+      --box-raw: #262019;
+      --ref: #6ea8e0;
+      --accent: #e0796f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161c;
+    --ink: #e7ecf1;
+    --muted: #93a3b3;
+    --line: #7d8fa0;
+    --box-bg: #1c232c;
+    --box-engine: #223142;
+    --box-raw: #262019;
+    --ref: #6ea8e0;
+    --accent: #e0796f;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    padding-inline: 20px;
+    padding-block: 28px 48px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  h1 {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(22px, 4vw, 30px);
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 28px; max-width: 65ch; }
+
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 34px;
+  }
+  .legend span.key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .legend .swatch { width: 18px; height: 0; border-top: 2px solid var(--line); display: inline-block; }
+  .legend .swatch.ref { border-top: 2px dashed var(--ref); }
+  .legend .swatch.owns { border-top: 2px solid var(--ink); }
+  .legend code.vk { color: var(--accent); }
+
+  figure { margin: 0 0 40px; }
+  .svg-wrap { overflow-x: auto; }
+  svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+  figcaption {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 10px;
+    text-align: center;
+    max-width: 70ch;
+    margin-inline: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  caption { text-align: left; font-weight: 600; margin-bottom: 8px; font-size: 15px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.file { white-space: nowrap; }
+
+  @media (max-width: 480px) {
+    .legend { gap: 10px 16px; }
+  }
+</style>
+
+<div class="wrap">
+  <h1>Mapa da engine — geYoutube</h1>
+  <p class="subtitle">Estrutura de posse/referência entre as classes, e o fluxo real de <code>drawFrame()</code> a cada quadro. Reflete o estado atual do projeto (Vulkan + GLFW + GLM).</p>
+
+  <div class="legend">
+    <span class="key"><span class="swatch owns"></span> caixa sólida = membro possuído (construído/destruído junto)</span>
+    <span class="key"><span class="swatch ref"></span> seta tracejada = referência (<code>&amp;</code>, não possui)</span>
+    <span class="key"><code class="mono vk">vkCmd*</code> = chamada real da API Vulkan/GLFW</span>
+  </div>
+
+  <figure>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 860 880" role="img" aria-label="Diagrama de posse: main.cpp cria FirstApp, que possui diretamente LveWindow, LveDevice, LveSwapChain, LvePipeline e LveModel, nessa ordem de construção. Setas tracejadas mostram que LveDevice referencia LveWindow, e que LveSwapChain, LvePipeline e LveModel referenciam LveDevice. Nada referencia FirstApp de volta.">
+        <defs>
+          <marker id="ownArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polygon points="0,0 7,3 0,6" fill="currentColor"></polygon>
+          </marker>
+          <marker id="refArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polygon points="0,0 7,3 0,6" fill="var(--ref)"></polygon>
+          </marker>
+        </defs>
+
+        <!-- main.cpp -->
+        <rect x="350" y="10" width="160" height="44" rx="6" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <text x="430" y="37" text-anchor="middle" class="mono" font-size="13" fill="var(--ink)">main.cpp</text>
+
+        <line x1="430" y1="54" x2="430" y2="82" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#ownArrow)"></line>
+        <text x="440" y="72" font-size="11" fill="var(--muted)" font-style="italic">cria</text>
+
+        <!-- FirstApp frame -->
+        <rect x="30" y="84" width="800" height="650" rx="14" fill="none" stroke="var(--line)" stroke-width="2"></rect>
+        <text x="50" y="108" font-size="15" font-weight="700" fill="var(--ink)">FirstApp — camada de aplicação</text>
+        <text x="50" y="128" font-size="11" fill="var(--muted)">possui tudo abaixo · nada abaixo referencia FirstApp de volta</text>
+        <line x1="46" y1="140" x2="814" y2="140" stroke="var(--line)" stroke-width="1"></line>
+
+        <!-- member boxes -->
+        <!-- LveWindow y=156 cy=188 -->
+        <rect x="110" y="156" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="126" y="182" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveWindow</text>
+        <text x="126" y="202" font-size="11" fill="var(--muted)">janela GLFW · surface · rastreio de redimensionamento</text>
+        <text x="95" y="192" text-anchor="middle" font-size="11" fill="var(--muted)">①</text>
+
+        <!-- LveDevice y=244 cy=276 -->
+        <rect x="110" y="244" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="126" y="270" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveDevice</text>
+        <text x="126" y="290" font-size="11" fill="var(--muted)">instance · validation layers · physical/logical device · command pool</text>
+        <text x="95" y="280" text-anchor="middle" font-size="11" fill="var(--muted)">②</text>
+
+        <!-- LveSwapChain y=332 cy=364 -->
+        <rect x="110" y="332" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="126" y="358" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveSwapChain</text>
+        <text x="126" y="378" font-size="11" fill="var(--muted)">imagens · render pass · framebuffers · profundidade · semáforos/fences</text>
+        <text x="95" y="368" text-anchor="middle" font-size="11" fill="var(--muted)">③</text>
+
+        <!-- LvePipeline y=420 cy=452 -->
+        <rect x="110" y="420" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="126" y="446" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LvePipeline</text>
+        <text x="126" y="466" font-size="11" fill="var(--muted)">shader modules · VkPipeline (estado fixo + viewport/scissor dinâmico)</text>
+        <text x="95" y="456" text-anchor="middle" font-size="11" fill="var(--muted)">④</text>
+
+        <!-- LveModel y=508 cy=540 -->
+        <rect x="110" y="508" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="126" y="534" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveModel</text>
+        <text x="126" y="554" font-size="11" fill="var(--muted)">buffer de vértices (posição + cor)</text>
+        <text x="95" y="544" text-anchor="middle" font-size="11" fill="var(--muted)">⑤</text>
+
+        <!-- reference rails -->
+        <path d="M710,256 L730,256 L730,188 L710,188" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
+        <text x="730" y="248" font-size="10.5" fill="var(--ref)" class="mono">LveWindow&amp;</text>
+
+        <path d="M710,364 L750,364 L750,268 L710,268" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
+        <text x="716" y="358" font-size="10.5" fill="var(--ref)" class="mono">LveDevice&amp;</text>
+
+        <path d="M710,452 L770,452 L770,280 L710,280" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
+        <text x="716" y="446" font-size="10.5" fill="var(--ref)" class="mono">LveDevice&amp;</text>
+
+        <path d="M710,540 L790,540 L790,292 L710,292" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
+        <text x="716" y="534" font-size="10.5" fill="var(--ref)" class="mono">LveDevice&amp;</text>
+
+        <!-- raw members owned directly by FirstApp -->
+        <rect x="110" y="588" width="600" height="36" rx="6" fill="var(--box-raw)" stroke="var(--line)" stroke-dasharray="3 3"></rect>
+        <text x="410" y="610" text-anchor="middle" class="mono" font-size="11.5" fill="var(--ink)">VkPipelineLayout pipelineLayout · std::vector&lt;VkCommandBuffer&gt; commandBuffers</text>
+
+        <!-- down to GPU -->
+        <line x1="430" y1="734" x2="430" y2="798" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#ownArrow)"></line>
+        <text x="440" y="770" font-size="10.5" fill="var(--accent)" class="mono">vkCreate* / vkCmd*</text>
+        <rect x="280" y="800" width="300" height="44" rx="8" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 3"></rect>
+        <text x="430" y="827" text-anchor="middle" class="mono" font-size="13" fill="var(--accent)">driver Vulkan → GPU</text>
+      </svg>
+    </div>
+    <figcaption>Fig. 1 — Quem possui quem (construído nessa ordem, dentro de FirstApp) e quem referencia quem (setas tracejadas). Nenhuma seta sobe de volta pra FirstApp.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 800" role="img" aria-label="Fluxograma de drawFrame: adquire a próxima imagem do swap chain; se estiver desatualizado, recria o swap chain e encerra o quadro; senão grava o command buffer (render pass, viewport/scissor dinâmicos, bind do pipeline e do modelo, draw) e envia pra GPU; se o envio indicar formato desatualizado ou a janela tiver sido redimensionada, reseta a flag e recria o swap chain.">
+        <defs>
+          <marker id="flowArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polygon points="0,0 7,3 0,6" fill="currentColor"></polygon>
+          </marker>
+        </defs>
+
+        <rect x="180" y="20" width="280" height="44" rx="22" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <text x="320" y="47" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">while (!lveWindow.shouldClose())</text>
+
+        <line x1="320" y1="64" x2="320" y2="88" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+        <rect x="180" y="90" width="280" height="44" rx="8" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <text x="320" y="117" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">glfwPollEvents()</text>
+
+        <line x1="320" y1="134" x2="320" y2="158" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+        <rect x="180" y="160" width="280" height="54" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="320" y="180" text-anchor="middle" font-size="10.5" fill="var(--muted)">lveSwapChain-&gt;</text>
+        <text x="320" y="200" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">acquireNextImage(&amp;imageIndex)</text>
+
+        <line x1="320" y1="214" x2="320" y2="236" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+        <polygon points="320,238 460,280 320,322 180,280" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></polygon>
+        <text x="320" y="275" text-anchor="middle" class="mono" font-size="10.5" fill="var(--ink)">result ==</text>
+        <text x="320" y="290" text-anchor="middle" class="mono" font-size="10.5" fill="var(--ink)">VK_ERROR_OUT_OF_DATE_KHR?</text>
+        <text x="332" y="316" font-size="11" fill="var(--muted)">não</text>
+        <text x="420" y="272" font-size="11" fill="var(--muted)">sim</text>
+
+        <line x1="320" y1="322" x2="320" y2="358" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+        <rect x="180" y="360" width="280" height="130" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="320" y="379" text-anchor="middle" class="mono" font-size="12.5" font-weight="600" fill="var(--ink)">recordComandBuffer(imageIndex)</text>
+        <text x="200" y="398" class="mono vk-text" font-size="10.5" fill="var(--accent)">vkCmdBeginRenderPass</text>
+        <text x="200" y="414" class="mono vk-text" font-size="10.5" fill="var(--accent)">vkCmdSetViewport / vkCmdSetScissor</text>
+        <text x="200" y="430" class="mono vk-text" font-size="10.5" fill="var(--accent)">lvePipeline-&gt;bind()</text>
+        <text x="200" y="446" class="mono vk-text" font-size="10.5" fill="var(--accent)">lveModel-&gt;bind() + draw()</text>
+        <text x="200" y="462" class="mono vk-text" font-size="10.5" fill="var(--accent)">vkCmdEndRenderPass</text>
+
+        <line x1="320" y1="490" x2="320" y2="518" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+        <rect x="180" y="520" width="280" height="54" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="320" y="540" text-anchor="middle" font-size="10.5" fill="var(--muted)">lveSwapChain-&gt;</text>
+        <text x="320" y="560" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">submitCommandBuffers(...)</text>
+
+        <line x1="320" y1="574" x2="320" y2="596" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+        <polygon points="320,598 470,646 320,694 170,646" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></polygon>
+        <text x="320" y="638" text-anchor="middle" class="mono" font-size="10.5" fill="var(--ink)">OUT_OF_DATE || SUBOPTIMAL ||</text>
+        <text x="320" y="654" text-anchor="middle" class="mono" font-size="10.5" fill="var(--ink)">wasWindowResized()?</text>
+        <text x="332" y="688" font-size="11" fill="var(--muted)">não</text>
+        <text x="430" y="638" font-size="11" fill="var(--muted)">sim</text>
+
+        <line x1="320" y1="694" x2="320" y2="726" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+        <rect x="180" y="728" width="280" height="40" rx="20" fill="var(--box-bg)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"></rect>
+        <text x="320" y="753" text-anchor="middle" font-size="11" fill="var(--muted)">fim de drawFrame() → próximo quadro ↺</text>
+
+        <!-- diamond1 YES -> recreateSwapChain (direct) -->
+        <path d="M460,280 L680,280 L680,565 L650,565" fill="none" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></path>
+
+        <!-- diamond2 YES -> resetWindowResizedFlag -->
+        <path d="M470,646 L670,646 L670,478 L650,478" fill="none" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></path>
+        <rect x="500" y="460" width="150" height="36" rx="18" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <text x="575" y="483" text-anchor="middle" class="mono" font-size="10" fill="var(--ink)">resetWindowResizedFlag()</text>
+        <line x1="575" y1="496" x2="575" y2="518" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
+
+        <!-- recreateSwapChain shared box -->
+        <rect x="500" y="520" width="150" height="50" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
+        <text x="575" y="540" text-anchor="middle" class="mono" font-size="11.5" font-weight="600" fill="var(--ink)">recreateSwapChain()</text>
+        <text x="575" y="556" text-anchor="middle" font-size="9.5" fill="var(--muted)">refaz swap chain + pipeline</text>
+
+        <!-- return path back to top -->
+        <path d="M500,545 L60,545 L60,42 L178,42" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#flowArrow)"></path>
+        <text x="20" y="300" font-size="10" fill="var(--muted)" transform="rotate(-90 20 300)" text-anchor="middle">return; (encerra este quadro)</text>
+      </svg>
+    </div>
+    <figcaption>Fig. 2 — <code class="mono">FirstApp::drawFrame()</code>, chamado a cada volta do loop em <code class="mono">run()</code>. Os dois losangos são os pontos reais de tratamento de redimensionamento/swap chain desatualizado.</figcaption>
+  </figure>
+
+  <table>
+    <caption>Arquivo → classe → responsabilidade</caption>
+    <thead>
+      <tr><th>Arquivo</th><th>Classe / struct</th><th>Responsabilidade</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="file mono">main.cpp</td><td class="mono">—</td><td>Cria <code class="mono">FirstApp</code> e chama <code class="mono">run()</code>.</td></tr>
+      <tr><td class="file mono">first_app.*</td><td class="mono">FirstApp</td><td>Camada de aplicação: loop principal, pipeline layout, command buffers, orquestra o resto.</td></tr>
+      <tr><td class="file mono">lve_window.*</td><td class="mono">LveWindow</td><td>Janela GLFW, surface Vulkan, rastreio de redimensionamento.</td></tr>
+      <tr><td class="file mono">lve_device.*</td><td class="mono">LveDevice</td><td>Instance, validation layers, physical/logical device, command pool, helpers de buffer/imagem.</td></tr>
+      <tr><td class="file mono">lve_swap_chain.*</td><td class="mono">LveSwapChain</td><td>Swap chain, render pass, framebuffers, recursos de profundidade, sincronização CPU/GPU.</td></tr>
+      <tr><td class="file mono">lve_pipeline.*</td><td class="mono">LvePipeline / PipelineConfigInfo</td><td>Shader modules e o <code class="mono">VkPipeline</code> gráfico (estado fixo + dynamic state).</td></tr>
+      <tr><td class="file mono">lve_model.*</td><td class="mono">LveModel / Vertex</td><td>Buffer de vértices (posição + cor) de um modelo.</td></tr>
+      <tr><td class="file mono">shaders/*.vert, *.frag</td><td class="mono">—</td><td>Shaders GLSL, compilados pra <code class="mono">.spv</code> pelo CMake.</td></tr>
+    </tbody>
+  </table>
+</div>
