@@ -49,11 +49,8 @@ namespace lve {
                 throw std::runtime_error("swap chain image (or depth) format has changed!");
             }
         }
+    }
 
-        //we'll come back to this
-    };
-
-    //createCommandBuffers() que será responsável por criar os command buffers
     void LveRenderer::createCommandBuffers() {
         commandBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
 
@@ -66,7 +63,7 @@ namespace lve {
         if (vkAllocateCommandBuffers(lveDevice.device(), &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate command buffers!");
         }
-    };
+    }
 
     VkCommandBuffer LveRenderer::beginFrame() {
         assert(!isFrameStarted && "Can't call beginFrame while alredy in progress");
@@ -86,8 +83,6 @@ namespace lve {
         auto commandBuffer = getCurrentCommandBuffer();
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0; // Optional
-        beginInfo.pInheritanceInfo = nullptr; // Optional
 
         if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
             throw std::runtime_error("failed to begin recording command buffer!");

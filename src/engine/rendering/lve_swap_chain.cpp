@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <iostream>
-#include <limits>
 #include <stdexcept>
 
 namespace lve {
@@ -51,13 +51,13 @@ namespace lve {
             swapChain.swapChainImageFormat == swapChainImageFormat;
     }
 
-    VkFramebuffer LveSwapChain::getFrameBuffer(int index) { return swapChainFramebuffers[index]; }
-    VkRenderPass LveSwapChain::getRenderPass() { return renderPass; }
-    size_t LveSwapChain::imageCount() { return swapChainImages.size(); }
-    VkFormat LveSwapChain::getSwapChainImageFormat() { return swapChainImageFormat; }
-    VkExtent2D LveSwapChain::getSwapChainExtent() { return swapChainExtent; }
+    VkFramebuffer LveSwapChain::getFrameBuffer(int index) const { return swapChainFramebuffers[index]; }
+    VkRenderPass LveSwapChain::getRenderPass() const { return renderPass; }
+    size_t LveSwapChain::imageCount() const { return swapChainImages.size(); }
+    VkFormat LveSwapChain::getSwapChainImageFormat() const { return swapChainImageFormat; }
+    VkExtent2D LveSwapChain::getSwapChainExtent() const { return swapChainExtent; }
 
-    float LveSwapChain::extentAspectRatio() {
+    float LveSwapChain::extentAspectRatio() const {
         return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);
     }
 
@@ -68,12 +68,12 @@ namespace lve {
             1,
             &inFlightFences[currentFrame],
             VK_TRUE,
-            std::numeric_limits<uint64_t>::max());
+            UINT64_MAX);
 
         VkResult result = vkAcquireNextImageKHR(
             device.device(),
             swapChain,
-            std::numeric_limits<uint64_t>::max(),
+            UINT64_MAX,
             imageAvailableSemaphores[currentFrame],
             VK_NULL_HANDLE,
             imageIndex);
@@ -87,7 +87,7 @@ namespace lve {
         }
         imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
-        VkSubmitInfo submitInfo = {};
+        VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
         VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
@@ -109,7 +109,7 @@ namespace lve {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
-        VkPresentInfoKHR presentInfo = {};
+        VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
         presentInfo.waitSemaphoreCount = 1;
@@ -143,7 +143,7 @@ namespace lve {
             imageCount = swapChainSupport.capabilities.maxImageCount;
         }
 
-        VkSwapchainCreateInfoKHR createInfo = {};
+        VkSwapchainCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         createInfo.surface = device.surface();
 
@@ -226,7 +226,7 @@ namespace lve {
         depthAttachmentRef.attachment = 1;
         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-        VkAttachmentDescription colorAttachment = {};
+        VkAttachmentDescription colorAttachment{};
         colorAttachment.format = getSwapChainImageFormat();
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -236,17 +236,17 @@ namespace lve {
         colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        VkAttachmentReference colorAttachmentRef = {};
+        VkAttachmentReference colorAttachmentRef{};
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        VkSubpassDescription subpass = {};
+        VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &colorAttachmentRef;
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-        VkSubpassDependency dependency = {};
+        VkSubpassDependency dependency{};
         dependency.dstSubpass = 0;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
@@ -255,7 +255,7 @@ namespace lve {
         dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 
         std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
-        VkRenderPassCreateInfo renderPassInfo = {};
+        VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
         renderPassInfo.pAttachments = attachments.data();
@@ -275,7 +275,7 @@ namespace lve {
             std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthImageViews[i]};
 
             VkExtent2D extent = getSwapChainExtent();
-            VkFramebufferCreateInfo framebufferInfo = {};
+            VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = renderPass;
             framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -343,10 +343,10 @@ namespace lve {
         inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
         imagesInFlight.resize(imageCount(), VK_NULL_HANDLE);
 
-        VkSemaphoreCreateInfo semaphoreInfo = {};
+        VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        VkFenceCreateInfo fenceInfo = {};
+        VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         //já nasce "sinalizado", senão o primeiro frame ficaria esperando um fence que nunca dispararia
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -391,7 +391,7 @@ namespace lve {
     }
 
     VkExtent2D LveSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) {
-        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        if (capabilities.currentExtent.width != UINT32_MAX) {
             return capabilities.currentExtent;
         } else {
             VkExtent2D actualExtent = windowExtent;
@@ -406,7 +406,7 @@ namespace lve {
         }
     }
 
-    VkFormat LveSwapChain::findDepthFormat() {
+    VkFormat LveSwapChain::findDepthFormat() const {
         return device.findSupportedFormat(
             {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
             VK_IMAGE_TILING_OPTIMAL,

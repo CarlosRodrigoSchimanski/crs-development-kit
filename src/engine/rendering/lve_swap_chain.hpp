@@ -1,7 +1,6 @@
 #pragma once
 
 #include "engine/core/lve_device.hpp"
-#include <vulkan/vulkan.h>
 
 #include <vector>
 
@@ -28,15 +27,15 @@ namespace lve {
             //compara se o novo swap chain manteve os mesmos formatos do antigo
             bool compareSwapFormats(const LveSwapChain &swapChain) const;
 
-            VkFramebuffer getFrameBuffer(int index);
-            VkRenderPass getRenderPass();
-            size_t imageCount();
-            VkFormat getSwapChainImageFormat();
-            VkExtent2D getSwapChainExtent();
+            VkFramebuffer getFrameBuffer(int index) const;
+            VkRenderPass getRenderPass() const;
+            size_t imageCount() const;
+            VkFormat getSwapChainImageFormat() const;
+            VkExtent2D getSwapChainExtent() const;
 
-            float extentAspectRatio();
+            float extentAspectRatio() const;
 
-            VkFormat findDepthFormat();
+            VkFormat findDepthFormat() const;
 
             //pega o índice da próxima imagem disponível pra desenhar
             VkResult acquireNextImage(uint32_t *imageIndex);

@@ -6,18 +6,17 @@
 
 #include <memory>
 #include <vector>
-#include <cassert>
 
 namespace lve {
-    // Classe FirstApp esta no mesmo nivel que a classe lvewindow
+    //organiza o ciclo de cada frame: pega a imagem da swap chain, entrega o command buffer
+    //pra quem vai desenhar, abre/fecha o render pass da tela e envia tudo pra GPU.
+    //também recria a swap chain quando a janela muda de tamanho
     class LveRenderer {
         public:
-
-            // Construtor e destrutor da classe FirstApp
             LveRenderer(LveWindow &window,LveDevice &device);
             ~LveRenderer();
 
-            //codigo para evitar duplicação de ponteiros
+            //não copiável: é dono da swap chain e dos command buffers
             LveRenderer(const LveRenderer&) = delete;
             LveRenderer& operator=(const LveRenderer&) = delete;
 
@@ -35,20 +34,16 @@ namespace lve {
             void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
 
         private:
-            //função createCommandBuffers() que será responsável por criar os command buffers
+            //um command buffer por frame em voo
             void createCommandBuffers();
-            //função 
+            //espera a GPU parar e cria uma swap chain nova no tamanho atual da janela
             void recreateSwapChain();
 
-            // Instancia da classe LveWindow
             LveWindow& lveWindow;
-            // Instancia da classe LveDevice: precisa da janela pra criar a surface
             LveDevice& lveDevice;
-            // Instancia da classe LveSwapChain, que é responsável pela gestão da swap chain
             std::unique_ptr<LveSwapChain> lveSwapChain;
-            // Vetor de command buffers, que são usados para gravar comandos de renderização
             std::vector<VkCommandBuffer> commandBuffers;
-            //
+            //índice da imagem da swap chain sendo desenhada neste frame (vem do acquireNextImage)
             uint32_t currentImageIndex;
             int currentFrameIndex{0};
             bool isFrameStarted{false};
