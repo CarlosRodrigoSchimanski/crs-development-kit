@@ -1,8 +1,6 @@
 #include "engine/rendering/lve_texture.hpp"
 #include "engine/rendering/lve_image_barrier.hpp"
 
-#include <vk_mem_alloc.h>
-
 #include <stb_image.h>
 
 #include <memory>

@@ -1,7 +1,5 @@
 #include "engine/rendering/lve_shadow_map.hpp"
 
-#include <vk_mem_alloc.h>
-
 #include <stdexcept>
 
 namespace lve {
@@ -12,16 +10,9 @@ namespace lve {
         createSampler();
     }
 
-    //ordem inversa da criação: a view depende da imagem
-    LveShadowMap::~LveShadowMap() {
-        vkDestroySampler(lveDevice.device(), depthSampler, nullptr);
-        vkDestroyImageView(lveDevice.device(), depthImageView, nullptr);
-        vmaDestroyImage(lveDevice.allocator(), depthImage, depthImageAllocation);
-    }
-
-    VkImage LveShadowMap::getImage() const { return depthImage; }
-    VkImageView LveShadowMap::getImageView() const { return depthImageView; }
-    VkSampler LveShadowMap::getSampler() const { return depthSampler; }
+    VkImage LveShadowMap::getImage() const { return depthImage.get(); }
+    VkImageView LveShadowMap::getImageView() const { return depthImageView.get(); }
+    VkSampler LveShadowMap::getSampler() const { return depthSampler.get(); }
     VkFormat LveShadowMap::getFormat() const { return depthFormat; }
     VkExtent2D LveShadowMap::getExtent() const { return {size, size}; }
 
@@ -42,13 +33,16 @@ namespace lve {
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageAllocation);
+        VkImage image;
+        VmaAllocation allocation;
+        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, allocation);
+        depthImage = LveAllocatedImage{lveDevice.allocator(), image, allocation};
     }
 
     void LveShadowMap::createImageView() {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = depthImage;
+        viewInfo.image = depthImage.get();
         viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         viewInfo.format = depthFormat;
         viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -57,9 +51,11 @@ namespace lve {
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = 1;
 
-        if (vkCreateImageView(lveDevice.device(), &viewInfo, nullptr, &depthImageView) != VK_SUCCESS) {
+        VkImageView imageView;
+        if (vkCreateImageView(lveDevice.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
             throw std::runtime_error("failed to create shadow map image view!");
         }
+        depthImageView = LveImageView{lveDevice.device(), imageView};
     }
 
     void LveShadowMap::createSampler() {
@@ -83,8 +79,10 @@ namespace lve {
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
 
-        if (vkCreateSampler(lveDevice.device(), &samplerInfo, nullptr, &depthSampler) != VK_SUCCESS) {
+        VkSampler sampler;
+        if (vkCreateSampler(lveDevice.device(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
             throw std::runtime_error("failed to create shadow map sampler!");
         }
+        depthSampler = LveSampler{lveDevice.device(), sampler};
     }
 }

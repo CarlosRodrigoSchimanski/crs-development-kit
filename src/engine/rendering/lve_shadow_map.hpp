@@ -7,7 +7,7 @@ namespace lve {
     class LveShadowMap {
         public:
             LveShadowMap(LveDevice &device, uint32_t size = 2048);
-            ~LveShadowMap();
+            //sem destrutor escrito: os handles RAII abaixo se destroem sozinhos (sampler, view, imagem)
 
             LveShadowMap(const LveShadowMap&) = delete;
             LveShadowMap& operator=(const LveShadowMap&) = delete;
@@ -29,9 +29,8 @@ namespace lve {
             uint32_t size;
             VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
-            VkImage depthImage;
-            VmaAllocation depthImageAllocation;
-            VkImageView depthImageView;
-            VkSampler depthSampler;
+            LveAllocatedImage depthImage;
+            LveImageView depthImageView;
+            LveSampler depthSampler;
     };
 }
