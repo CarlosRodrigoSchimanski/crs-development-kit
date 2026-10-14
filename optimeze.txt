@@ -35,8 +35,9 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
   -- Fase 2, item 9: só revisitar se aparecer por frame
   ✅ M7  bibliotecas (2026-10-14: OBJ removido, stb fixado)
   ✅ M1  Vulkan 1.3 (2026-10-14; dynamicRendering e synchronization2 já ligados no device)
-  >> PRÓXIMO: M2 + M3 juntos (dynamic rendering + synchronization2: mexem nos mesmos arquivos)
-  -- M5  VMA (reescreve createBuffer/createImageWithInfo)
+  ✅ M2 + M3 (2026-10-14; em 4 passos A-D, cada um testado com a validação de sincronização
+     ligada — VK_KHRONOS_VALIDATION_VALIDATE_SYNC=1 — e o último também redimensionando a janela)
+  >> PRÓXIMO: M5  VMA (reescreve createBuffer/createImageWithInfo)
   -- M6  uploads agrupados (DEPOIS do M5: mexe nas mesmas funções)
   -- M9  luzes em SSBO (reescreve global_ubo.glsl e PointLightSystem)
   -- Fase 2, item 10 (desenhar no resize): depois do M2/M3, que reescrevem o loop de frame
@@ -170,13 +171,13 @@ M1. ✅ (feito 2026-10-14) Versão da API: appInfo.apiVersion = VK_API_VERSION_1
     (RTX 5060) e o SDK (1.4) suportam 1.3+; subir pra 1.3 libera os itens M2 e M3 como
     recursos do core, sem extensão.
 
-M2. Dynamic rendering (core no 1.3) no lugar de VkRenderPass + VkFramebuffer
+M2. ✅ (feito 2026-10-14) Dynamic rendering (core no 1.3) no lugar de VkRenderPass + VkFramebuffer
     - Swap chain, shadow map e ImGui hoje criam render pass/framebuffer à moda antiga.
       Com dynamic rendering o passe é aberto direto com vkCmdBeginRendering, apontando
       as imagens na hora — some boa parte do código de render pass/framebuffer e de
       recriação na troca de tamanho da janela.
 
-M3. Synchronization2 (core no 1.3): vkCmdPipelineBarrier2 / vkQueueSubmit2, com
+M3. ✅ (feito 2026-10-14) Synchronization2 (core no 1.3): vkCmdPipelineBarrier2 / vkQueueSubmit2, com
     estágios e acessos declarados juntos (mais legível, menos erro). Junto com M2, as
     barreiras de layout que hoje vivem nas subpass dependencies viram barreiras explícitas.
 
