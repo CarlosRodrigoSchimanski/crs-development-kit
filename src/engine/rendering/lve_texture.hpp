@@ -23,8 +23,8 @@ namespace lve {
 
         private:
             void createTextureImage(const unsigned char *pixels);
-            void transitionImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout);
-            void copyBufferToImage(VkBuffer buffer, uint32_t width, uint32_t height);
+            void transitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout);
+            void copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, uint32_t width, uint32_t height);
             void createTextureImageView();
             void createTextureSampler();
 

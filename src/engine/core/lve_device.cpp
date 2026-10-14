@@ -452,8 +452,7 @@ namespace lve {
         vkBindBufferMemory(device_, buffer, bufferMemory, 0);
     }
 
-    void LveDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-        //aloca um command buffer descartável só pra esse comando de cópia
+    VkCommandBuffer LveDevice::beginSingleTimeCommands() {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -467,15 +466,12 @@ namespace lve {
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         //avisa o driver que esse command buffer só vai ser submetido uma vez
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
         vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-        VkBufferCopy copyRegion{};
-        copyRegion.srcOffset = 0; // Optional
-        copyRegion.dstOffset = 0; // Optional
-        copyRegion.size = size;
-        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+        return commandBuffer;
+    }
 
+    void LveDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
         vkEndCommandBuffer(commandBuffer);
 
         VkSubmitInfo submitInfo{};
@@ -484,9 +480,19 @@ namespace lve {
         submitInfo.pCommandBuffers = &commandBuffer;
 
         vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
-        //espera a cópia terminar antes de seguir; simples, mas bloqueia a fila até acabar
+        //espera o comando terminar antes de seguir; simples, mas bloqueia a fila até acabar
         vkQueueWaitIdle(graphicsQueue_);
 
         vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+    }
+
+    void LveDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+        VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+        VkBufferCopy copyRegion{};
+        copyRegion.size = size;
+        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+        endSingleTimeCommands(commandBuffer);
     }
 }
