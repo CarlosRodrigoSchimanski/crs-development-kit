@@ -1,4 +1,5 @@
 #include "engine/rendering/lve_texture.hpp"
+#include "engine/rendering/lve_buffer.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -45,21 +46,16 @@ namespace lve {
     //recebe os pixels já decodificados em RGBA (width/height já preenchidos) e sobe pra GPU
     void LveTexture::createTextureImage(const unsigned char *pixels) {
         //4 bytes por pixel (RGBA), forçado pelo STBI_rgb_alpha
-        VkDeviceSize imageSize = width * height * 4;
-
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        lveDevice.createBuffer(
-            imageSize,
+        //o destrutor do LveBuffer libera o staging ao sair da função, mesmo se der exceção no meio
+        LveBuffer stagingBuffer{
+            lveDevice,
+            4,
+            static_cast<uint32_t>(width) * static_cast<uint32_t>(height),
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            stagingBuffer,
-            stagingBufferMemory);
-
-        void *data;
-        vkMapMemory(lveDevice.device(), stagingBufferMemory, 0, imageSize, 0, &data);
-        memcpy(data, pixels, static_cast<size_t>(imageSize));
-        vkUnmapMemory(lveDevice.device(), stagingBufferMemory);
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        };
+        stagingBuffer.map();
+        stagingBuffer.writeToBuffer(pixels);
 
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -81,12 +77,9 @@ namespace lve {
         //os 3 passos gravados num command buffer só: 1 submit e 1 espera em vez de 3
         VkCommandBuffer commandBuffer = lveDevice.beginSingleTimeCommands();
         transitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        copyBufferToImage(commandBuffer, stagingBuffer, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+        copyBufferToImage(commandBuffer, stagingBuffer.getBuffer(), static_cast<uint32_t>(width), static_cast<uint32_t>(height));
         transitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         lveDevice.endSingleTimeCommands(commandBuffer);
-
-        vkDestroyBuffer(lveDevice.device(), stagingBuffer, nullptr);
-        vkFreeMemory(lveDevice.device(), stagingBufferMemory, nullptr);
     }
     
 
