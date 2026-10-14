@@ -500,12 +500,16 @@ namespace lve {
     void LveDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
         vkEndCommandBuffer(commandBuffer);
 
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
+        VkCommandBufferSubmitInfo commandBufferInfo{};
+        commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+        commandBufferInfo.commandBuffer = commandBuffer;
 
-        vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
+        VkSubmitInfo2 submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+        submitInfo.commandBufferInfoCount = 1;
+        submitInfo.pCommandBufferInfos = &commandBufferInfo;
+
+        vkQueueSubmit2(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
         //espera o comando terminar antes de seguir; simples, mas bloqueia a fila até acabar
         vkQueueWaitIdle(graphicsQueue_);
 
