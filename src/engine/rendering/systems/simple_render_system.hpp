@@ -13,11 +13,10 @@
 #include <unordered_map>
 
 namespace lve {
-    // Classe FirstApp esta no mesmo nivel que a classe lvewindow
+    //desenha os objetos que têm modelo, com textura (set 1) e iluminação (set 0)
     class SimpleRenderSystem {
         public:
 
-            // Construtor e destrutor da classe FirstApp
             SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
             ~SimpleRenderSystem();
 
@@ -28,7 +27,6 @@ namespace lve {
             void renderGameObjects(FrameInfo& frameInfo);
 
         private:
-            //função createPipeline() que será responsável por criar o pipeline gráfico
             void createPipeline(VkRenderPass renderPass);
             //descriptor set (set 1) da textura; criado na primeira vez que a textura é desenhada e reaproveitado depois
             VkDescriptorSet getMaterialSet(const LveTexture &texture);

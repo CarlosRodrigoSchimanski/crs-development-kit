@@ -1,10 +1,8 @@
 #include "engine/rendering/systems/simple_render_system.hpp"
 
 #include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
 
 #include <stdexcept>
-#include <array>
 #include <cassert>
 
 namespace lve {
@@ -105,8 +103,7 @@ namespace lve {
             obj.model->bind(frameInfo.commandBuffer);
             obj.model->draw(frameInfo.commandBuffer);
         }
-        
-    };
+    }
 
     VkDescriptorSet SimpleRenderSystem::getMaterialSet(const LveTexture &texture) {
         auto existing = materialSets.find(&texture);

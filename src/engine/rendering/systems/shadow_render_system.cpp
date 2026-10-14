@@ -2,7 +2,6 @@
 
 #include <glm/glm.hpp>
 
-#include <stdexcept>
 #include <cassert>
 
 namespace lve {

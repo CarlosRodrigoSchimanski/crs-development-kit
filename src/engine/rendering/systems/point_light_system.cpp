@@ -1,10 +1,7 @@
 #include "engine/rendering/systems/point_light_system.hpp"
 
 #include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
 
-#include <stdexcept>
-#include <array>
 #include <cassert>
 #include <map>
 
@@ -13,7 +10,7 @@ namespace lve {
     struct PointLightPushConstants {
         glm::vec4 position{};
         glm::vec4 color{};
-        float radius;
+        float radius{};
     };
 
     PointLightSystem::PointLightSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
