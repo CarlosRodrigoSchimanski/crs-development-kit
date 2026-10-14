@@ -35,27 +35,27 @@ namespace lve {
         return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height);
     }
 
-    VkResult LveSwapChain::acquireNextImage(uint32_t *imageIndex) {
+    VkResult LveSwapChain::acquireNextImage(int frameIndex, uint32_t *imageIndex) {
         //espera o frame anterior (do mesmo "slot") terminar antes de reaproveitar seus recursos
-        VkFence frameFence = inFlightFences[currentFrame].get();
+        VkFence frameFence = inFlightFences[frameIndex].get();
         vkCheck(vkWaitForFences(device.device(), 1, &frameFence, VK_TRUE, UINT64_MAX), "espera da fence do frame");
 
         VkResult result = vkAcquireNextImageKHR(
             device.device(),
             swapChain.get(),
             UINT64_MAX,
-            imageAvailableSemaphores[currentFrame].get(),
+            imageAvailableSemaphores[frameIndex].get(),
             VK_NULL_HANDLE,
             imageIndex);
 
         return result;
     }
 
-    VkResult LveSwapChain::submitCommandBuffers(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+    VkResult LveSwapChain::submitCommandBuffers(VkCommandBuffer commandBuffer, uint32_t imageIndex, int frameIndex) {
         if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
             vkCheck(vkWaitForFences(device.device(), 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX), "espera da fence da imagem");
         }
-        VkFence frameFence = inFlightFences[currentFrame].get();
+        VkFence frameFence = inFlightFences[frameIndex].get();
         imagesInFlight[imageIndex] = frameFence;
 
         //espera a imagem ser liberada pela tela, só no estágio de escrever cor: o que vem antes
@@ -63,7 +63,7 @@ namespace lve {
         //LveRenderer::beginSwapChainRendering, que se encadeia com esta espera
         VkSemaphoreSubmitInfo waitInfo{};
         waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        waitInfo.semaphore = imageAvailableSemaphores[currentFrame].get();
+        waitInfo.semaphore = imageAvailableSemaphores[frameIndex].get();
         waitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
         VkCommandBufferSubmitInfo commandBufferInfo{};
@@ -103,8 +103,6 @@ namespace lve {
         presentInfo.pImageIndices = &imageIndex;
 
         auto result = vkQueuePresentKHR(device.presentQueue(), &presentInfo);
-
-        currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
         return result;
     }

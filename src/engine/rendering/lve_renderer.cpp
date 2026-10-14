@@ -75,13 +75,13 @@ namespace lve {
             recreateSwapChain();
         }
 
-        auto result = lveSwapChain->acquireNextImage(&currentImageIndex);
+        auto result = lveSwapChain->acquireNextImage(currentFrameIndex, &currentImageIndex);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             //swap chain desatualizada (ex: mudou de tamanho): recria e tenta de novo na nova, em vez
             //de pular o frame. Pular fazia a imagem congelar durante o arrasto da borda no Windows:
             //cada redesenho pedido pelo SO caía nesta recriação e nenhum chegava a desenhar
             recreateSwapChain();
-            result = lveSwapChain->acquireNextImage(&currentImageIndex);
+            result = lveSwapChain->acquireNextImage(currentFrameIndex, &currentImageIndex);
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
                 return nullptr;  //mudou de novo nesse meio tempo: fica pro próximo frame
             }
@@ -112,7 +112,7 @@ namespace lve {
             throw std::runtime_error("failed to record command buffer!");
         }
 
-        auto result = lveSwapChain->submitCommandBuffers(commandBuffer, currentImageIndex);
+        auto result = lveSwapChain->submitCommandBuffers(commandBuffer, currentImageIndex, currentFrameIndex);
         if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || lveWindow.wasWindowResized()) {
             lveWindow.resetWindowResizedFlag();
             recreateSwapChain();

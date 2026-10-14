@@ -48,6 +48,8 @@ namespace lve {
             std::vector<VkCommandBuffer> commandBuffers;
             //índice da imagem da swap chain sendo desenhada neste frame (vem do acquireNextImage)
             uint32_t currentImageIndex;
+            //qual frame em voo é este: escolhe command buffer, UBO, descriptor set E (repassado à
+            //swap chain) a fence e o semáforo. Único contador de frame da engine
             int currentFrameIndex{0};
             bool isFrameStarted{false};
 

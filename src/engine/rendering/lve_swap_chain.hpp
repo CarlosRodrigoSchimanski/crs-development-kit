@@ -41,10 +41,15 @@ namespace lve {
 
             VkFormat findDepthFormat() const;
 
-            //pega o índice da próxima imagem disponível pra desenhar
-            VkResult acquireNextImage(uint32_t *imageIndex);
+            //frameIndex = qual frame em voo é este (0..MAX_FRAMES_IN_FLIGHT-1). Quem conta é o
+            //LveRenderer: a swap chain só RECEBE, assim a fence e o semáforo do frame são escolhidos
+            //pelo mesmo número que escolhe o command buffer, o UBO e o descriptor set (antes a swap
+            //chain tinha o próprio contador, que voltava a 0 a cada recriação e ficava defasado)
+
+            //espera a GPU liberar os recursos deste frame e pega o índice da próxima imagem pra desenhar
+            VkResult acquireNextImage(int frameIndex, uint32_t *imageIndex);
             //envia os comandos gravados pra GPU e apresenta o resultado na tela
-            VkResult submitCommandBuffers(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+            VkResult submitCommandBuffers(VkCommandBuffer commandBuffer, uint32_t imageIndex, int frameIndex);
 
         private:
             void createSwapChain(VkSwapchainKHR oldSwapchain);
@@ -84,6 +89,5 @@ namespace lve {
             std::vector<LveFence> inFlightFences;
             //NÃO é dono: só aponta pra uma das inFlightFences (qual frame está usando cada imagem)
             std::vector<VkFence> imagesInFlight;
-            size_t currentFrame = 0;
     };
 }
