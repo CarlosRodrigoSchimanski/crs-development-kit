@@ -12,31 +12,32 @@ VK_DEFINE_HANDLE(VmaAllocation)
 
 namespace lve {
 
-    //"handle inteligente" (RAII) pra um objeto do Vulkan que pertence ao device: guarda o handle e
-    //chama a função de destruir dele sozinho no destrutor. Usado como MEMBRO de classe, resolve o
-    //caso do construtor que falha no meio: o C++ não roda o destrutor de um objeto cujo construtor
-    //lançou exceção, mas DESTRÓI os membros que já tinham sido construídos — então o que já foi
-    //criado é liberado sem nenhum try/catch.
-    //  T       = o tipo do handle (VkImageView, VkSampler...)
-    //  Destroy = a função do Vulkan que destrói esse tipo (vkDestroyImageView, vkDestroySampler...)
+    //"handle inteligente" (RAII) pra um objeto do Vulkan que tem um "pai" (o device ou o instance):
+    //guarda o handle e chama a função de destruir dele sozinho no destrutor. Usado como MEMBRO de
+    //classe, resolve o caso do construtor que falha no meio: o C++ não roda o destrutor de um objeto
+    //cujo construtor lançou exceção, mas DESTRÓI os membros que já tinham sido construídos — então o
+    //que já foi criado é liberado sem nenhum try/catch.
+    //  Parent  = o tipo do pai (VkDevice ou VkInstance), passado pra função de destruir
+    //  T       = o tipo do handle (VkImageView, VkSurfaceKHR...)
+    //  Destroy = a função que destrói esse tipo (vkDestroyImageView, vkDestroySurfaceKHR...)
     //Não copiável (dois donos destruiriam o mesmo handle), mas movível (passa a posse pra outro).
-    template <typename T, auto Destroy>
-    class LveHandle {
+    template <typename Parent, typename T, auto Destroy>
+    class LveChildHandle {
         public:
-            LveHandle() = default;
-            LveHandle(VkDevice device, T handle) : device{device}, handle{handle} {}
-            ~LveHandle() { reset(); }
+            LveChildHandle() = default;
+            LveChildHandle(Parent parent, T handle) : parent{parent}, handle{handle} {}
+            ~LveChildHandle() { reset(); }
 
-            LveHandle(const LveHandle &) = delete;
-            LveHandle &operator=(const LveHandle &) = delete;
+            LveChildHandle(const LveChildHandle &) = delete;
+            LveChildHandle &operator=(const LveChildHandle &) = delete;
 
             //mover: o handle passa pra cá e o outro fica vazio (VK_NULL_HANDLE), então só um destrói
-            LveHandle(LveHandle &&other) noexcept
-                : device{other.device}, handle{std::exchange(other.handle, VK_NULL_HANDLE)} {}
-            LveHandle &operator=(LveHandle &&other) noexcept {
+            LveChildHandle(LveChildHandle &&other) noexcept
+                : parent{other.parent}, handle{std::exchange(other.handle, VK_NULL_HANDLE)} {}
+            LveChildHandle &operator=(LveChildHandle &&other) noexcept {
                 if (this != &other) {
                     reset();
-                    device = other.device;
+                    parent = other.parent;
                     handle = std::exchange(other.handle, VK_NULL_HANDLE);
                 }
                 return *this;
@@ -47,16 +48,72 @@ namespace lve {
             //destrói agora (se tiver algo) e fica vazio
             void reset() {
                 if (handle != VK_NULL_HANDLE) {
-                    Destroy(device, handle, nullptr);
+                    Destroy(parent, handle, nullptr);
                     handle = VK_NULL_HANDLE;
                 }
             }
 
         private:
-            VkDevice device = VK_NULL_HANDLE;
+            Parent parent = VK_NULL_HANDLE;
             T handle = VK_NULL_HANDLE;
     };
 
+    //o caso mais comum: objeto que pertence ao device
+    template <typename T, auto Destroy>
+    using LveHandle = LveChildHandle<VkDevice, T, Destroy>;
+
+    //mesma ideia pra um handle "raiz", que não tem pai (o instance, o device, o allocator da VMA):
+    //a função de destruir recebe só o próprio handle
+    template <typename T, auto Destroy>
+    class LveRootHandle {
+        public:
+            LveRootHandle() = default;
+            explicit LveRootHandle(T handle) : handle{handle} {}
+            ~LveRootHandle() { reset(); }
+
+            LveRootHandle(const LveRootHandle &) = delete;
+            LveRootHandle &operator=(const LveRootHandle &) = delete;
+
+            LveRootHandle(LveRootHandle &&other) noexcept : handle{std::exchange(other.handle, VK_NULL_HANDLE)} {}
+            LveRootHandle &operator=(LveRootHandle &&other) noexcept {
+                if (this != &other) {
+                    reset();
+                    handle = std::exchange(other.handle, VK_NULL_HANDLE);
+                }
+                return *this;
+            }
+
+            T get() const { return handle; }
+
+            void reset() {
+                if (handle != VK_NULL_HANDLE) {
+                    Destroy(handle);
+                    handle = VK_NULL_HANDLE;
+                }
+            }
+
+        private:
+            T handle = VK_NULL_HANDLE;
+    };
+
+    //funções de destruir com a "cara" que os templates esperam (no .cpp)
+    void destroyInstance(VkInstance instance);
+    void destroyDevice(VkDevice device);
+    void destroyAllocator(VmaAllocator allocator);
+    //o debug messenger é de uma extensão: a função de destruir não vem pronta, é carregada na hora
+    void destroyDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks *allocator);
+
+    //raízes: sem pai
+    using LveInstance = LveRootHandle<VkInstance, destroyInstance>;
+    using LveDeviceHandle = LveRootHandle<VkDevice, destroyDevice>;  //"Handle": a classe LveDevice é dona de um destes
+    using LveAllocatorHandle = LveRootHandle<VmaAllocator, destroyAllocator>;
+
+    //filhos do instance
+    using LveSurface = LveChildHandle<VkInstance, VkSurfaceKHR, vkDestroySurfaceKHR>;
+    using LveDebugMessenger = LveChildHandle<VkInstance, VkDebugUtilsMessengerEXT, destroyDebugMessenger>;
+
+    //filhos do device
+    using LveCommandPool = LveHandle<VkCommandPool, vkDestroyCommandPool>;
     using LveImageView = LveHandle<VkImageView, vkDestroyImageView>;
     using LveSampler = LveHandle<VkSampler, vkDestroySampler>;
     using LveSemaphore = LveHandle<VkSemaphore, vkDestroySemaphore>;

@@ -34,30 +34,18 @@ namespace lve {
         }
     }
 
-    //mesma ideia, mas pra destruir o debug messenger
-    void DestroyDebugUtilsMessengerEXT(
-        VkInstance instance,
-        VkDebugUtilsMessengerEXT debugMessenger,
-        const VkAllocationCallbacks *pAllocator) {
-        auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-            instance, "vkDestroyDebugUtilsMessengerEXT");
-        if (func != nullptr) {
-            func(instance, debugMessenger, pAllocator);
-        }
-    }
-
     bool QueueFamilyIndices::isComplete() const {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
 
-    VkInstance LveDevice::instance() const { return instance_; }
+    VkInstance LveDevice::instance() const { return instance_.get(); }
     VkPhysicalDevice LveDevice::physicalDevice() const { return physicalDevice_; }
-    VkDevice LveDevice::device() const { return device_; }
-    VkSurfaceKHR LveDevice::surface() const { return surface_; }
+    VkDevice LveDevice::device() const { return device_.get(); }
+    VkSurfaceKHR LveDevice::surface() const { return surface_.get(); }
     VkQueue LveDevice::graphicsQueue() const { return graphicsQueue_; }
-    VmaAllocator LveDevice::allocator() const { return allocator_; }
+    VmaAllocator LveDevice::allocator() const { return allocator_.get(); }
     VkQueue LveDevice::presentQueue() const { return presentQueue_; }
-    VkCommandPool LveDevice::getCommandPool() const { return commandPool; }
+    VkCommandPool LveDevice::getCommandPool() const { return commandPool.get(); }
 
     SwapChainSupportDetails LveDevice::getSwapChainSupport() const { return querySwapChainSupport(physicalDevice_); }
     QueueFamilyIndices LveDevice::findPhysicalQueueFamilies() const { return findQueueFamilies(physicalDevice_); }
@@ -69,23 +57,7 @@ namespace lve {
         pickPhysicalDevice();
         createLogicalDevice();
         createAllocator();
-        createCommandPool();
-    }
-
-    LveDevice::~LveDevice() {
-        vkDestroyCommandPool(device_, commandPool, nullptr);
-        //depois de todo buffer/imagem (que vivem em objetos destruídos antes do device) e antes do
-        //device; se ainda houver alocação viva aqui, a VMA acusa (detector de vazamento de graça)
-        vmaDestroyAllocator(allocator_);
-        vkDestroyDevice(device_, nullptr);
-
-        if (enableValidationLayers) {
-            DestroyDebugUtilsMessengerEXT(instance_, debugMessenger_, nullptr);
-        }
-
-        vkDestroySurfaceKHR(instance_, surface_, nullptr);
-        vkDestroyInstance(instance_, nullptr);
-    }
+        createCommandPool();    }
 
     void LveDevice::createInstance() {
         if (enableValidationLayers && !checkValidationLayerSupport()) {
@@ -121,9 +93,11 @@ namespace lve {
             createInfo.pNext = nullptr;
         }
 
-        if (vkCreateInstance(&createInfo, nullptr, &instance_) != VK_SUCCESS) {
+        VkInstance instance;
+        if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance!");
         }
+        instance_ = LveInstance{instance};
     }
 
     void LveDevice::setupDebugMessenger() {
@@ -131,24 +105,28 @@ namespace lve {
 
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
         populateDebugMessengerCreateInfo(createInfo);
-        if (CreateDebugUtilsMessengerEXT(instance_, &createInfo, nullptr, &debugMessenger_) != VK_SUCCESS) {
+        VkDebugUtilsMessengerEXT messenger;
+        if (CreateDebugUtilsMessengerEXT(instance_.get(), &createInfo, nullptr, &messenger) != VK_SUCCESS) {
             throw std::runtime_error("failed to set up debug messenger!");
         }
+        debugMessenger_ = LveDebugMessenger{instance_.get(), messenger};
     }
 
     void LveDevice::createSurface() {
-        window.createWindowSurface(instance_, &surface_);
+        VkSurfaceKHR surface;
+        window.createWindowSurface(instance_.get(), &surface);
+        surface_ = LveSurface{instance_.get(), surface};
     }
 
     void LveDevice::pickPhysicalDevice() {
         uint32_t deviceCount = 0;
-        vkEnumeratePhysicalDevices(instance_, &deviceCount, nullptr);
+        vkEnumeratePhysicalDevices(instance_.get(), &deviceCount, nullptr);
         if (deviceCount == 0) {
             throw std::runtime_error("failed to find GPUs with Vulkan support!");
         }
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
-        vkEnumeratePhysicalDevices(instance_, &deviceCount, devices.data());
+        vkEnumeratePhysicalDevices(instance_.get(), &deviceCount, devices.data());
 
         //compara a pontuação de cada GPU disponível e guarda a melhor
         int bestScore = 0;
@@ -208,12 +186,14 @@ namespace lve {
         //configurá-las aqui no device é comportamento legado que o Vulkan moderno rejeita
         createInfo.enabledLayerCount = 0;
 
-        if (vkCreateDevice(physicalDevice_, &createInfo, nullptr, &device_) != VK_SUCCESS) {
+        VkDevice device;
+        if (vkCreateDevice(physicalDevice_, &createInfo, nullptr, &device) != VK_SUCCESS) {
             throw std::runtime_error("failed to create logical device!");
         }
+        device_ = LveDeviceHandle{device};
 
-        vkGetDeviceQueue(device_, indices.graphicsFamily.value(), 0, &graphicsQueue_);
-        vkGetDeviceQueue(device_, indices.presentFamily.value(), 0, &presentQueue_);
+        vkGetDeviceQueue(device_.get(), indices.graphicsFamily.value(), 0, &graphicsQueue_);
+        vkGetDeviceQueue(device_.get(), indices.presentFamily.value(), 0, &presentQueue_);
     }
 
     void LveDevice::createCommandPool() {
@@ -224,22 +204,26 @@ namespace lve {
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
         poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-        if (vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+        VkCommandPool pool;
+        if (vkCreateCommandPool(device_.get(), &poolInfo, nullptr, &pool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create command pool!");
         }
+        commandPool = LveCommandPool{device_.get(), pool};
     }
 
     void LveDevice::createAllocator() {
         VmaAllocatorCreateInfo allocatorInfo{};
         //a mesma versão pedida no createInstance: deixa a VMA usar o que é do núcleo do 1.3
         allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
-        allocatorInfo.instance = instance_;
+        allocatorInfo.instance = instance_.get();
         allocatorInfo.physicalDevice = physicalDevice_;
-        allocatorInfo.device = device_;
+        allocatorInfo.device = device_.get();
 
-        if (vmaCreateAllocator(&allocatorInfo, &allocator_) != VK_SUCCESS) {
+        VmaAllocator allocator;
+        if (vmaCreateAllocator(&allocatorInfo, &allocator) != VK_SUCCESS) {
             throw std::runtime_error("failed to create memory allocator!");
         }
+        allocator_ = LveAllocatorHandle{allocator};
     }
 
     int LveDevice::rateDeviceSuitability(VkPhysicalDevice device) {
@@ -311,7 +295,7 @@ namespace lve {
 
             //confere se essa família de filas consegue apresentar imagem na nossa surface
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface_, &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface_.get(), &presentSupport);
             if (queueFamily.queueCount > 0 && presentSupport) {
                 indices.presentFamily = i;
             }
@@ -343,20 +327,20 @@ namespace lve {
 
     SwapChainSupportDetails LveDevice::querySwapChainSupport(VkPhysicalDevice device) const {
         SwapChainSupportDetails details;
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface_, &details.capabilities);
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface_.get(), &details.capabilities);
 
         uint32_t formatCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, nullptr);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_.get(), &formatCount, nullptr);
         if (formatCount != 0) {
             details.formats.resize(formatCount);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, details.formats.data());
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_.get(), &formatCount, details.formats.data());
         }
 
         uint32_t presentModeCount;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &presentModeCount, nullptr);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_.get(), &presentModeCount, nullptr);
         if (presentModeCount != 0) {
             details.presentModes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &presentModeCount, details.presentModes.data());
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_.get(), &presentModeCount, details.presentModes.data());
         }
 
         return details;
@@ -435,10 +419,10 @@ namespace lve {
         //cria a imagem, aloca e liga a memória, tudo numa chamada (igual o vmaCreateBuffer do LveBuffer)
         VkImage image;
         VmaAllocation allocation;
-        if (vmaCreateImage(allocator_, &imageInfo, &allocInfo, &image, &allocation, nullptr) != VK_SUCCESS) {
+        if (vmaCreateImage(allocator_.get(), &imageInfo, &allocInfo, &image, &allocation, nullptr) != VK_SUCCESS) {
             throw std::runtime_error("failed to create image!");
         }
         //daqui em diante a imagem já tem dono
-        return LveAllocatedImage{allocator_, image, allocation};
+        return LveAllocatedImage{allocator_.get(), image, allocation};
     }
 }

@@ -36,7 +36,6 @@ namespace lve {
 
             //recebe a janela pra criar a surface
             LveDevice(LveWindow &window);
-            ~LveDevice();
 
             //não copiável: é dono de recursos únicos do Vulkan (instance, device...).
             //apagar a cópia já impede o move também (o compilador não gera move sozinho nesse caso)
@@ -93,15 +92,21 @@ namespace lve {
             bool checkDeviceExtensionSupport(VkPhysicalDevice device);
             SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
 
-            VkInstance instance_;
-            VkDebugUtilsMessengerEXT debugMessenger_;
-            VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
             //referência à janela: não é dona dela, só usa pra criar a surface
             LveWindow &window;
-            VkCommandPool commandPool;
-            VkSurfaceKHR surface_;
-            VkDevice device_;
-            VmaAllocator allocator_;
+
+            //A ORDEM DOS MEMBROS É A ORDEM DE CRIAÇÃO, e eles são destruídos na ordem INVERSA: o
+            //command pool morre primeiro e o instance por último — por isso não há destrutor escrito
+            LveInstance instance_;
+            LveDebugMessenger debugMessenger_;   //vazio se as validation layers estiverem desligadas
+            LveSurface surface_;
+            VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;  //não é criado por nós, só escolhido
+            LveDeviceHandle device_;
+            //depois de todo buffer/imagem (que vivem em objetos destruídos antes do device) e antes do
+            //device: se ainda houver alocação viva quando ele for destruído, a VMA acusa
+            LveAllocatorHandle allocator_;
+            LveCommandPool commandPool;
+            //as filas pertencem ao device: não são destruídas
             VkQueue graphicsQueue_;
             VkQueue presentQueue_;
 
