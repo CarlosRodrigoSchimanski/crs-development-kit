@@ -139,6 +139,14 @@ set(PROJECT_SOURCES
     src/engine/rendering/lve_upload_batch.cpp
 )
 
+#camada de plataforma: uma implementação por sistema operacional, escolhida AQUI (o código não
+#tem #ifdef de SO). SO sem implementação própria usa a genérica
+if(WIN32)
+    list(APPEND PROJECT_SOURCES src/engine/platform/lve_platform_windows.cpp)
+else()
+    list(APPEND PROJECT_SOURCES src/engine/platform/lve_platform_generic.cpp)
+endif()
+
 #nome do executável: código do projeto + ImGui (que é compilado junto, não linkado) +
 #a implementação das libs só-header (fora do PROJECT_SOURCES de propósito: sem os avisos extras)
 add_executable(G_E_Youtube ${PROJECT_SOURCES} ${IMGUI_SOURCES} src/engine/third_party_impl.cpp)
@@ -163,7 +171,7 @@ target_link_libraries(G_E_Youtube PRIVATE glfw Vulkan::Vulkan glm::glm GPUOpen::
 #arquivo, então a ordem dos #include deixa de importar.
 #(GLM_FORCE_RADIANS foi removido: o glm usa radianos sempre desde a 0.9.6, a macro não faz nada)
 target_compile_definitions(G_E_Youtube PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
-#winmm: só existe/é necessária no Windows (timeBeginPeriod, usado pelo limitador de FPS)
+#winmm: só existe/é necessária no Windows (timeBeginPeriod, no lve_platform_windows.cpp)
 if(WIN32)
     target_link_libraries(G_E_Youtube PRIVATE winmm)
 endif()
