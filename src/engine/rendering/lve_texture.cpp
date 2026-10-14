@@ -10,47 +10,50 @@
 namespace lve {
 
     LveTexture::LveTexture(LveDevice &device, const std::string &filepath) : lveDevice{device} {
+        int width, height, channels;
         stbi_uc *pixels = stbi_load(filepath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
         if (!pixels) {
             throw std::runtime_error("failed to load texture image: " + filepath);
         }
-        createTextureImage(pixels);
+        upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels);
         stbi_image_free(pixels);
-        createTextureImageView();
-        createTextureSampler();
     }
 
     LveTexture::LveTexture(LveDevice &device, const std::vector<unsigned char> &encodedImage) : lveDevice{device} {
         //mesmo decodificador do stbi_load, só que lendo de um buffer em vez de um arquivo
+        int width, height, channels;
         stbi_uc *pixels = stbi_load_from_memory(
             encodedImage.data(), static_cast<int>(encodedImage.size()), &width, &height, &channels, STBI_rgb_alpha);
         if (!pixels) {
             throw std::runtime_error("failed to decode texture image from memory");
         }
-        createTextureImage(pixels);
+        upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels);
         stbi_image_free(pixels);
-        createTextureImageView();
-        createTextureSampler();
     }
 
     LveTexture::LveTexture(LveDevice &device, uint32_t width, uint32_t height, const unsigned char *rgbaPixels)
-        : lveDevice{device}, width{static_cast<int>(width)}, height{static_cast<int>(height)}, channels{4} {
-        createTextureImage(rgbaPixels);
-        createTextureImageView();
-        createTextureSampler();
+        : lveDevice{device} {
+        upload(width, height, rgbaPixels);
     }
 
     VkImageView LveTexture::getImageView() const { return textureImageView; }
     VkSampler LveTexture::getSampler() const { return textureSampler; }
 
-    //recebe os pixels já decodificados em RGBA (width/height já preenchidos) e sobe pra GPU
-    void LveTexture::createTextureImage(const unsigned char *pixels) {
+    //parte comum dos 3 construtores: com os pixels já em RGBA, cria image, view e sampler
+    void LveTexture::upload(uint32_t width, uint32_t height, const unsigned char *pixels) {
+        createTextureImage(width, height, pixels);
+        createTextureImageView();
+        createTextureSampler();
+    }
+
+    //sobe os pixels RGBA pra uma VkImage na GPU, passando por um staging buffer
+    void LveTexture::createTextureImage(uint32_t width, uint32_t height, const unsigned char *pixels) {
         //4 bytes por pixel (RGBA), forçado pelo STBI_rgb_alpha
         //o destrutor do LveBuffer libera o staging ao sair da função, mesmo se der exceção no meio
         LveBuffer stagingBuffer{
             lveDevice,
             4,
-            static_cast<uint32_t>(width) * static_cast<uint32_t>(height),
+            width * height,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         };
@@ -60,8 +63,8 @@ namespace lve {
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width = static_cast<uint32_t>(width);
-        imageInfo.extent.height = static_cast<uint32_t>(height);
+        imageInfo.extent.width = width;
+        imageInfo.extent.height = height;
         imageInfo.extent.depth = 1;
         imageInfo.mipLevels = 1;
         imageInfo.arrayLayers = 1;
@@ -77,7 +80,7 @@ namespace lve {
         //os 3 passos gravados num command buffer só: 1 submit e 1 espera em vez de 3
         VkCommandBuffer commandBuffer = lveDevice.beginSingleTimeCommands();
         transitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        copyBufferToImage(commandBuffer, stagingBuffer.getBuffer(), static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+        copyBufferToImage(commandBuffer, stagingBuffer.getBuffer(), width, height);
         transitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         lveDevice.endSingleTimeCommands(commandBuffer);
     }
