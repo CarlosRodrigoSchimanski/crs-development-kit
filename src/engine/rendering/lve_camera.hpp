@@ -33,10 +33,12 @@ namespace lve {
             float far
         );
 
-        const glm::mat4 getProjection() const;
-        const glm::mat4 getView() const;
-        const glm::mat4 getInverseView() const;
-        const glm::vec3 getPosition() const;
+        //as matrizes são guardadas: devolve referência (sem cópia; o const impede mexer na da câmera)
+        const glm::mat4 &getProjection() const;
+        const glm::mat4 &getView() const;
+        const glm::mat4 &getInverseView() const;
+        //a posição é calculada na hora: devolve uma cópia
+        glm::vec3 getPosition() const;
 
         private:
         glm::mat4 projectionMatrix{1.f};

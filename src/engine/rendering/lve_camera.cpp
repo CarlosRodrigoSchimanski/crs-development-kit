@@ -70,19 +70,19 @@ namespace lve {
         setViewDirection(position, target - position, up);
     }
     
-    const glm::mat4 LveCamera::getProjection() const {
+    const glm::mat4 &LveCamera::getProjection() const {
         return projectionMatrix;
     }
 
-    const glm::mat4 LveCamera::getInverseView() const {
+    const glm::mat4 &LveCamera::getInverseView() const {
         return inverseViewMatrix;
     }
 
-    const glm::mat4 LveCamera::getView() const{
+    const glm::mat4 &LveCamera::getView() const {
         return viewMatrix;
     }
 
-    const glm::vec3 LveCamera::getPosition() const {
+    glm::vec3 LveCamera::getPosition() const {
         return glm::vec3(inverseViewMatrix[3]);
     }
 }
