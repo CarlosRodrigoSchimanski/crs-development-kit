@@ -1,5 +1,7 @@
 #include "engine/rendering/lve_swap_chain.hpp"
 
+#include <vk_mem_alloc.h>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -25,8 +27,7 @@ namespace lve {
 
         for (size_t i = 0; i < depthImages.size(); i++) {
             vkDestroyImageView(device.device(), depthImageViews[i], nullptr);
-            vkDestroyImage(device.device(), depthImages[i], nullptr);
-            vkFreeMemory(device.device(), depthImageMemorys[i], nullptr);
+            vmaDestroyImage(device.allocator(), depthImages[i], depthImageAllocations[i]);
         }
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -220,7 +221,7 @@ namespace lve {
         VkExtent2D extent = getSwapChainExtent();
 
         depthImages.resize(imageCount());
-        depthImageMemorys.resize(imageCount());
+        depthImageAllocations.resize(imageCount());
         depthImageViews.resize(imageCount());
 
         for (size_t i = 0; i < depthImages.size(); i++) {
@@ -241,7 +242,7 @@ namespace lve {
             imageInfo.flags = 0;
 
             device.createImageWithInfo(
-                imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImages[i], depthImageMemorys[i]);
+                imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImages[i], depthImageAllocations[i]);
 
             VkImageViewCreateInfo viewInfo{};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

@@ -30,7 +30,7 @@ namespace lve {
             VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
 
             VkImage depthImage;
-            VkDeviceMemory depthImageMemory;
+            VmaAllocation depthImageAllocation;
             VkImageView depthImageView;
             VkSampler depthSampler;
     };

@@ -2,6 +2,8 @@
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/rendering/lve_image_barrier.hpp"
 
+#include <vk_mem_alloc.h>
+
 #include <stb_image.h>
 
 #include <stdexcept>
@@ -74,7 +76,7 @@ namespace lve {
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageAllocation);
 
         //os 3 passos gravados num command buffer só: 1 submit e 1 espera em vez de 3
         VkCommandBuffer commandBuffer = lveDevice.beginSingleTimeCommands();
@@ -96,8 +98,7 @@ namespace lve {
     LveTexture::~LveTexture() {
         vkDestroySampler(lveDevice.device(), textureSampler, nullptr);
         vkDestroyImageView(lveDevice.device(), textureImageView, nullptr);
-        vkDestroyImage(lveDevice.device(), textureImage, nullptr);
-        vkFreeMemory(lveDevice.device(), textureImageMemory, nullptr);
+        vmaDestroyImage(lveDevice.allocator(), textureImage, textureImageAllocation);
     }
 
     void LveTexture::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, uint32_t width, uint32_t height) {

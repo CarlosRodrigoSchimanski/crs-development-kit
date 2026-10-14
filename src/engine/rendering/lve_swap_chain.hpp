@@ -62,7 +62,7 @@ namespace lve {
             VkExtent2D swapChainExtent;
 
             std::vector<VkImage> depthImages;
-            std::vector<VkDeviceMemory> depthImageMemorys;
+            std::vector<VmaAllocation> depthImageAllocations;
             std::vector<VkImageView> depthImageViews;
             std::vector<VkImage> swapChainImages;
             std::vector<VkImageView> swapChainImageViews;

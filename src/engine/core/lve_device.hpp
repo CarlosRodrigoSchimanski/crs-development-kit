@@ -67,14 +67,13 @@ namespace lve {
             //acha, entre os formatos candidatos, o primeiro que a GPU realmente suporta pro uso pedido
             VkFormat findSupportedFormat(
                 const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const;
-            //acha o tipo de memória da GPU compatível com o que está sendo pedido
-            uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags requiredProperties) const;
-            //cria uma VkImage já com a memória alocada e vinculada
+            //cria uma VkImage já com a memória alocada (pela VMA) e vinculada;
+            //destruir com vmaDestroyImage(allocator(), image, allocation)
             void createImageWithInfo(
                 const VkImageCreateInfo &imageInfo,
                 VkMemoryPropertyFlags requiredProperties,
                 VkImage &image,
-                VkDeviceMemory &imageMemory);
+                VmaAllocation &allocation);
             //command buffer descartável pra um comando avulso (cópia, troca de layout...):
             //begin aloca e começa a gravar; end submete, espera a GPU terminar e libera
             VkCommandBuffer beginSingleTimeCommands();

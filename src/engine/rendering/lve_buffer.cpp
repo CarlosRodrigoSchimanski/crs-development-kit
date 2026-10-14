@@ -33,7 +33,7 @@ namespace lve {
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         //as mesmas flags de antes (DEVICE_LOCAL, HOST_VISIBLE...): a VMA acha o tipo de memória
-        //que tem todas elas (o que o findMemoryType fazia) e encaixa o buffer num bloco dela
+        //que tem todas elas e encaixa o buffer num bloco dela
         VmaAllocationCreateInfo allocInfo{};
         allocInfo.requiredFlags = memoryPropertyFlags;
 

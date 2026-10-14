@@ -33,7 +33,7 @@ namespace lve {
 
             LveDevice &lveDevice;
             VkImage textureImage;
-            VkDeviceMemory textureImageMemory;
+            VmaAllocation textureImageAllocation;
             VkImageView textureImageView;
             VkSampler textureSampler;
     };

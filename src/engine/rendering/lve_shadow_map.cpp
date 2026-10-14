@@ -1,5 +1,7 @@
 #include "engine/rendering/lve_shadow_map.hpp"
 
+#include <vk_mem_alloc.h>
+
 #include <stdexcept>
 
 namespace lve {
@@ -14,8 +16,7 @@ namespace lve {
     LveShadowMap::~LveShadowMap() {
         vkDestroySampler(lveDevice.device(), depthSampler, nullptr);
         vkDestroyImageView(lveDevice.device(), depthImageView, nullptr);
-        vkDestroyImage(lveDevice.device(), depthImage, nullptr);
-        vkFreeMemory(lveDevice.device(), depthImageMemory, nullptr);
+        vmaDestroyImage(lveDevice.allocator(), depthImage, depthImageAllocation);
     }
 
     VkImage LveShadowMap::getImage() const { return depthImage; }
@@ -41,7 +42,7 @@ namespace lve {
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageAllocation);
     }
 
     void LveShadowMap::createImageView() {
