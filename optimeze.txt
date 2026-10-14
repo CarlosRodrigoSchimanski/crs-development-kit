@@ -37,8 +37,8 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
   ✅ M1  Vulkan 1.3 (2026-10-14; dynamicRendering e synchronization2 já ligados no device)
   ✅ M2 + M3 (2026-10-14; em 4 passos A-D, cada um testado com a validação de sincronização
      ligada — VK_KHRONOS_VALIDATION_VALIDATE_SYNC=1 — e o último também redimensionando a janela)
-  >> PRÓXIMO: M5  VMA (reescreve createBuffer/createImageWithInfo)
-  -- M6  uploads agrupados (DEPOIS do M5: mexe nas mesmas funções)
+  ✅ M5  VMA (2026-10-14; v3.4.0; buffers e imagens; detector de vazamento conferido)
+  >> PRÓXIMO: M6  uploads agrupados (depois do M5: mexe nas mesmas funções)
   -- M9  luzes em SSBO (reescreve global_ubo.glsl e PointLightSystem)
   -- Fase 2, item 10 (desenhar no resize): depois do M2/M3, que reescrevem o loop de frame
   -- Fase 3 (filtro final)
@@ -184,7 +184,8 @@ M3. ✅ (feito 2026-10-14) Synchronization2 (core no 1.3): vkCmdPipelineBarrier2
 M4. ✅ (resolvido 2026-10-12 na Fase 1, ver item 15) Semáforo por imagem da swap chain (= item 15 da Fase 3, aviso real no console).
     Resolver junto com M2/M3, já que mexe no mesmo fluxo de frame.
 
-M5. Alocação de memória: hoje cada buffer/imagem faz o próprio vkAllocateMemory
+M5. ✅ (feito 2026-10-14: VMA v3.4.0; ao fechar, a VMA acusa qualquer alocação não
+    devolvida — testar fechando pelo X, não matando o processo) Alocação de memória: hoje cada buffer/imagem faz o próprio vkAllocateMemory
     (createBuffer/createImageWithInfo). O Vulkan limita o número de alocações
     (maxMemoryAllocationCount, tipicamente 4096) e alocar é caro — o certo é poucas
     alocações grandes subdivididas. Solução padrão: VMA (Vulkan Memory Allocator).
