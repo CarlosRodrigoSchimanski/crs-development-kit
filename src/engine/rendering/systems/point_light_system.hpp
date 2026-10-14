@@ -5,6 +5,7 @@
 #include "engine/rendering/lve_pipeline.hpp"
 #include "engine/scene/lve_game_object.hpp"
 #include "engine/rendering/lve_frameInfo.hpp"
+#include "engine/rendering/lve_buffer.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,7 +20,9 @@ namespace lve {
             PointLightSystem(const PointLightSystem&) = delete;
             PointLightSystem& operator=(const PointLightSystem&) = delete;
 
-            void update(FrameInfo& frameInfo, GlobalUbo& ubo);
+            //copia as point lights da cena pro lightBuffer (storage buffer do frame) e põe a
+            //quantidade no ubo.numLights
+            void update(FrameInfo& frameInfo, GlobalUbo& ubo, LveBuffer& lightBuffer);
             void render(FrameInfo& frameInfo);
 
         private:

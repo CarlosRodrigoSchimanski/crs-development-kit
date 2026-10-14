@@ -27,6 +27,7 @@ namespace lve {
             VkDescriptorBufferInfo descriptorInfo(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0) const;
 
             VkBuffer getBuffer() const;
+            VkDeviceSize getBufferSize() const;
 
         private:
             //acha o menor tamanho de instância compatível com o alinhamento mínimo exigido pelo device

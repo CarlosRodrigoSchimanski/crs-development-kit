@@ -42,6 +42,7 @@ namespace lve {
             .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .build();
         loadGameObjects();
     }
@@ -62,18 +63,32 @@ namespace lve {
             uboBuffers[i]->map();
         }
 
+        //point lights: um storage buffer por frame em voo (a CPU reescreve todo frame, igual o UBO)
+        std::vector<std::unique_ptr<LveBuffer>> lightBuffers(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (auto &lightBuffer : lightBuffers) {
+            lightBuffer = std::make_unique<LveBuffer>(
+                lveDevice,
+                sizeof(PointLight),
+                LIGHT_BUFFER_CAPACITY,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            lightBuffer->map();
+        }
+
         LveShadowMap shadowMap{lveDevice};
 
 
         auto globalSetLayout = LveDescriptorSetLayout::Builder{lveDevice}
             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
             .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
             .build();
         
         std::vector<VkDescriptorSet> globalDescriptorSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < globalDescriptorSets.size(); i++)
         {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
+            auto lightBufferInfo = lightBuffers[i]->descriptorInfo();
             VkDescriptorImageInfo shadowMapInfo{};
             shadowMapInfo.sampler = shadowMap.getSampler();
             shadowMapInfo.imageView = shadowMap.getImageView();
@@ -83,6 +98,7 @@ namespace lve {
             LveDescriptorWriter(*globalSetLayout, *globalPool)
                 .writeBuffer(0, &bufferInfo)
                 .writeImage(1, &shadowMapInfo)
+                .writeBuffer(2, &lightBufferInfo)
                 .build(globalDescriptorSets[i]);
         }
         
@@ -145,7 +161,7 @@ namespace lve {
                 //a caixa do sol acompanha o ponto que a câmera orbital está olhando
                 updateShadowCamera(shadowCamera, cameraController.target, lightDirection, shadowMap.getExtent().width);
                 ubo.lightSpaceMatrix = shadowCamera.getProjection() * shadowCamera.getView();
-                pointLightSystem.update(frameInfo, ubo);
+                pointLightSystem.update(frameInfo, ubo, *lightBuffers[frameIndex]);
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 

@@ -89,5 +89,6 @@ namespace lve {
     }
 
     VkBuffer LveBuffer::getBuffer() const { return buffer; }
+    VkDeviceSize LveBuffer::getBufferSize() const { return bufferSize; }
 
 }

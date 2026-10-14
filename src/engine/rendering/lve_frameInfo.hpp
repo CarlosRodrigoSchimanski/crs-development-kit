@@ -7,14 +7,14 @@
 
 
 namespace lve {
-    //constexpr em vez de #define: respeita o namespace (lve::MAX_LIGHTS), tem tipo e aparece no debugger
-    //tem que bater com o tamanho do array pointLight[] nos shaders
-    constexpr int MAX_LIGHTS = 10;
-
+    //uma point light como o shader enxerga (um item do storage buffer de luzes, binding 2)
     struct PointLight {
         glm::vec4 position{};
-        glm::vec4 color{};
+        glm::vec4 color{};  //w = intensidade
     };
+
+    //quantas luzes cabem no storage buffer de cada frame
+    constexpr uint32_t LIGHT_BUFFER_CAPACITY = 64;
 
     struct GlobalUbo {
         glm::mat4 projection{1.f};
@@ -24,7 +24,6 @@ namespace lve {
         glm::vec4 sunDirection = {-1.f, -4.f, -1.f, 1.f};
 
         glm::vec4 lightAmbientColor = {1.f, 1.f, 1.f, 0.35f};
-        PointLight pointLights[MAX_LIGHTS];
         int numLights;
     };
 

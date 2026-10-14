@@ -60,7 +60,7 @@ void main() {
     diffuseLight += vec3(1.0) * ubo.sunDirection.w * sunCosAngIncidence * (1.0 - shadow);
 
     for (int i = 0; i < ubo.numLights; i++) {
-        PointLight light = ubo.pointLight[i];
+        PointLight light = lightBuffer.pointLights[i];
         vec3 directionToLight = light.position.xyz - fragPosWorldSpace;
         float attenuation = 1.0 / dot(directionToLight, directionToLight);
         directionToLight = normalize(directionToLight);

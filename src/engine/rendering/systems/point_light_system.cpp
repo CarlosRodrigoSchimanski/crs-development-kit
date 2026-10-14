@@ -46,26 +46,30 @@ namespace lve {
             pipelineConfig);
     }
 
-    //copia as point lights da cena pro UBO (só lê a cena; mover as luzes é com quem usa a engine)
-    void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
-        int lightIndex = 0;
+    //copia as point lights da cena pro storage buffer do frame (só lê a cena; mover as luzes é com
+    //quem usa a engine)
+    void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo, LveBuffer& lightBuffer) {
+        const size_t capacity = lightBuffer.getBufferSize() / sizeof(PointLight);
+
+        std::vector<PointLight> lights;
         for (auto& kv : frameInfo.gameObjects) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
 
             //o assert só avisa no Debug; no Release some, então a trava de verdade é o continue:
-            //escrever além do array atropelaria o numLights e o que vier depois na memória
-            if (lightIndex >= MAX_LIGHTS) {
-                assert(false && "Point lights exceed maximum specified");
+            //escrever além do buffer atropelaria a memória vizinha
+            if (lights.size() >= capacity) {
+                assert(false && "Point lights exceed light buffer capacity");
                 continue;
             }
 
-            ubo.pointLights[lightIndex].position = glm::vec4(obj.transform.translation, 1.f);
-            ubo.pointLights[lightIndex].color = glm::vec4(obj.color, obj.pointLight->lightIntensity);
-
-            lightIndex += 1;
+            lights.push_back({glm::vec4(obj.transform.translation, 1.f), glm::vec4(obj.color, obj.pointLight->lightIntensity)});
         }
-        ubo.numLights = lightIndex;
+
+        if (!lights.empty()) {
+            lightBuffer.writeToBuffer(lights.data(), lights.size() * sizeof(PointLight));
+        }
+        ubo.numLights = static_cast<int>(lights.size());
     }
 
     void PointLightSystem::render(FrameInfo& frameInfo) {
