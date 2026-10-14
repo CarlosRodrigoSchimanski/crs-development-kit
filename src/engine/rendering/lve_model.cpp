@@ -129,10 +129,6 @@ namespace lve {
         return attributeDescriptions;
     }
 
-    bool LveModel::Vertex::operator==(const Vertex &other) const{
-        return position == other.position && color == other.color && normal == other.normal && uv == other.uv;
-    }
-
     void LveModel::Builder::loadModel(const std::string &filepath) {
         //limpa aqui, uma vez só, em vez de cada carregador lembrar de limpar
         vertices.clear();

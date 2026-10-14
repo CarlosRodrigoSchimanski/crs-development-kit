@@ -22,7 +22,8 @@ namespace lve {
                 static std::vector<VkVertexInputBindingDescription> getBindingDescriptions();
                 static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
 
-                bool operator==(const Vertex &other) const;
+                //compara campo por campo; campo novo entra na comparação sozinho
+                bool operator==(const Vertex &other) const = default;
             };
 
             struct Builder {
