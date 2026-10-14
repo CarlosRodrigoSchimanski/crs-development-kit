@@ -107,14 +107,22 @@ namespace lve {
         baseColorImage.clear();
 
         cgltf_options options{};
-        cgltf_data *data = nullptr;
-        if (cgltf_parse_file(&options, filepath.c_str(), &data) != cgltf_result_success) {
+        cgltf_data *rawData = nullptr;
+        if (cgltf_parse_file(&options, filepath.c_str(), &rawData) != cgltf_result_success) {
             throw std::runtime_error("failed to parse glTF: " + filepath);
         }
+        //RAII pra um recurso de biblioteca C: o unique_ptr chama cgltf_free sozinho ao sair da função,
+        //por qualquer caminho (fim normal, throw abaixo ou exceção no meio do carregamento)
+        std::unique_ptr<cgltf_data, decltype(&cgltf_free)> data{rawData, &cgltf_free};
+
         //o parse só lê a estrutura (JSON); os dados dos vértices ficam nos buffers (.bin ou dentro do .glb)
-        if (cgltf_load_buffers(&options, data, filepath.c_str()) != cgltf_result_success) {
-            cgltf_free(data);
+        if (cgltf_load_buffers(&options, data.get(), filepath.c_str()) != cgltf_result_success) {
             throw std::runtime_error("failed to load glTF buffers: " + filepath);
+        }
+        //arquivo é entrada não confiável: confere se tamanhos, índices e referências batem entre si
+        //(ex: accessor dizendo ter mais elementos do que cabe no buffer) antes de ler qualquer vértice
+        if (cgltf_validate(data.get()) != cgltf_result_success) {
+            throw std::runtime_error("invalid glTF: " + filepath);
         }
 
         //glTF é Y pra cima, a engine é Y pra baixo: gira 180 graus em X, (x, y, z) -> (x, -y, -z).
@@ -212,7 +220,5 @@ namespace lve {
                 }
             }
         }
-
-        cgltf_free(data);
     }
 }
