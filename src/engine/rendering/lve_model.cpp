@@ -10,14 +10,14 @@
 namespace lve {
 
     LveModel::LveModel(LveDevice& device, const LveModel::Builder &builder) : lveDevice{device} {
-        //vértices e índices sobem pra GPU no mesmo envio (1 espera em vez de 2)
+        //vértices, índices e textura sobem pra GPU no mesmo envio (1 espera em vez de 3)
         LveUploadBatch upload{device};
         createVertexBuffers(builder.vertices, upload);
         createIndexBuffers(builder.indices, upload);
-        upload.submit();
         if (!builder.baseColorImage.empty()) {
-            texture = std::make_unique<LveTexture>(device, builder.baseColorImage);
+            texture = std::make_unique<LveTexture>(device, builder.baseColorImage, upload);
         }
+        upload.submit();
     }
 
     LveTexture *LveModel::getTexture() const { return texture.get(); }

@@ -24,7 +24,9 @@ namespace lve {
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_MATERIALS)
             .build();
         const unsigned char white[4] = {255, 255, 255, 255};
-        whiteTexture = std::make_unique<LveTexture>(lveDevice, 1, 1, white);
+        LveUploadBatch upload{lveDevice};
+        whiteTexture = std::make_unique<LveTexture>(lveDevice, 1, 1, white, upload);
+        upload.submit();
 
         //set 0 = global (ubo + shadow map), set 1 = textura do objeto
         pipelineLayout = LvePipeline::createPipelineLayout(

@@ -74,10 +74,6 @@ namespace lve {
                 VkMemoryPropertyFlags requiredProperties,
                 VkImage &image,
                 VmaAllocation &allocation);
-            //command buffer descartável pra um comando avulso (cópia, troca de layout...):
-            //begin aloca e começa a gravar; end submete, espera a GPU terminar e libera
-            VkCommandBuffer beginSingleTimeCommands();
-            void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
         private:
             //cria o VkInstance

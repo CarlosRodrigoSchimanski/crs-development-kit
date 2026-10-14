@@ -1,11 +1,25 @@
 #include "engine/rendering/lve_upload_batch.hpp"
 
 #include <cassert>
+#include <stdexcept>
 
 namespace lve {
 
     LveUploadBatch::LveUploadBatch(LveDevice &device) : lveDevice{device} {
-        commandBuffer_ = lveDevice.beginSingleTimeCommands();
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = lveDevice.getCommandPool();
+        allocInfo.commandBufferCount = 1;
+        if (vkAllocateCommandBuffers(lveDevice.device(), &allocInfo, &commandBuffer_) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate upload command buffer!");
+        }
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        //avisa o driver que esse command buffer só vai ser submetido uma vez
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(commandBuffer_, &beginInfo);
     }
 
     LveUploadBatch::~LveUploadBatch() {
@@ -42,8 +56,23 @@ namespace lve {
 
     void LveUploadBatch::submit() {
         assert(!submitted && "Upload batch was already submitted");
-        //envia, espera e libera o command buffer (ver LveDevice::endSingleTimeCommands)
-        lveDevice.endSingleTimeCommands(commandBuffer_);
+        vkEndCommandBuffer(commandBuffer_);
+
+        VkCommandBufferSubmitInfo commandBufferInfo{};
+        commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+        commandBufferInfo.commandBuffer = commandBuffer_;
+
+        VkSubmitInfo2 submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+        submitInfo.commandBufferInfoCount = 1;
+        submitInfo.pCommandBufferInfos = &commandBufferInfo;
+
+        vkQueueSubmit2(lveDevice.graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+        //espera o lote inteiro terminar antes de seguir; simples, mas bloqueia a fila até acabar
+        //(no futuro: uma fence, pra carregar em segundo plano sem travar)
+        vkQueueWaitIdle(lveDevice.graphicsQueue());
+
+        vkFreeCommandBuffers(lveDevice.device(), lveDevice.getCommandPool(), 1, &commandBuffer_);
         submitted = true;
         //a GPU já terminou de ler dos staging buffers: agora podem ser destruídos
         stagingBuffers.clear();
