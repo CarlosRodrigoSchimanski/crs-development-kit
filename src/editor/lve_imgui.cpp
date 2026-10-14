@@ -4,33 +4,24 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
-#include <array>
 #include <stdexcept>
 
 namespace lve {
 
     LveImgui::LveImgui(LveWindow &window, LveDevice &device, VkRenderPass renderPass, uint32_t imageCount)
         : lveDevice{device} {
-        std::array<VkDescriptorPoolSize, 11> poolSizes{{
-            {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-            {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-            {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000},
-        }};
+        //o backend Vulkan do ImGui só usa combined image sampler: 1 pra fonte + 1 por imagem mostrada na UI
+        //(a lista antiga com 11 tipos x 1000 veio de um exemplo velho do ImGui que reservava "de tudo")
+        constexpr uint32_t MAX_UI_IMAGES = 100;
+        VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_UI_IMAGES};
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        //o ImGui libera os sets dele individualmente, então o pool precisa permitir isso
         poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        poolInfo.maxSets = 1000;
-        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = MAX_UI_IMAGES;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
 
         if (vkCreateDescriptorPool(lveDevice.device(), &poolInfo, nullptr, &imguiPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create imgui descriptor pool!");
