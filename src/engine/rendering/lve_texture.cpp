@@ -5,33 +5,35 @@
 
 #include <stb_image.h>
 
+#include <memory>
 #include <stdexcept>
 
 namespace lve {
 
+    //pixels decodificados pelo stb: liberados pelo stbi_image_free ao sair do escopo, por qualquer
+    //caminho (mesmo padrão do cgltf_data no loadModel)
+    using StbPixels = std::unique_ptr<stbi_uc, decltype(&stbi_image_free)>;
+
     LveTexture::LveTexture(LveDevice &device, const std::string &filepath, LveUploadBatch &batch) : lveDevice{device} {
         int width, height, channels;
-        stbi_uc *pixels = stbi_load(filepath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        StbPixels pixels{stbi_load(filepath.c_str(), &width, &height, &channels, STBI_rgb_alpha), &stbi_image_free};
         if (!pixels) {
             throw std::runtime_error("failed to load texture image: " + filepath);
         }
-        //o lote já copiou os pixels pro staging dele: pode liberar a imagem decodificada
-        upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels, batch);
-        stbi_image_free(pixels);
+        upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels.get(), batch);
     }
 
     LveTexture::LveTexture(LveDevice &device, const std::vector<unsigned char> &encodedImage, LveUploadBatch &batch)
         : lveDevice{device} {
         //mesmo decodificador do stbi_load, só que lendo de um buffer em vez de um arquivo
         int width, height, channels;
-        stbi_uc *pixels = stbi_load_from_memory(
-            encodedImage.data(), static_cast<int>(encodedImage.size()), &width, &height, &channels, STBI_rgb_alpha);
+        StbPixels pixels{stbi_load_from_memory(
+            encodedImage.data(), static_cast<int>(encodedImage.size()), &width, &height, &channels, STBI_rgb_alpha),
+            &stbi_image_free};
         if (!pixels) {
             throw std::runtime_error("failed to decode texture image from memory");
         }
-        //o lote já copiou os pixels pro staging dele: pode liberar a imagem decodificada
-        upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels, batch);
-        stbi_image_free(pixels);
+        upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels.get(), batch);
     }
 
     LveTexture::LveTexture(LveDevice &device, uint32_t width, uint32_t height, const unsigned char *rgbaPixels, LveUploadBatch &batch)
@@ -39,8 +41,8 @@ namespace lve {
         upload(width, height, rgbaPixels, batch);
     }
 
-    VkImageView LveTexture::getImageView() const { return textureImageView; }
-    VkSampler LveTexture::getSampler() const { return textureSampler; }
+    VkImageView LveTexture::getImageView() const { return textureImageView.get(); }
+    VkSampler LveTexture::getSampler() const { return textureSampler.get(); }
 
     //parte comum dos 3 construtores: com os pixels já em RGBA, cria image, view e sampler
     void LveTexture::upload(uint32_t width, uint32_t height, const unsigned char *pixels, LveUploadBatch &batch) {
@@ -69,27 +71,25 @@ namespace lve {
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageAllocation);
+        VkImage image;
+        VmaAllocation allocation;
+        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, allocation);
+        //a partir daqui a imagem tem dono: se algo abaixo (ou a view, ou o sampler) falhar, ela é liberada
+        textureImage = LveAllocatedImage{lveDevice.allocator(), image, allocation};
 
         //só grava no command buffer do lote; a cópia acontece de fato no batch.submit()
         VkCommandBuffer commandBuffer = batch.commandBuffer();
         //antes da cópia: nada pra esperar (imagem nova), só deixar pronta pra receber a cópia
-        imageBarrier(commandBuffer, textureImage, VK_IMAGE_ASPECT_COLOR_BIT,
+        imageBarrier(commandBuffer, textureImage.get(), VK_IMAGE_ASPECT_COLOR_BIT,
             VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE,
             VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         copyBufferToImage(commandBuffer, stagingBuffer, width, height);
         //depois da cópia: a escrita da cópia termina antes de qualquer fragment shader ler a textura
-        imageBarrier(commandBuffer, textureImage, VK_IMAGE_ASPECT_COLOR_BIT,
+        imageBarrier(commandBuffer, textureImage.get(), VK_IMAGE_ASPECT_COLOR_BIT,
             VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    }
-
-    LveTexture::~LveTexture() {
-        vkDestroySampler(lveDevice.device(), textureSampler, nullptr);
-        vkDestroyImageView(lveDevice.device(), textureImageView, nullptr);
-        vmaDestroyImage(lveDevice.allocator(), textureImage, textureImageAllocation);
     }
 
     void LveTexture::copyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, uint32_t width, uint32_t height) {
@@ -105,13 +105,13 @@ namespace lve {
         region.imageExtent = {width, height, 1};
 
         vkCmdCopyBufferToImage(
-            commandBuffer, buffer, textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+            commandBuffer, buffer, textureImage.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
 
     void LveTexture::createTextureImageView() {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = textureImage;
+        viewInfo.image = textureImage.get();
         viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         viewInfo.format = format;
         viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -120,9 +120,11 @@ namespace lve {
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = 1;
 
-        if (vkCreateImageView(lveDevice.device(), &viewInfo, nullptr, &textureImageView) != VK_SUCCESS) {
+        VkImageView imageView;
+        if (vkCreateImageView(lveDevice.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
             throw std::runtime_error("failed to create texture image view!");
         }
+        textureImageView = LveImageView{lveDevice.device(), imageView};
     }
 
     void LveTexture::createTextureSampler() {
@@ -144,9 +146,11 @@ namespace lve {
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
 
-        if (vkCreateSampler(lveDevice.device(), &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
+        VkSampler sampler;
+        if (vkCreateSampler(lveDevice.device(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
             throw std::runtime_error("failed to create texture sampler!");
         }
+        textureSampler = LveSampler{lveDevice.device(), sampler};
     }
 
 

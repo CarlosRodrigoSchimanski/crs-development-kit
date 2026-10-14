@@ -16,7 +16,8 @@ namespace lve {
             LveTexture(LveDevice &device, const std::vector<unsigned char> &encodedImage, LveUploadBatch &batch);
             //pixels RGBA crus, ex: textura branca 1x1 de reserva
             LveTexture(LveDevice &device, uint32_t width, uint32_t height, const unsigned char *rgbaPixels, LveUploadBatch &batch);
-            ~LveTexture();
+            //sem destrutor escrito: os membros abaixo (handles RAII) se destroem sozinhos, na ordem
+            //inversa da declaração (sampler, view, imagem) — e também se o construtor falhar no meio
 
             LveTexture(const LveTexture&) = delete;
             LveTexture& operator=(const LveTexture&) = delete;
@@ -35,9 +36,8 @@ namespace lve {
             void createTextureSampler();
 
             LveDevice &lveDevice;
-            VkImage textureImage;
-            VmaAllocation textureImageAllocation;
-            VkImageView textureImageView;
-            VkSampler textureSampler;
+            LveAllocatedImage textureImage;
+            LveImageView textureImageView;
+            LveSampler textureSampler;
     };
 }

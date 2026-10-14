@@ -1,12 +1,7 @@
 #pragma once
 
 #include "engine/core/lve_window.hpp"
-
-//declaração antecipada dos handles da VMA (são as mesmas linhas que o vk_mem_alloc.h usa): assim
-//este header, incluído no projeto inteiro, não precisa puxar as ~20 mil linhas da VMA; só os .cpp
-//que chamam funções da VMA incluem <vk_mem_alloc.h>
-VK_DEFINE_HANDLE(VmaAllocator)
-VK_DEFINE_HANDLE(VmaAllocation)
+#include "engine/core/lve_handle.hpp"
 
 #include <array>
 #include <optional>
