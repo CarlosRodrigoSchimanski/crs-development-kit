@@ -12,6 +12,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <stdexcept>
 #include <chrono>
@@ -145,6 +146,15 @@ namespace lve {
                 shadowCamera.setViewDirection(shadowCenter - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
 
                 ubo.lightSpaceMatrix = shadowCamera.getProjection() * shadowCamera.getView();
+
+                //animação da demo: as point lights giram em volta do centro da cena
+                auto rotateLight = glm::rotate(glm::mat4{1.f}, frameTime, {0.f, -1.f, 0.f});
+                for (auto& kv : gameObjects) {
+                    auto& obj = kv.second;
+                    if (obj.pointLight == nullptr) continue;
+                    obj.transform.translation = glm::vec3(rotateLight * glm::vec4(obj.transform.translation, 1.f));
+                }
+
                 pointLightSystem.update(frameInfo, ubo);
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();

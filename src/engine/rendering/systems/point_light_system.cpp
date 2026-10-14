@@ -47,16 +47,12 @@ namespace lve {
             pipelineConfig);
     }
 
+    //copia as point lights da cena pro UBO (só lê a cena; mover as luzes é com quem usa a engine)
     void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
-
-        auto rotateLight = glm::rotate(glm::mat4(1.f), frameInfo.frameTime, {0.f, -1.f, 0.f});
-
         int lightIndex = 0;
         for (auto& kv : frameInfo.gameObjects) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
-
-            obj.transform.translation = glm::vec3(rotateLight * glm::vec4(obj.transform.translation, 1.f));
 
             //o assert só avisa no Debug; no Release some, então a trava de verdade é o continue:
             //escrever além do array atropelaria o numLights e o que vier depois na memória
