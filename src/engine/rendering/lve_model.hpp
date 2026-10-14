@@ -40,7 +40,6 @@ namespace lve {
             };
 
             LveModel(LveDevice &device, const LveModel::Builder &builder);
-            ~LveModel();
 
             LveModel(const LveModel&) = delete;
             LveModel& operator=(const LveModel&) = delete;
@@ -64,8 +63,7 @@ namespace lve {
             std::unique_ptr<LveBuffer> vertexBuffer;
             uint32_t vertexCount;
 
-            bool hasIndexBuffer = false;
-            std::unique_ptr<LveBuffer> indexBuffer;
+            std::unique_ptr<LveBuffer> indexBuffer;  //vazio = modelo sem índices
             uint32_t indexCount;
 
             std::unique_ptr<LveTexture> texture;

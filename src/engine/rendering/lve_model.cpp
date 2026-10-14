@@ -42,8 +42,6 @@ namespace lve {
 
     LveTexture *LveModel::getTexture() const { return texture.get(); }
 
-    LveModel::~LveModel() {}
-
     std::unique_ptr<LveModel> LveModel::createModelFromFile(LveDevice &device, const std::string &filepath) {
         Builder builder{};
         builder.loadModel(filepath);
@@ -60,10 +58,8 @@ namespace lve {
 
     void LveModel::createIndexBuffers(const std::vector<uint32_t> &indices) {
         indexCount = static_cast<uint32_t>(indices.size());
-
-        hasIndexBuffer = indexCount > 0;
-
-        if(!hasIndexBuffer) {
+        //sem índices o indexBuffer fica vazio, e bind/draw usam os vértices direto
+        if (indexCount == 0) {
             return;
         }
 
@@ -101,13 +97,13 @@ namespace lve {
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 
-        if(hasIndexBuffer) {
+        if(indexBuffer) {
             vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
         }
     }
 
     void LveModel::draw(VkCommandBuffer commandBuffer) {
-        if(hasIndexBuffer) {
+        if(indexBuffer) {
             vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
         } else {
             vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
@@ -138,6 +134,11 @@ namespace lve {
     }
 
     void LveModel::Builder::loadModel(const std::string &filepath) {
+        //limpa aqui, uma vez só, em vez de cada carregador lembrar de limpar
+        vertices.clear();
+        indices.clear();
+        baseColorImage.clear();
+
         std::string extension = std::filesystem::path(filepath).extension().string();
         if (extension == ".obj") {
             loadObj(filepath);
@@ -159,10 +160,6 @@ namespace lve {
             cgltf_free(data);
             throw std::runtime_error("failed to load glTF buffers: " + filepath);
         }
-
-        vertices.clear();
-        indices.clear();
-        baseColorImage.clear();
 
         //glTF é Y pra cima, a engine é Y pra baixo: gira 180 graus em X, (x, y, z) -> (x, -y, -z).
         //só negar o Y espelharia o modelo (troca a "mão" do sistema e inverte a ordem dos triângulos)
@@ -271,9 +268,6 @@ namespace lve {
         if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath.c_str())) {
             throw std::runtime_error(warn + err);
         };
-
-        vertices.clear();
-        indices.clear();
 
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
         for(const auto &shape : shapes) {
