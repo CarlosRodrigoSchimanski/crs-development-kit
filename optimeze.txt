@@ -27,7 +27,20 @@ usuário aprova, um commit cada.
      shaders/global_ubo.glsl; /W4 no código do projeto com zero avisos; implementação das
      libs só-header em src/engine/third_party_impl.cpp). Filtro usado: não mexer no que
      uma fase seguinte já vai reescrever (iluminação -> PBR, pointLight[10] -> M9, libs -> M7).
-  >> PRÓXIMO: Fase 2, 2B (modernização), 3 — ver roadmap item 2.2.
+
+ORDEM DAS FASES SEGUINTES (decidida 2026-10-14, aplicando o mesmo filtro do "não mexer
+no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 inteira antes):
+  ✅ Fase 2, itens 4 (staging) e 8 (pipelines criados antes do loop): conferidos, já certos
+  -- Fase 2, itens 5/6/7 (layout, batching, culling): esperam cena grande pra medir
+  -- Fase 2, item 9: só revisitar se aparecer por frame
+  ✅ M7  bibliotecas (2026-10-14: OBJ removido, stb fixado)
+  >> PRÓXIMO: M1  Vulkan 1.3 (pré-requisito do M2/M3)
+  -- M2 + M3 juntos (dynamic rendering + synchronization2: mexem nos mesmos arquivos)
+  -- M5  VMA (reescreve createBuffer/createImageWithInfo)
+  -- M6  uploads agrupados (DEPOIS do M5: mexe nas mesmas funções)
+  -- M9  luzes em SSBO (reescreve global_ubo.glsl e PointLightSystem)
+  -- Fase 2, item 10 (desenhar no resize): depois do M2/M3, que reescrevem o loop de frame
+  -- Fase 3 (filtro final)
 
 ===============================================================================
 FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
@@ -103,6 +116,8 @@ FASE 2 — Otimizações de performance/arquitetura (mudanças mais aditivas)
      muda a cada frame) devem continuar em HOST_VISIBLE direto — staging não ajuda
      nesse caso, só adiciona uma cópia extra sem necessidade.
    - Já conferidos: createVertexBuffers (✅ usa staging), createIndexBuffers (✅ usa staging).
+   - ✅ Conferido de novo em 2026-10-14: textura também usa staging (LveBuffer); o UBO,
+     escrito todo frame, fica em HOST_VISIBLE com flush — tudo dentro do critério.
    - Conferir também qualquer buffer novo que aparecer depois (uniform buffers,
      texturas, instance data, etc.) contra esse mesmo critério.
 
@@ -118,7 +133,8 @@ FASE 2 — Otimizações de performance/arquitetura (mudanças mais aditivas)
    - Quando a cena tiver muitos objetos, conferir se objetos fora da câmera/escondidos
      atrás de outros estão sendo descartados antes de desenhar.
 
-8. Stutter de compilação de pipeline/shader
+8. ✅ (conferido 2026-10-14: os 3 sistemas e o ImGui criam o pipeline no construtor,
+   antes do loop) Stutter de compilação de pipeline/shader
    - Garantir que todo VkPipeline necessário é criado antecipadamente (carregamento/início),
      nunca na primeira vez que é usado durante o gameplay de verdade.
 
@@ -179,7 +195,8 @@ M6. Uploads síncronos: endSingleTimeCommands faz vkQueueWaitIdle a cada cópia 
     usa eles, gravando as 2 transições + a cópia num command buffer só: 1 espera por
     textura em vez de 3. Falta agrupar entre recursos diferentes.)
 
-M7. Bibliotecas: stb no GIT_TAG master (não fixado — o build pode mudar sozinho);
+M7. ✅ (feito 2026-10-14: suporte a OBJ removido junto com a tinyobjloader e o hack de
+    policy; chão virou models/plane.glb; stb fixado no commit 2c980bb) Bibliotecas: stb no GIT_TAG master (não fixado — o build pode mudar sozinho);
     tinyobjloader v1.0.7 antiga (precisa do hack CMAKE_POLICY_VERSION_MINIMUM) —
     atualizar ou remover o suporte a OBJ de vez, já que o formato do jogo é glTF.
     (Visto 2026-10-14: o set(CMAKE_POLICY_VERSION_MINIMUM 3.5) vale pra todas as libs
