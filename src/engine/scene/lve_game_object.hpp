@@ -15,8 +15,9 @@ namespace lve {
         glm::vec3 scale{1.f,1.f,1.f};
         glm::vec3 rotation{};
 
-        glm::mat4 mat4();
-        glm::mat3 normalMatrix();
+        glm::mat3 rotationMatrix() const;
+        glm::mat4 mat4() const;
+        glm::mat3 normalMatrix() const;
     };
 
     struct PointLightComponent {
@@ -38,7 +39,7 @@ namespace lve {
         LveGameObject(LveGameObject &&) = default;
         LveGameObject &operator=(LveGameObject &&) = default;
 
-        id_t getId();
+        id_t getId() const;
 
         glm::vec3 color{};
         //false = shader ignora a textura global e usa só a cor do vértice
