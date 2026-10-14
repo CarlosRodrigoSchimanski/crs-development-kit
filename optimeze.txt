@@ -42,8 +42,8 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
      scene manager subir uma cena inteira num lote só)
   ✅ M9  luzes em SSBO (2026-10-14; storage buffer por frame, cresce sozinho; conferido por
      comparação de print antes/depois)
-  >> PRÓXIMO: Fase 2, item 10 (desenhar no resize)
-  -- Fase 3 (filtro final)
+  ✅ Fase 2, item 10 (2026-10-14; via camada de plataforma engine/platform)
+  >> PRÓXIMO: Fase 3 (filtro final)
 
 ===============================================================================
 FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
@@ -146,7 +146,20 @@ FASE 2 — Otimizações de performance/arquitetura (mudanças mais aditivas)
      createLogicalDevice, createCommandPool). Não otimizar agora, só revisitar se algo
      parecido aparecer rodando por frame, não só na inicialização.
 
-10. Desenhar durante o arrasto de redimensionamento (Windows)
+10. ✅ (feito 2026-10-14) Desenhar durante o arrasto de redimensionamento (Windows)
+   - Feito: refresh callback da LveWindow + lambda drawFrame no FirstApp::run, ligado só onde
+     platform::needsRedrawDuringResize(); e o beginFrame passou a tentar adquirir de novo
+     depois de recriar a swap chain (era o motivo real do congelamento).
+   - LIMITES que ficaram (revisitar):
+     * só sai frame quando o tamanho muda: segurar a borda parada, ou MOVER a janela pela
+       barra de título (também é loop modal do Windows), ainda congela e pausa o jogo.
+       Solução definitiva: thread de render separada da thread de eventos (Unreal/Unity);
+       meio-termo só Windows: WM_TIMER durante o loop modal, no lve_platform_windows.cpp.
+       Fazer quando o jogo/editor precisar rodar sem pausar.
+     * drawFrame é uma lambda [&] dentro de um run() de ~200 linhas: quando vier o scene
+       manager (sistemas saem do run()), virar método da classe.
+     * frames do refresh callback não passam pelo limitador de FPS (inofensivo).
+   (texto original do item abaixo)
    - No Windows, o SO trava o loop principal (glfwPollEvents) durante o arrasto de
      redimensionar a janela — drawFrame() não roda até soltar o mouse, então a imagem
      "congela" durante o arrasto (só atualiza no final). No Linux/macOS isso normalmente
