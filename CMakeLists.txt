@@ -136,6 +136,7 @@ set(PROJECT_SOURCES
     src/engine/rendering/lve_texture.cpp
     src/engine/rendering/lve_shadow_map.cpp
     src/engine/rendering/lve_image_barrier.cpp
+    src/engine/rendering/lve_upload_batch.cpp
 )
 
 #nome do executável: código do projeto + ImGui (que é compilado junto, não linkado) +

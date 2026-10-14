@@ -10,8 +10,11 @@
 namespace lve {
 
     LveModel::LveModel(LveDevice& device, const LveModel::Builder &builder) : lveDevice{device} {
-        createVertexBuffers(builder.vertices);
-        createIndexBuffers(builder.indices);
+        //vértices e índices sobem pra GPU no mesmo envio (1 espera em vez de 2)
+        LveUploadBatch upload{device};
+        createVertexBuffers(builder.vertices, upload);
+        createIndexBuffers(builder.indices, upload);
+        upload.submit();
         if (!builder.baseColorImage.empty()) {
             texture = std::make_unique<LveTexture>(device, builder.baseColorImage);
         }
@@ -25,15 +28,15 @@ namespace lve {
         return std::make_unique<LveModel>(device, builder);
     }
 
-    void LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
+    void LveModel::createVertexBuffers(const std::vector<Vertex>& vertices, LveUploadBatch &upload) {
         vertexCount = static_cast<uint32_t>(vertices.size());
         assert(vertexCount >= 3 && "Vertex count must be at least 3");
 
         vertexBuffer = createDeviceLocalBuffer(
-            vertices.data(), sizeof(Vertex), vertexCount, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+            vertices.data(), sizeof(Vertex), vertexCount, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, upload);
     }
 
-    void LveModel::createIndexBuffers(const std::vector<uint32_t> &indices) {
+    void LveModel::createIndexBuffers(const std::vector<uint32_t> &indices, LveUploadBatch &upload) {
         indexCount = static_cast<uint32_t>(indices.size());
         //sem índices o indexBuffer fica vazio, e bind/draw usam os vértices direto
         if (indexCount == 0) {
@@ -41,22 +44,13 @@ namespace lve {
         }
 
         indexBuffer = createDeviceLocalBuffer(
-            indices.data(), sizeof(uint32_t), indexCount, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+            indices.data(), sizeof(uint32_t), indexCount, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, upload);
     }
 
-    //dado escrito uma vez e lido muitas pela GPU: passa por um staging e fica na memória DEVICE_LOCAL
+    //dado escrito uma vez e lido muitas pela GPU: fica na memória DEVICE_LOCAL (a mais rápida pra GPU,
+    //mas a CPU não enxerga); o lote copia pra ela a partir de um staging buffer
     std::unique_ptr<LveBuffer> LveModel::createDeviceLocalBuffer(
-        const void *data, uint32_t elementSize, uint32_t count, VkBufferUsageFlags usage) {
-        LveBuffer stagingBuffer{
-            lveDevice,
-            elementSize,
-            count,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        };
-        stagingBuffer.map();
-        stagingBuffer.writeToBuffer(data);
-
+        const void *data, uint32_t elementSize, uint32_t count, VkBufferUsageFlags usage, LveUploadBatch &upload) {
         auto buffer = std::make_unique<LveBuffer>(
             lveDevice,
             elementSize,
@@ -65,7 +59,8 @@ namespace lve {
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         );
 
-        lveDevice.copyBuffer(stagingBuffer.getBuffer(), buffer->getBuffer(), static_cast<VkDeviceSize>(elementSize) * count);
+        //só grava a cópia: ela acontece de fato no upload.submit()
+        upload.copyToBuffer(buffer->getBuffer(), data, static_cast<VkDeviceSize>(elementSize) * count);
         return buffer;
     }
 

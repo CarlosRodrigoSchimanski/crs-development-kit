@@ -6,6 +6,7 @@
 #include "engine/core/lve_device.hpp"
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/rendering/lve_texture.hpp"
+#include "engine/rendering/lve_upload_batch.hpp"
 
 #include <glm/glm.hpp>
 
@@ -50,10 +51,10 @@ namespace lve {
             LveTexture *getTexture() const;
 
         private:
-            void createVertexBuffers(const std::vector<Vertex> &vertices);
-            void createIndexBuffers(const std::vector<uint32_t> &indices);
+            void createVertexBuffers(const std::vector<Vertex> &vertices, LveUploadBatch &upload);
+            void createIndexBuffers(const std::vector<uint32_t> &indices, LveUploadBatch &upload);
             std::unique_ptr<LveBuffer> createDeviceLocalBuffer(
-                const void *data, uint32_t elementSize, uint32_t count, VkBufferUsageFlags usage);
+                const void *data, uint32_t elementSize, uint32_t count, VkBufferUsageFlags usage, LveUploadBatch &upload);
 
             LveDevice &lveDevice;
 

@@ -78,8 +78,6 @@ namespace lve {
             //begin aloca e começa a gravar; end submete, espera a GPU terminar e libera
             VkCommandBuffer beginSingleTimeCommands();
             void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-            //copia o conteúdo de um buffer pra outro, executando isso como um comando na GPU
-            void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
         private:
             //cria o VkInstance
