@@ -41,12 +41,8 @@ namespace lve {
             const PipelineConfigInfo& configInfo
         ) {
         assert(configInfo.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
-        //dois jeitos de dizer onde o pipeline desenha: render pass (antigo) ou formatos das imagens
-        //(dynamic rendering, Vulkan 1.3); durante a migração os dois convivem
-        const bool usesDynamicRendering = configInfo.renderPass == VK_NULL_HANDLE;
-        assert((!usesDynamicRendering ||
-                !configInfo.colorAttachmentFormats.empty() || configInfo.depthAttachmentFormat != VK_FORMAT_UNDEFINED) &&
-            "Cannot create graphics pipeline: no renderPass nor attachment formats provided in configInfo");
+        assert((!configInfo.colorAttachmentFormats.empty() || configInfo.depthAttachmentFormat != VK_FORMAT_UNDEFINED) &&
+            "Cannot create graphics pipeline: no attachment formats provided in configInfo");
 
         //os shader modules só são necessários DURANTE a criação: depois disso o pipeline já tem
         //o código compilado dentro dele, então são destruídos no fim desta função
@@ -87,19 +83,15 @@ namespace lve {
         pipelineInfo.pDynamicState = &configInfo.dynamicStateInfo;
 
         pipelineInfo.layout = configInfo.pipelineLayout;
-        pipelineInfo.renderPass = configInfo.renderPass;
-        pipelineInfo.subpass = configInfo.subpass;
 
-        //dynamic rendering: em vez do render pass, o pipeline recebe só os formatos das imagens
-        //(vai no pNext; tem que bater com o que o vkCmdBeginRendering usar na hora de desenhar)
+        //dynamic rendering: em vez de um render pass, o pipeline recebe só os formatos das imagens
+        //(vai no pNext; renderPass fica nulo)
         VkPipelineRenderingCreateInfo renderingInfo{};
         renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
         renderingInfo.colorAttachmentCount = static_cast<uint32_t>(configInfo.colorAttachmentFormats.size());
         renderingInfo.pColorAttachmentFormats = configInfo.colorAttachmentFormats.data();
         renderingInfo.depthAttachmentFormat = configInfo.depthAttachmentFormat;
-        if (usesDynamicRendering) {
-            pipelineInfo.pNext = &renderingInfo;
-        }
+        pipelineInfo.pNext = &renderingInfo;
 
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
         pipelineInfo.basePipelineIndex = -1;

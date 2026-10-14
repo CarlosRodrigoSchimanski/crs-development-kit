@@ -8,8 +8,8 @@
 
 namespace lve {
 
-    LveImgui::LveImgui(LveWindow &window, LveDevice &device, VkRenderPass renderPass, uint32_t imageCount)
-        : lveDevice{device} {
+    LveImgui::LveImgui(LveWindow &window, LveDevice &device, VkFormat colorFormat, VkFormat depthFormat, uint32_t imageCount)
+        : lveDevice{device}, colorFormat{colorFormat} {
         //o backend Vulkan do ImGui só usa combined image sampler: 1 pra fonte + 1 por imagem mostrada na UI
         //(a lista antiga com 11 tipos x 1000 veio de um exemplo velho do ImGui que reservava "de tudo")
         constexpr uint32_t MAX_UI_IMAGES = 100;
@@ -41,8 +41,13 @@ namespace lve {
         initInfo.Queue = lveDevice.graphicsQueue();
         initInfo.PipelineCache = VK_NULL_HANDLE;
         initInfo.DescriptorPool = imguiPool;
-        initInfo.RenderPass = renderPass;
-        initInfo.Subpass = 0;
+        //dynamic rendering: o ImGui desenha dentro do begin/end rendering da tela, então o pipeline
+        //dele precisa dos mesmos formatos (inclusive o da profundidade, mesmo sem usar)
+        initInfo.UseDynamicRendering = true;
+        initInfo.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+        initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+        initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &this->colorFormat;
+        initInfo.PipelineRenderingCreateInfo.depthAttachmentFormat = depthFormat;
         initInfo.MinImageCount = imageCount;
         initInfo.ImageCount = imageCount;
         initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;

@@ -17,7 +17,7 @@ namespace lve {
     class SimpleRenderSystem {
         public:
 
-            SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
+            SimpleRenderSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
             ~SimpleRenderSystem();
 
             //codigo para evitar duplicação de ponteiros
@@ -27,7 +27,7 @@ namespace lve {
             void renderGameObjects(FrameInfo& frameInfo);
 
         private:
-            void createPipeline(VkRenderPass renderPass);
+            void createPipeline(VkFormat colorFormat, VkFormat depthFormat);
             //descriptor set (set 1) da textura; criado na primeira vez que a textura é desenhada e reaproveitado depois
             VkDescriptorSet getMaterialSet(const LveTexture &texture);
 

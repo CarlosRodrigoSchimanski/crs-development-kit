@@ -13,7 +13,7 @@ namespace lve {
     class PointLightSystem {
         public:
 
-            PointLightSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
+            PointLightSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
             ~PointLightSystem();
 
             PointLightSystem(const PointLightSystem&) = delete;
@@ -23,7 +23,7 @@ namespace lve {
             void render(FrameInfo& frameInfo);
 
         private:
-            void createPipeline(VkRenderPass renderPass);
+            void createPipeline(VkFormat colorFormat, VkFormat depthFormat);
 
             LveDevice& lveDevice;
             std::unique_ptr<LvePipeline> lvePipeline;

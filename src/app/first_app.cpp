@@ -86,10 +86,13 @@ namespace lve {
                 .build(globalDescriptorSets[i]);
         }
         
-        SimpleRenderSystem simpleRenderSystem{lveDevice, lveRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
-        PointLightSystem pointLightSystem{lveDevice, lveRenderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
+        //formatos das imagens da tela: todo pipeline que desenha nela é criado com eles
+        VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
+        VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
+        SimpleRenderSystem simpleRenderSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
+        PointLightSystem pointLightSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
         ShadowRenderSystem shadowRenderSystem{lveDevice, shadowMap, globalSetLayout->getDescriptorSetLayout()};
-        LveImgui lveImgui{lveWindow, lveDevice, lveRenderer.getSwapChainRenderPass(), lveRenderer.getImageCount()};
+        LveImgui lveImgui{lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount()};
         LveCamera camera{};
         LveCamera shadowCamera{};
         //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
@@ -162,11 +165,11 @@ namespace lve {
                 //render
                 //passe de sombra primeiro: o passe principal vai ler o shadow map que ele produz
                 shadowRenderSystem.renderShadowMap(frameInfo);
-                lveRenderer.beginSwapChainRenderPass(commandBuffer);
+                lveRenderer.beginSwapChainRendering(commandBuffer);
                 simpleRenderSystem.renderGameObjects(frameInfo);
                 pointLightSystem.render(frameInfo);
                 lveImgui.render(commandBuffer);
-                lveRenderer.endSwapChainRenderPass(commandBuffer);
+                lveRenderer.endSwapChainRendering(commandBuffer);
                 lveRenderer.endFrame();
             }
 

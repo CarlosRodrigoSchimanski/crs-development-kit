@@ -9,7 +9,7 @@
 
 namespace lve {
     //organiza o ciclo de cada frame: pega a imagem da swap chain, entrega o command buffer
-    //pra quem vai desenhar, abre/fecha o render pass da tela e envia tudo pra GPU.
+    //pra quem vai desenhar, abre/fecha o desenho na tela e envia tudo pra GPU.
     //também recria a swap chain quando a janela muda de tamanho
     class LveRenderer {
         public:
@@ -20,7 +20,9 @@ namespace lve {
             LveRenderer(const LveRenderer&) = delete;
             LveRenderer& operator=(const LveRenderer&) = delete;
 
-            VkRenderPass getSwapChainRenderPass() const;
+            //formatos das imagens da tela: os pipelines que desenham nela precisam saber (dynamic rendering)
+            VkFormat getSwapChainImageFormat() const;
+            VkFormat getSwapChainDepthFormat() const;
             float getAspectRatio() const;
             uint32_t getImageCount() const;
 
@@ -30,8 +32,9 @@ namespace lve {
 
             VkCommandBuffer beginFrame();
             void endFrame();
-            void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);
-            void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
+            //abre/fecha o desenho na imagem atual da swap chain (barreiras de layout + begin/end rendering)
+            void beginSwapChainRendering(VkCommandBuffer commandBuffer);
+            void endSwapChainRendering(VkCommandBuffer commandBuffer);
 
         private:
             //um command buffer por frame em voo

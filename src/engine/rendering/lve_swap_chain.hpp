@@ -8,8 +8,8 @@
 namespace lve {
 
     // Responsável pelo swap chain: a fila de imagens que alternam entre
-    // "sendo desenhada pela GPU" e "sendo exibida na tela", junto com o render pass,
-    // os framebuffers e a sincronização entre CPU e GPU necessários pra usar tudo isso
+    // "sendo desenhada pela GPU" e "sendo exibida na tela", junto com a imagem de
+    // profundidade de cada uma e a sincronização entre CPU e GPU necessária pra usar tudo isso
     class LveSwapChain {
         public:
             //quantos frames podem estar "em voo" (sendo processados) ao mesmo tempo
@@ -27,10 +27,14 @@ namespace lve {
             //compara se o novo swap chain manteve os mesmos formatos do antigo
             bool compareSwapFormats(const LveSwapChain &other) const;
 
-            VkFramebuffer getFrameBuffer(int index) const;
-            VkRenderPass getRenderPass() const;
+            //imagens de cor (as que vão pra tela) e de profundidade, uma de cada por imagem da swap chain
+            VkImage getImage(uint32_t index) const;
+            VkImageView getImageView(uint32_t index) const;
+            VkImage getDepthImage(uint32_t index) const;
+            VkImageView getDepthImageView(uint32_t index) const;
             size_t imageCount() const;
             VkFormat getSwapChainImageFormat() const;
+            VkFormat getSwapChainDepthFormat() const;
             VkExtent2D getSwapChainExtent() const;
 
             float extentAspectRatio() const;
@@ -46,8 +50,6 @@ namespace lve {
             void createSwapChain(VkSwapchainKHR oldSwapchain);
             void createImageViews();
             void createDepthResources();
-            void createRenderPass();
-            void createFramebuffers();
             void createSyncObjects();
 
             //funções auxiliares pra escolher a melhor configuração disponível na GPU
@@ -58,9 +60,6 @@ namespace lve {
             VkFormat swapChainImageFormat;
             VkFormat swapChainDepthFormat;
             VkExtent2D swapChainExtent;
-
-            std::vector<VkFramebuffer> swapChainFramebuffers;
-            VkRenderPass renderPass;
 
             std::vector<VkImage> depthImages;
             std::vector<VkDeviceMemory> depthImageMemorys;

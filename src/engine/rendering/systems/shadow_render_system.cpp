@@ -1,4 +1,5 @@
 #include "engine/rendering/systems/shadow_render_system.hpp"
+#include "engine/rendering/lve_image_barrier.hpp"
 
 #include <glm/glm.hpp>
 
@@ -9,32 +10,6 @@ namespace lve {
     struct ShadowPushConstantData {
         glm::mat4 modelMatrix{1.f};
     };
-
-    //troca o layout do shadow map, esperando (src) o que veio antes terminar antes de (dst) o que vem depois
-    static void transitionShadowMap(
-        VkCommandBuffer commandBuffer, VkImage image,
-        VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess,
-        VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess,
-        VkImageLayout oldLayout, VkImageLayout newLayout) {
-        VkImageMemoryBarrier2 barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        barrier.srcStageMask = srcStage;
-        barrier.srcAccessMask = srcAccess;
-        barrier.dstStageMask = dstStage;
-        barrier.dstAccessMask = dstAccess;
-        barrier.oldLayout = oldLayout;
-        barrier.newLayout = newLayout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = image;
-        barrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-
-        VkDependencyInfo dependencyInfo{};
-        dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        dependencyInfo.imageMemoryBarrierCount = 1;
-        dependencyInfo.pImageMemoryBarriers = &barrier;
-        vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
-    }
 
     ShadowRenderSystem::ShadowRenderSystem(LveDevice& device, LveShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout)
         : lveDevice{device}, shadowMap{shadowMap} {
@@ -87,7 +62,7 @@ namespace lve {
         //principal; espera isso terminar antes de escrever profundidade nova. Basta esperar a
         //execução (acesso de origem NONE): leitura não deixa nada pendente pra "publicar".
         //layout antigo UNDEFINED = pode descartar o conteúdo, a imagem vai ser limpa mesmo
-        transitionShadowMap(frameInfo.commandBuffer, shadowMap.getImage(),
+        imageBarrier(frameInfo.commandBuffer, shadowMap.getImage(), VK_IMAGE_ASPECT_DEPTH_BIT,
             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_NONE,
             VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
             VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
@@ -160,7 +135,7 @@ namespace lve {
 
         //SAÍDA: terminar de escrever a profundidade antes do fragment shader do passe principal
         //ler; e deixar a imagem no layout de leitura (tem que bater com o descriptor do first_app)
-        transitionShadowMap(frameInfo.commandBuffer, shadowMap.getImage(),
+        imageBarrier(frameInfo.commandBuffer, shadowMap.getImage(), VK_IMAGE_ASPECT_DEPTH_BIT,
             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);

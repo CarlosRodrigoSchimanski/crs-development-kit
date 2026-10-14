@@ -29,9 +29,8 @@ namespace lve {
         std::vector<VkDynamicState> dynamicStateEnables{};
         VkPipelineDynamicStateCreateInfo dynamicStateInfo{};
         VkPipelineLayout pipelineLayout = nullptr;
-        VkRenderPass renderPass = nullptr;
-        uint32_t subpass = 0;
-        //dynamic rendering (quando renderPass fica nulo): formatos das imagens em que o pipeline desenha
+        //dynamic rendering: formatos das imagens em que o pipeline desenha (têm que bater com as
+        //imagens que o vkCmdBeginRendering recebe na hora de desenhar)
         std::vector<VkFormat> colorAttachmentFormats{};
         VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
     };

@@ -1,8 +1,7 @@
 #include "engine/rendering/lve_renderer.hpp"
-
+#include "engine/rendering/lve_image_barrier.hpp"
 
 #include <stdexcept>
-#include <array>
 #include <cassert>
 
 namespace lve {
@@ -21,7 +20,8 @@ namespace lve {
             commandBuffers.data());
     }
 
-    VkRenderPass LveRenderer::getSwapChainRenderPass() const { return lveSwapChain->getRenderPass(); }
+    VkFormat LveRenderer::getSwapChainImageFormat() const { return lveSwapChain->getSwapChainImageFormat(); }
+    VkFormat LveRenderer::getSwapChainDepthFormat() const { return lveSwapChain->getSwapChainDepthFormat(); }
 
     float LveRenderer::getAspectRatio() const {return lveSwapChain->extentAspectRatio();}
 
@@ -112,44 +112,86 @@ namespace lve {
         currentFrameIndex = (currentFrameIndex + 1) % LveSwapChain::MAX_FRAMES_IN_FLIGHT;
     }
 
-    void LveRenderer::beginSwapChainRenderPass(VkCommandBuffer commandBuffer) {
-        assert(isFrameStarted && "can't call beginSwapChainRenderPass if frame is not in progress");
-        assert(commandBuffer== getCurrentCommandBuffer() && "can't begin render pass on command buffer from a different frame");
+    //formato com stencil (ex: D24S8) precisa do aspecto de stencil na barreira junto com o de profundidade
+    static VkImageAspectFlags depthAspect(VkFormat format) {
+        bool hasStencil = format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+        return VK_IMAGE_ASPECT_DEPTH_BIT | (hasStencil ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
+    }
 
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = lveSwapChain->getRenderPass();
-        renderPassInfo.framebuffer = lveSwapChain->getFrameBuffer(currentImageIndex);
+    void LveRenderer::beginSwapChainRendering(VkCommandBuffer commandBuffer) {
+        assert(isFrameStarted && "can't call beginSwapChainRendering if frame is not in progress");
+        assert(commandBuffer== getCurrentCommandBuffer() && "can't begin rendering on command buffer from a different frame");
 
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = lveSwapChain->getSwapChainExtent();
+        VkExtent2D extent = lveSwapChain->getSwapChainExtent();
 
-        std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color = {0.01f, 0.01f, 0.01f, 1.0f};
-        clearValues[1].depthStencil = {1.0f, 0};
+        //cor: UNDEFINED -> pronta pra receber cor. O src é COLOR_ATTACHMENT_OUTPUT porque é nesse
+        //estágio que o submit espera o semáforo "imagem disponível": usando o mesmo estágio, a
+        //barreira se encadeia com o semáforo e a troca de layout só acontece depois que a tela
+        //liberou a imagem
+        imageBarrier(commandBuffer, lveSwapChain->getImage(currentImageIndex), VK_IMAGE_ASPECT_COLOR_BIT,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        //profundidade: o frame anterior que usou esta mesma imagem pode ainda estar escrevendo nela
+        imageBarrier(commandBuffer, lveSwapChain->getDepthImage(currentImageIndex),
+            depthAspect(lveSwapChain->getSwapChainDepthFormat()),
+            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
+        VkRenderingAttachmentInfo colorAttachment{};
+        colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        colorAttachment.imageView = lveSwapChain->getImageView(currentImageIndex);
+        colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.clearValue.color = {{0.01f, 0.01f, 0.01f, 1.0f}};
 
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        //a profundidade da tela só serve durante o desenho: não precisa ser guardada (DONT_CARE)
+        VkRenderingAttachmentInfo depthAttachment{};
+        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthAttachment.imageView = lveSwapChain->getDepthImageView(currentImageIndex);
+        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.clearValue.depthStencil = {1.0f, 0};
+
+        VkRenderingInfo renderingInfo{};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.renderArea = {{0, 0}, extent};
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments = &colorAttachment;
+        renderingInfo.pDepthAttachment = &depthAttachment;
+
+        vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = static_cast<float>(lveSwapChain->getSwapChainExtent().width);
-        viewport.height = static_cast<float>(lveSwapChain->getSwapChainExtent().height);
+        viewport.width = static_cast<float>(extent.width);
+        viewport.height = static_cast<float>(extent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-        VkRect2D scissor{{0,0},lveSwapChain->getSwapChainExtent()};
-        vkCmdSetViewport(commandBuffer, 0, 1,&viewport);
-        vkCmdSetScissor(commandBuffer, 0, 1,&scissor);
+        VkRect2D scissor{{0, 0}, extent};
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     }
 
-    void LveRenderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
-        assert(isFrameStarted && "can't call endSwapChainRenderPass if frame is not in progress");
-        assert(commandBuffer== getCurrentCommandBuffer() && "can't end render pass on command buffer from a different frame");
+    void LveRenderer::endSwapChainRendering(VkCommandBuffer commandBuffer) {
+        assert(isFrameStarted && "can't call endSwapChainRendering if frame is not in progress");
+        assert(commandBuffer== getCurrentCommandBuffer() && "can't end rendering on command buffer from a different frame");
 
-        vkCmdEndRenderPass(commandBuffer);
+        vkCmdEndRendering(commandBuffer);
+
+        //cor -> pronta pra tela. Depois dela ninguém mais neste command buffer usa a imagem
+        //(dst = NONE): quem espera agora é o semáforo "render terminou", que a apresentação usa
+        imageBarrier(commandBuffer, lveSwapChain->getImage(currentImageIndex), VK_IMAGE_ASPECT_COLOR_BIT,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     }
 
     int LveRenderer::getFrameIndex() const {

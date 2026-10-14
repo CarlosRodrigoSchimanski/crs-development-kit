@@ -15,7 +15,7 @@ namespace lve {
     constexpr uint32_t MAX_MATERIALS = 100;
     
 
-    SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
+    SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
         materialSetLayout = LveDescriptorSetLayout::Builder{lveDevice}
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .build();
@@ -32,7 +32,7 @@ namespace lve {
             {globalSetLayout, materialSetLayout->getDescriptorSetLayout()},
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             sizeof(SimplePushConstantData));
-        createPipeline(renderPass);
+        createPipeline(colorFormat, depthFormat);
     }
 
     SimpleRenderSystem::~SimpleRenderSystem() {
@@ -41,13 +41,14 @@ namespace lve {
     }
 
 
-    //createPipeline() que será responsável por criar o pipeline gráfico
-    void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
+    void SimpleRenderSystem::createPipeline(VkFormat colorFormat, VkFormat depthFormat) {
         assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
 
         PipelineConfigInfo pipelineConfig{};
         LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
-        pipelineConfig.renderPass = renderPass;
+        //desenha na imagem da tela (cor + profundidade)
+        pipelineConfig.colorAttachmentFormats = {colorFormat};
+        pipelineConfig.depthAttachmentFormat = depthFormat;
         pipelineConfig.pipelineLayout = pipelineLayout;
         lvePipeline = std::make_unique<LvePipeline>(
             lveDevice,

@@ -13,13 +13,13 @@ namespace lve {
         float radius{};
     };
 
-    PointLightSystem::PointLightSystem(LveDevice& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
+    PointLightSystem::PointLightSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
         pipelineLayout = LvePipeline::createPipelineLayout(
             lveDevice,
             {globalSetLayout},
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             sizeof(PointLightPushConstants));
-        createPipeline(renderPass);
+        createPipeline(colorFormat, depthFormat);
     }
 
     PointLightSystem::~PointLightSystem() {
@@ -27,7 +27,7 @@ namespace lve {
         vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
     }
 
-    void PointLightSystem::createPipeline(VkRenderPass renderPass) {
+    void PointLightSystem::createPipeline(VkFormat colorFormat, VkFormat depthFormat) {
         assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
 
         PipelineConfigInfo pipelineConfig{};
@@ -35,7 +35,9 @@ namespace lve {
         LvePipeline::enableAlphaBlending(pipelineConfig);
         pipelineConfig.bindingDescriptions.clear();
         pipelineConfig.attributeDescriptions.clear();
-        pipelineConfig.renderPass = renderPass;
+        //desenha na imagem da tela (cor + profundidade)
+        pipelineConfig.colorAttachmentFormats = {colorFormat};
+        pipelineConfig.depthAttachmentFormat = depthFormat;
         pipelineConfig.pipelineLayout = pipelineLayout;
         lvePipeline = std::make_unique<LvePipeline>(
             lveDevice,

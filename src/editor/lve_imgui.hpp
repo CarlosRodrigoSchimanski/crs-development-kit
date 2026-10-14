@@ -10,7 +10,7 @@ namespace lve {
     //encapsula a configuração do Dear ImGui (UI imediata, usada pra ferramentas de editor)
     class LveImgui {
         public:
-            LveImgui(LveWindow &window, LveDevice &device, VkRenderPass renderPass, uint32_t imageCount);
+            LveImgui(LveWindow &window, LveDevice &device, VkFormat colorFormat, VkFormat depthFormat, uint32_t imageCount);
             ~LveImgui();
 
             LveImgui(const LveImgui&) = delete;
@@ -26,6 +26,8 @@ namespace lve {
             //pool de descriptor separado só pro ImGui: ele gerencia a própria textura
             //de fonte internamente, não compartilha o pool da aplicação
             VkDescriptorPool imguiPool;
+            //o ImGui guarda um ponteiro pra ele (formato da imagem em que desenha): tem que viver junto
+            VkFormat colorFormat;
     };
 
 }
