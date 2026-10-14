@@ -103,7 +103,8 @@ foreach(SHADER ${SHADER_SOURCES})
     add_custom_command(
         OUTPUT ${SPIRV}
         COMMAND ${GLSL_VALIDATOR} ${SHADER} -o ${SPIRV}
-        DEPENDS ${SHADER}
+        #os shaders incluem esse arquivo: mudar ele tem que recompilar todos
+        DEPENDS ${SHADER} ${CMAKE_SOURCE_DIR}/shaders/global_ubo.glsl
     )
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach()

@@ -1,4 +1,5 @@
 #version 450 //versão do GLSL
+#extension GL_GOOGLE_include_directive : require
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragPosWorldSpace;
@@ -7,21 +8,7 @@ layout(location = 3) in vec2 fragUv;
 layout(location = 4) in vec4 fragPosLightSpace;
 layout(location = 0) out vec4 outColor;//definindo a saída do fragment shader
 
-struct PointLight {
-    vec4 position;
-    vec4 color;
-};
-
-layout(set = 0, binding = 0) uniform GlobalUbo {
-    mat4 projection;
-    mat4 view;
-    mat4 inverseView;
-    mat4 lightSpaceMatrix;
-    vec4 sunDirection;
-    vec4 lightAmbientColor;
-    PointLight pointLight[10];
-    int numLights;
-} ubo;
+#include "global_ubo.glsl"
 
 //profundidade da cena vista do sol, gravada pelo passe de sombra
 layout(set = 0, binding = 1) uniform sampler2D shadowMap;
