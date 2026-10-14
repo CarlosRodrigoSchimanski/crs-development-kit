@@ -56,6 +56,8 @@ namespace lve {
         private:
             void createVertexBuffers(const std::vector<Vertex> &vertices);
             void createIndexBuffers(const std::vector<uint32_t> &indices);
+            std::unique_ptr<LveBuffer> createDeviceLocalBuffer(
+                const void *data, uint32_t elementSize, uint32_t count, VkBufferUsageFlags usage);
 
             LveDevice &lveDevice;
 
