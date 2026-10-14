@@ -43,14 +43,16 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
   ✅ M9  luzes em SSBO (2026-10-14; storage buffer por frame, cresce sozinho; conferido por
      comparação de print antes/depois)
   ✅ Fase 2, item 10 (2026-10-14; via camada de plataforma engine/platform)
-  >> EM ANDAMENTO: Fase 3 (filtro final), uma sugestão por vez:
+  ✅ Fase 3 (filtro final), concluída 2026-10-14, uma sugestão por vez:
      ✅ glTF validado (cgltf_validate) e liberado por RAII (item 13)
      ✅ esperar a GPU num lugar só: DeviceIdleGuard no FirstApp::run (item 12)
      ✅ handles RAII (engine/core/lve_handle): textura, shadow map, swap chain, pipelines,
         descriptors, ImGui e device sem destrutor manual de handle (item 14)
      ⏭ materialSets por endereço de textura (item 11): vira requisito do scene manager (roadmap 2.3)
-     -- VkResult sem checagem (item 13)
-     -- contador de frame do renderer x da swap chain (achado novo, 2026-10-14)
+     ✅ VkResult: vkCheck nas chamadas do jogo rodando; map/flush lançam exceção (item 13)
+     ✅ um contador de frame só (o do LveRenderer; a swap chain recebe o índice)
+  >> PRÓXIMO: Fase 4 (LTO, NDEBUG) fica pro fim do projeto, por definição. A revisão
+     (Fases 0-3) terminou: dá pra seguir o roadmap (2.3 scene manager, 3 câmera de jogo...).
 
 ===============================================================================
 FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
