@@ -85,7 +85,7 @@ set(IMGUI_SOURCES
 #----------------------------------------------------------#
 
 #compilar os shaders (.vert/.frag) para .spv usando glslc do Vulkan SDK
-find_program(GLSL_VALIDATOR glslc REQUIRED)
+find_program(GLSLC glslc REQUIRED)
 #lista de arquivos de shader
 set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/simple_shader.vert
@@ -102,7 +102,7 @@ foreach(SHADER ${SHADER_SOURCES})
     set(SPIRV ${CMAKE_SOURCE_DIR}/shaders/${SHADER_NAME}.spv)
     add_custom_command(
         OUTPUT ${SPIRV}
-        COMMAND ${GLSL_VALIDATOR} ${SHADER} -o ${SPIRV}
+        COMMAND ${GLSLC} ${SHADER} -o ${SPIRV}
         #os shaders incluem esse arquivo: mudar ele tem que recompilar todos
         DEPENDS ${SHADER} ${CMAKE_SOURCE_DIR}/shaders/global_ubo.glsl
     )

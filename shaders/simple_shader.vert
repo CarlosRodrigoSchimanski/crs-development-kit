@@ -1,4 +1,4 @@
-#version 450 //versão do shader
+#version 450
 #extension GL_GOOGLE_include_directive : require
 
 layout(location = 0) in vec3 position;
@@ -19,7 +19,7 @@ layout(push_constant) uniform Push {
     mat4 normalMatrix;
 } push;
 
-void main() {//função principal do shader
+void main() {
     vec4 positionWorldSpace = push.modelMatrix * vec4(position, 1.0);
     gl_Position = ubo.projection * ubo.view * positionWorldSpace;
     fragPosWorldSpace = positionWorldSpace.xyz;

@@ -1,4 +1,4 @@
-#version 450 //versão do GLSL
+#version 450
 #extension GL_GOOGLE_include_directive : require
 
 layout(location = 0) in vec3 fragColor;
@@ -6,7 +6,7 @@ layout(location = 1) in vec3 fragPosWorldSpace;
 layout(location = 2) in vec3 fragNormalWorldSpace;
 layout(location = 3) in vec2 fragUv;
 layout(location = 4) in vec4 fragPosLightSpace;
-layout(location = 0) out vec4 outColor;//definindo a saída do fragment shader
+layout(location = 0) out vec4 outColor;
 
 #include "global_ubo.glsl"
 
