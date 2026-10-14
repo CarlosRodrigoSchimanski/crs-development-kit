@@ -38,8 +38,9 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
   ✅ M2 + M3 (2026-10-14; em 4 passos A-D, cada um testado com a validação de sincronização
      ligada — VK_KHRONOS_VALIDATION_VALIDATE_SYNC=1 — e o último também redimensionando a janela)
   ✅ M5  VMA (2026-10-14; v3.4.0; buffers e imagens; detector de vazamento conferido)
-  >> PRÓXIMO: M6  uploads agrupados (depois do M5: mexe nas mesmas funções)
-  -- M9  luzes em SSBO (reescreve global_ubo.glsl e PointLightSystem)
+  ✅ M6  uploads agrupados (2026-10-14; LveUploadBatch: modelo inteiro em 1 envio; pronto pro
+     scene manager subir uma cena inteira num lote só)
+  >> PRÓXIMO: M9  luzes em SSBO (reescreve global_ubo.glsl e PointLightSystem)
   -- Fase 2, item 10 (desenhar no resize): depois do M2/M3, que reescrevem o loop de frame
   -- Fase 3 (filtro final)
 
@@ -190,7 +191,9 @@ M5. ✅ (feito 2026-10-14: VMA v3.4.0; ao fechar, a VMA acusa qualquer alocaçã
     (maxMemoryAllocationCount, tipicamente 4096) e alocar é caro — o certo é poucas
     alocações grandes subdivididas. Solução padrão: VMA (Vulkan Memory Allocator).
 
-M6. Uploads síncronos: endSingleTimeCommands faz vkQueueWaitIdle a cada cópia (vertex,
+M6. ✅ (feito 2026-10-14: LveUploadBatch; ainda espera com vkQueueWaitIdle no submit —
+    próximo passo natural, quando houver scene manager: fence + carregar em segundo plano)
+    Uploads síncronos: endSingleTimeCommands faz vkQueueWaitIdle a cada cópia (vertex,
     index, textura) — a CPU para e espera a GPU a cada upload. Agrupar uploads num
     command buffer só por carga (ex: o modelo inteiro, ou a cena inteira).
     (Parcial 2026-10-13: begin/endSingleTimeCommands foram pro LveDevice e a LveTexture
