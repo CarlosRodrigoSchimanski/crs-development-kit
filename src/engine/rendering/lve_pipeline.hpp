@@ -31,6 +31,9 @@ namespace lve {
         VkPipelineLayout pipelineLayout = nullptr;
         VkRenderPass renderPass = nullptr;
         uint32_t subpass = 0;
+        //dynamic rendering (quando renderPass fica nulo): formatos das imagens em que o pipeline desenha
+        std::vector<VkFormat> colorAttachmentFormats{};
+        VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
     };
 
     //pipeline gráfico: shaders + todo o estado fixo de como desenhar (rasterização, depth, blending...)
