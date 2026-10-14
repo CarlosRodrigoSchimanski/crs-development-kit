@@ -23,9 +23,11 @@ namespace lve {
         poolInfo.poolSizeCount = 1;
         poolInfo.pPoolSizes = &poolSize;
 
-        if (vkCreateDescriptorPool(lveDevice.device(), &poolInfo, nullptr, &imguiPool) != VK_SUCCESS) {
+        VkDescriptorPool pool;
+        if (vkCreateDescriptorPool(lveDevice.device(), &poolInfo, nullptr, &pool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create imgui descriptor pool!");
         }
+        imguiPool = LveDescriptorPoolHandle{lveDevice.device(), pool};
 
         ImGui::CreateContext();
 
@@ -40,7 +42,7 @@ namespace lve {
         initInfo.QueueFamily = lveDevice.findPhysicalQueueFamilies().graphicsFamily.value();
         initInfo.Queue = lveDevice.graphicsQueue();
         initInfo.PipelineCache = VK_NULL_HANDLE;
-        initInfo.DescriptorPool = imguiPool;
+        initInfo.DescriptorPool = imguiPool.get();
         //dynamic rendering: o ImGui desenha dentro do begin/end rendering da tela, então o pipeline
         //dele precisa dos mesmos formatos (inclusive o da profundidade, mesmo sem usar)
         initInfo.UseDynamicRendering = true;
@@ -57,11 +59,12 @@ namespace lve {
         ImGui_ImplVulkan_Init(&initInfo);
     }
 
+    //o corpo do destrutor roda ANTES de os membros serem destruídos: o ImGui desliga (devolvendo os
+    //descriptor sets dele ao pool) e só depois o imguiPool (handle RAII) é destruído
     LveImgui::~LveImgui() {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
-        vkDestroyDescriptorPool(lveDevice.device(), imguiPool, nullptr);
     }
 
     void LveImgui::newFrame() {

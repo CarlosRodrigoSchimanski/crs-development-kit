@@ -25,7 +25,7 @@ namespace lve {
             LveDevice &lveDevice;
             //pool de descriptor separado só pro ImGui: ele gerencia a própria textura
             //de fonte internamente, não compartilha o pool da aplicação
-            VkDescriptorPool imguiPool;
+            LveDescriptorPoolHandle imguiPool;
             //o ImGui guarda um ponteiro pra ele (formato da imagem em que desenha): tem que viver junto
             VkFormat colorFormat;
     };
