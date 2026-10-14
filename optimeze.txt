@@ -9,7 +9,7 @@ código (Fase 1 e 2), depois a varredura de segurança/correção como último f
 dar o projeto por otimizado (Fase 3), e só então as configurações finais de build (Fase 4).
 
 ===============================================================================
->>> PONTO DE PARADA (2026-10-12) — git tag: revisao-parada-1 <<<
+>>> PONTO DE PARADA (2026-10-13) <<<
 ===============================================================================
 Fase 0 concluída. Fase 1 (passada geral de simplificação) em andamento, um
 subsistema por vez; em cada um: levantar achados (A simplificação / B correção /
@@ -17,9 +17,9 @@ C cosmético / D fica pra outra fase), usuário aprova, um commit por grupo.
   ✅ engine/core (window, device, utils)
   ✅ engine/rendering: swap chain + renderer (inclui o fix do semáforo, item 15/M4)
   ✅ engine/rendering: pipeline + buffer + descriptors
-  >> PRÓXIMO: engine/rendering: model + texture + shadow_map + camera
-     (boa parte escrita pelo Claude em 2026-10-12 — revisar com o mesmo rigor)
-  -- engine/rendering/systems (simple_render, point_light, shadow_render)
+  ✅ engine/rendering: model + texture + shadow_map + camera (2026-10-13; feito uma
+     sugestão por vez, um commit cada; shadow_map revisado e sem mudança)
+  >> PRÓXIMO: engine/rendering/systems (simple_render, point_light, shadow_render)
   -- engine/scene, editor, app
 Depois da Fase 1: Fase 2, 2B (modernização), 3 — ver roadmap item 2.2.
 
@@ -167,9 +167,11 @@ M5. Alocação de memória: hoje cada buffer/imagem faz o próprio vkAllocateMem
     alocações grandes subdivididas. Solução padrão: VMA (Vulkan Memory Allocator).
 
 M6. Uploads síncronos: endSingleTimeCommands faz vkQueueWaitIdle a cada cópia (vertex,
-    index, textura, cada transição de layout da textura) — a CPU para e espera a GPU a
-    cada upload. Agrupar uploads num command buffer só por carga, e LveTexture deixar
-    de ter o próprio código duplicado de command buffer de uso único.
+    index, textura) — a CPU para e espera a GPU a cada upload. Agrupar uploads num
+    command buffer só por carga (ex: o modelo inteiro, ou a cena inteira).
+    (Parcial 2026-10-13: begin/endSingleTimeCommands foram pro LveDevice e a LveTexture
+    usa eles, gravando as 2 transições + a cópia num command buffer só: 1 espera por
+    textura em vez de 3. Falta agrupar entre recursos diferentes.)
 
 M7. Bibliotecas: stb no GIT_TAG master (não fixado — o build pode mudar sozinho);
     tinyobjloader v1.0.7 antiga (precisa do hack CMAKE_POLICY_VERSION_MINIMUM) —
@@ -207,6 +209,12 @@ FASE 3 — Varredura final de segurança/correção (fazer por ÚLTIMO, é o fil
 13. Vazamento de recurso (resource leak)
     - Todo vkCreate*/vkAllocate* deve ter um vkDestroy*/vkFree* correspondente em algum lugar.
     - Conferir se todo caminho de erro (throw) não deixa recurso já criado sem limpar.
+    - Achados na Fase 1 (2026-10-13): loadGltf não chama cgltf_free se der exceção no meio
+      do loop (unique_ptr com deleter resolve); construtores da LveTexture não liberam os
+      pixels do stb se o upload der throw; VkResult sem checagem em vkMapMemory/
+      vkQueueSubmit/vkAllocateCommandBuffers (lve_buffer, endSingleTimeCommands).
+    - Entrada não confiável: loadGltf não chama cgltf_validate — um .glb malformado pode
+      fazer o accessor ler fora do buffer. Validar logo depois do cgltf_load_buffers.
 
 14. Consistência de RAII
     - Conferir se toda classe que adquire um recurso (Vulkan, memória, arquivo, etc.) em
@@ -287,7 +295,9 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    malha só. Textura por material: a imagem de cor embutida no .glb vira a LveTexture do
    modelo, ligada no set 1 (por objeto) do SimpleRenderSystem; sem textura = branca 1x1.
    Textura global removida. Pendentes: vários materiais por modelo, normal map (precisa de
-   tangentes), rugosidade/PBR, imagens externas (.gltf + arquivos separados).
+   tangentes), rugosidade/PBR, imagens externas (.gltf + arquivos separados — hoje são
+   ignoradas sem aviso), nó com escala negativa (espelhado) inverte a ordem dos triângulos
+   e o culling some com a face errada, mipmaps + anisotropia na LveTexture.
 
 2.1. ✅ Caixa do sol segue a câmera (concluído 2026-10-12) — centro da caixa ortográfica
      do shadow map = alvo da câmera orbital, encaixado na grade de texels pra não tremer;
