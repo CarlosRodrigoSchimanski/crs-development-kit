@@ -1,4 +1,5 @@
 #include "engine/rendering/lve_swap_chain.hpp"
+#include "engine/core/lve_vk_check.hpp"
 
 #include <algorithm>
 #include <array>
@@ -37,7 +38,7 @@ namespace lve {
     VkResult LveSwapChain::acquireNextImage(uint32_t *imageIndex) {
         //espera o frame anterior (do mesmo "slot") terminar antes de reaproveitar seus recursos
         VkFence frameFence = inFlightFences[currentFrame].get();
-        vkWaitForFences(device.device(), 1, &frameFence, VK_TRUE, UINT64_MAX);
+        vkCheck(vkWaitForFences(device.device(), 1, &frameFence, VK_TRUE, UINT64_MAX), "espera da fence do frame");
 
         VkResult result = vkAcquireNextImageKHR(
             device.device(),
@@ -52,7 +53,7 @@ namespace lve {
 
     VkResult LveSwapChain::submitCommandBuffers(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
         if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-            vkWaitForFences(device.device(), 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+            vkCheck(vkWaitForFences(device.device(), 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX), "espera da fence da imagem");
         }
         VkFence frameFence = inFlightFences[currentFrame].get();
         imagesInFlight[imageIndex] = frameFence;
@@ -84,7 +85,7 @@ namespace lve {
         submitInfo.signalSemaphoreInfoCount = 1;
         submitInfo.pSignalSemaphoreInfos = &signalInfo;
 
-        vkResetFences(device.device(), 1, &frameFence);
+        vkCheck(vkResetFences(device.device(), 1, &frameFence), "reset da fence do frame");
         if (vkQueueSubmit2(device.graphicsQueue(), 1, &submitInfo, frameFence) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }

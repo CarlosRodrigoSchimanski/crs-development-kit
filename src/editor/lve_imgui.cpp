@@ -4,9 +4,22 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
+#include <vulkan/vk_enum_string_helper.h>
+
+#include <cstdlib>
+#include <iostream>
 #include <stdexcept>
 
 namespace lve {
+
+    //o ImGui chama isto depois de cada chamada do Vulkan dele. Não dá pra lançar exceção aqui
+    //(ela atravessaria o código do ImGui, que não espera isso): avisa e encerra se for erro
+    static void checkImguiVkResult(VkResult result) {
+        if (result < 0) {
+            std::cerr << "Vulkan (ImGui): " << string_VkResult(result) << std::endl;
+            std::abort();
+        }
+    }
 
     LveImgui::LveImgui(LveWindow &window, LveDevice &device, VkFormat colorFormat, VkFormat depthFormat, uint32_t imageCount)
         : lveDevice{device}, colorFormat{colorFormat} {
@@ -54,7 +67,7 @@ namespace lve {
         initInfo.ImageCount = imageCount;
         initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
         initInfo.Allocator = nullptr;
-        initInfo.CheckVkResultFn = nullptr;
+        initInfo.CheckVkResultFn = checkImguiVkResult;
 
         ImGui_ImplVulkan_Init(&initInfo);
     }

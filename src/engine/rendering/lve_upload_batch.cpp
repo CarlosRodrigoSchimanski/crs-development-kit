@@ -1,4 +1,5 @@
 #include "engine/rendering/lve_upload_batch.hpp"
+#include "engine/core/lve_vk_check.hpp"
 
 #include <cassert>
 #include <stdexcept>
@@ -19,7 +20,7 @@ namespace lve {
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         //avisa o driver que esse command buffer só vai ser submetido uma vez
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        vkBeginCommandBuffer(commandBuffer_, &beginInfo);
+        vkCheck(vkBeginCommandBuffer(commandBuffer_, &beginInfo), "início da gravação do lote de envio");
     }
 
     LveUploadBatch::~LveUploadBatch() {
@@ -56,7 +57,7 @@ namespace lve {
 
     void LveUploadBatch::submit() {
         assert(!submitted && "Upload batch was already submitted");
-        vkEndCommandBuffer(commandBuffer_);
+        vkCheck(vkEndCommandBuffer(commandBuffer_), "fim da gravação do lote de envio");
 
         VkCommandBufferSubmitInfo commandBufferInfo{};
         commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
@@ -67,10 +68,10 @@ namespace lve {
         submitInfo.commandBufferInfoCount = 1;
         submitInfo.pCommandBufferInfos = &commandBufferInfo;
 
-        vkQueueSubmit2(lveDevice.graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+        vkCheck(vkQueueSubmit2(lveDevice.graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE), "submit do lote de envio");
         //espera o lote inteiro terminar antes de seguir; simples, mas bloqueia a fila até acabar
         //(no futuro: uma fence, pra carregar em segundo plano sem travar)
-        vkQueueWaitIdle(lveDevice.graphicsQueue());
+        vkCheck(vkQueueWaitIdle(lveDevice.graphicsQueue()), "espera do lote de envio");
 
         vkFreeCommandBuffers(lveDevice.device(), lveDevice.getCommandPool(), 1, &commandBuffer_);
         submitted = true;

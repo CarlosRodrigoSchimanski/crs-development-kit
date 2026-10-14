@@ -1,5 +1,6 @@
 #include "engine/rendering/lve_renderer.hpp"
 #include "engine/rendering/lve_image_barrier.hpp"
+#include "engine/core/lve_vk_check.hpp"
 
 #include <stdexcept>
 #include <cassert>
@@ -36,7 +37,7 @@ namespace lve {
     void LveRenderer::recreateSwapChain() {
         lveWindow.waitWhileMinimized();
         auto extent = lveWindow.getExtent();
-        vkDeviceWaitIdle(lveDevice.device());
+        vkCheck(vkDeviceWaitIdle(lveDevice.device()), "espera da GPU antes de recriar a swap chain");
 
         if (lveSwapChain == nullptr) {
             lveSwapChain = std::make_unique<LveSwapChain>(lveDevice, extent);

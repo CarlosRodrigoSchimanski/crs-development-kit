@@ -120,6 +120,7 @@ set(PROJECT_SOURCES
     src/engine/core/lve_window.cpp
     src/engine/core/lve_device.cpp
     src/engine/core/lve_handle.cpp
+    src/engine/core/lve_vk_check.cpp
     src/app/first_app.cpp
     src/engine/rendering/lve_pipeline.cpp
     src/engine/rendering/lve_swap_chain.cpp

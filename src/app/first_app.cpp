@@ -52,6 +52,7 @@ namespace lve {
     //recurso que a GPU ainda possa estar usando sumir (no fim normal e também por exceção)
     struct DeviceIdleGuard {
         LveDevice &device;
+        //sem vkCheck de propósito: exceção saindo de destrutor encerra o programa na hora
         ~DeviceIdleGuard() { vkDeviceWaitIdle(device.device()); }
     };
 

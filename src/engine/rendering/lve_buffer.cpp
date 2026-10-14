@@ -1,4 +1,5 @@
 #include "engine/rendering/lve_buffer.hpp"
+#include "engine/core/lve_vk_check.hpp"
 
 #include <vk_mem_alloc.h>
 
@@ -50,9 +51,9 @@ namespace lve {
     }
 
     //se der certo, "mapped" passa a apontar pro começo do buffer
-    VkResult LveBuffer::map() {
+    void LveBuffer::map() {
         assert(buffer && allocation && "Called map on buffer before create");
-        return vmaMapMemory(lveDevice.allocator(), allocation, &mapped);
+        vkCheck(vmaMapMemory(lveDevice.allocator(), allocation, &mapped), "map de buffer");
     }
 
     void LveBuffer::unmap() {
@@ -76,8 +77,8 @@ namespace lve {
 
     //só necessário pra memória não-coerente: avisa a GPU que a CPU escreveu nesse intervalo
     //(em memória coerente a VMA simplesmente não faz nada)
-    VkResult LveBuffer::flush(VkDeviceSize size, VkDeviceSize offset) const {
-        return vmaFlushAllocation(lveDevice.allocator(), allocation, offset, size);
+    void LveBuffer::flush(VkDeviceSize size, VkDeviceSize offset) const {
+        vkCheck(vmaFlushAllocation(lveDevice.allocator(), allocation, offset, size), "flush de buffer");
     }
 
     VkDescriptorBufferInfo LveBuffer::descriptorInfo(VkDeviceSize size, VkDeviceSize offset) const {
