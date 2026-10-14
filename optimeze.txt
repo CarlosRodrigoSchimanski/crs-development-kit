@@ -11,9 +11,9 @@ dar o projeto por otimizado (Fase 3), e só então as configurações finais de 
 ===============================================================================
 >>> PONTO DE PARADA (2026-10-13) <<<
 ===============================================================================
-Fase 0 concluída. Fase 1 (passada geral de simplificação) em andamento, um
-subsistema por vez; em cada um: levantar achados (A simplificação / B correção /
-C cosmético / D fica pra outra fase), usuário aprova, um commit por grupo.
+Fase 0 concluída. Fase 1 (passada geral de simplificação) CONCLUÍDA no código C++
+(2026-10-13), um subsistema por vez; a partir de model/texture, uma sugestão por vez,
+usuário aprova, um commit cada.
   ✅ engine/core (window, device, utils)
   ✅ engine/rendering: swap chain + renderer (inclui o fix do semáforo, item 15/M4)
   ✅ engine/rendering: pipeline + buffer + descriptors
@@ -21,8 +21,11 @@ C cosmético / D fica pra outra fase), usuário aprova, um commit por grupo.
      sugestão por vez, um commit cada; shadow_map revisado e sem mudança)
   ✅ engine/rendering/systems (2026-10-13; inclui 2 bugs: luzes à mesma distância sumiam
      no std::map, e o limite MAX_LIGHTS só era checado por assert)
-  >> PRÓXIMO: engine/scene, editor, app
-Depois da Fase 1: Fase 2, 2B (modernização), 3 — ver roadmap item 2.2.
+  ✅ engine/scene, editor, app (2026-10-13; rotação das luzes da demo removida — animação
+     de gameplay vai vir de script no futuro)
+  -- NÃO revisados na Fase 1: os shaders GLSL (shaders/*.vert, *.frag) e o CMakeLists.txt.
+     Decidir se entram numa passada própria antes da Fase 2.
+  >> PRÓXIMO: Fase 2, 2B (modernização), 3 — ver roadmap item 2.2.
 
 ===============================================================================
 FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
