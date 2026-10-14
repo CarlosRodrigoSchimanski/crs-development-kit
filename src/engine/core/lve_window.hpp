@@ -3,6 +3,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <functional>
 #include <string>
 
 namespace lve {
@@ -35,16 +36,22 @@ namespace lve {
             //cria a VkSurfaceKHR ligada a esta janela (usado pelo LveDevice)
             void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
 
+            //chamado quando o SO pede pra janela ser redesenhada (ex: durante o redimensionamento).
+            //A janela não sabe desenhar: só repassa o aviso pra quem registrou. nullptr desregistra
+            void setRefreshCallback(std::function<void()> callback);
+
         private:
             static void framebufferResizedCallback(GLFWwindow *window,int width, int height);
             //GLFW só avisa roda do mouse via callback, não tem como "perguntar" o valor como as teclas
             static void scrollCallback(GLFWwindow *window, double xoffset, double yoffset);
+            static void windowRefreshCallback(GLFWwindow *window);
 
             // Variáveis de membro
             int width;
             int height;
             bool framebufferResized = false;
             float scrollDeltaY = 0.f;
+            std::function<void()> onRefresh;
 
             std::string windowName;
             GLFWwindow* window;

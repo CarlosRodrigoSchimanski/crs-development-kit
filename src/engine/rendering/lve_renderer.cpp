@@ -68,10 +68,22 @@ namespace lve {
     VkCommandBuffer LveRenderer::beginFrame() {
         assert(!isFrameStarted && "Can't call beginFrame while alredy in progress");
 
-        auto result = lveSwapChain->acquireNextImage(&currentImageIndex);
-        if(result == VK_ERROR_OUT_OF_DATE_KHR) {
+        //a janela já avisou que mudou de tamanho: recria antes, senão este frame sairia no tamanho antigo
+        if (lveWindow.wasWindowResized()) {
+            lveWindow.resetWindowResizedFlag();
             recreateSwapChain();
-            return nullptr;
+        }
+
+        auto result = lveSwapChain->acquireNextImage(&currentImageIndex);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            //swap chain desatualizada (ex: mudou de tamanho): recria e tenta de novo na nova, em vez
+            //de pular o frame. Pular fazia a imagem congelar durante o arrasto da borda no Windows:
+            //cada redesenho pedido pelo SO caía nesta recriação e nenhum chegava a desenhar
+            recreateSwapChain();
+            result = lveSwapChain->acquireNextImage(&currentImageIndex);
+            if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+                return nullptr;  //mudou de novo nesse meio tempo: fica pro próximo frame
+            }
         }
 
         if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {

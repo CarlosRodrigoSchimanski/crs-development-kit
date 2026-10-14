@@ -18,4 +18,6 @@ namespace lve::platform {
     PlatformScope::~PlatformScope() {
         timeEndPeriod(1);
     }
+
+    bool needsRedrawDuringResize() { return true; }
 }

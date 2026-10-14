@@ -7,6 +7,7 @@
 #include "engine/rendering/lve_buffer.hpp"
 #include "editor/lve_imgui.hpp"
 #include "engine/rendering/lve_shadow_map.hpp"
+#include "engine/platform/lve_platform.hpp"
 
 #include <imgui.h>
 
@@ -36,6 +37,14 @@ namespace lve {
         center += snapOffset;
         shadowCamera.setViewDirection(center - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
     }
+
+    //desregistra o refresh callback da janela ao sair do run(), inclusive por exceção: a função
+    //registrada captura variáveis locais do run() por referência, que deixam de existir ao sair
+    //(se a janela ainda chamasse ela, seria acesso a memória já destruída)
+    struct RefreshCallbackGuard {
+        LveWindow &window;
+        ~RefreshCallbackGuard() { window.setRefreshCallback(nullptr); }
+    };
 
     FirstApp::FirstApp() {
         globalPool = LveDescriptorPool::Builder{lveDevice}
@@ -109,8 +118,15 @@ namespace lve {
         auto currentTime = std::chrono::high_resolution_clock::now();
         float displayFps = 0.f;
 
-        while (!lveWindow.shouldClose()) {
-            glfwPollEvents();
+        //um frame inteiro (tempo, câmera, update, desenho). É uma função (lambda) e não só o corpo
+        //do while porque, onde o SO trava o loop durante o redimensionamento (Windows), ela também
+        //é chamada de dentro do refresh callback da janela
+        bool drawingFrame = false;
+        auto drawFrame = [&]() {
+            //trava contra reentrada: recriar a swap chain pode chamar glfwWaitEvents (janela
+            //minimizada), que pode disparar o refresh callback NO MEIO deste frame
+            if (drawingFrame) return;
+            drawingFrame = true;
 
             auto newTime = std::chrono::high_resolution_clock::now();
             float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
@@ -126,12 +142,12 @@ namespace lve {
 
             cameraController.update(lveWindow, camera);
 
-            float aspect = lveRenderer.getAspectRatio();
-
-            camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
-
             if (auto commandBuffer = lveRenderer.beginFrame()) {
                 int frameIndex = lveRenderer.getFrameIndex();
+
+                //depois do beginFrame: se a swap chain foi recriada nele (janela mudou de tamanho),
+                //a proporção já é a nova
+                camera.setPerspectiveProjection(glm::radians(50.f), lveRenderer.getAspectRatio(), 0.1f, 100.f);
 
                 FrameInfo frameInfo{
                     frameIndex, 
@@ -184,6 +200,19 @@ namespace lve {
                 lveRenderer.endSwapChainRendering(commandBuffer);
                 lveRenderer.endFrame();
             }
+
+            drawingFrame = false;
+        };
+
+        RefreshCallbackGuard refreshGuard{lveWindow};
+        if (platform::needsRedrawDuringResize()) {
+            lveWindow.setRefreshCallback(drawFrame);
+        }
+
+        while (!lveWindow.shouldClose()) {
+            //no Windows, durante o arrasto da borda, o drawFrame roda daqui de dentro (refresh callback)
+            glfwPollEvents();
+            drawFrame();
 
             //limitador de FPS: espera até completar a duração mínima de um frame no alvo
             //da câmera atual; <= 0 significa "sem limite"

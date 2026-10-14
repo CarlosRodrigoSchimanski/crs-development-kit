@@ -7,4 +7,6 @@ namespace lve::platform {
     PlatformScope::PlatformScope() {}
 
     PlatformScope::~PlatformScope() {}
+
+    bool needsRedrawDuringResize() { return false; }
 }

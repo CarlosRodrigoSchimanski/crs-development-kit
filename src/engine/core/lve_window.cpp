@@ -20,6 +20,7 @@ namespace lve {
         glfwSetWindowUserPointer(window,this);
         glfwSetFramebufferSizeCallback(window,framebufferResizedCallback);
         glfwSetScrollCallback(window, scrollCallback);
+        glfwSetWindowRefreshCallback(window, windowRefreshCallback);
     }
 
     LveWindow::~LveWindow() {
@@ -66,6 +67,10 @@ namespace lve {
         }
     }
 
+    void LveWindow::setRefreshCallback(std::function<void()> callback) {
+        onRefresh = std::move(callback);
+    }
+
     void LveWindow::framebufferResizedCallback(GLFWwindow *window,int width, int height){
         //o user pointer é o próprio LveWindow guardado como void* no construtor; static_cast desfaz isso
         auto lveWindow = static_cast<LveWindow*>(glfwGetWindowUserPointer(window));
@@ -77,5 +82,12 @@ namespace lve {
     void LveWindow::scrollCallback(GLFWwindow *window, double /*xoffset*/, double yoffset) {
         auto lveWindow = static_cast<LveWindow*>(glfwGetWindowUserPointer(window));
         lveWindow->scrollDeltaY += static_cast<float>(yoffset);
+    }
+
+    void LveWindow::windowRefreshCallback(GLFWwindow *window) {
+        auto lveWindow = static_cast<LveWindow*>(glfwGetWindowUserPointer(window));
+        if (lveWindow->onRefresh) {
+            lveWindow->onRefresh();
+        }
     }
 }

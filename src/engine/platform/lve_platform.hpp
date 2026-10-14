@@ -17,4 +17,9 @@ namespace lve::platform {
             PlatformScope(const PlatformScope &) = delete;
             PlatformScope &operator=(const PlatformScope &) = delete;
     };
+
+    //o SO trava o loop principal enquanto a janela é redimensionada? Se sim, o app precisa
+    //desenhar de dentro do refresh callback da janela, senão a imagem congela durante o arrasto.
+    //Windows: sim (o arrasto da borda roda num loop modal do próprio Windows)
+    bool needsRedrawDuringResize();
 }
