@@ -43,7 +43,14 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
   ✅ M9  luzes em SSBO (2026-10-14; storage buffer por frame, cresce sozinho; conferido por
      comparação de print antes/depois)
   ✅ Fase 2, item 10 (2026-10-14; via camada de plataforma engine/platform)
-  >> PRÓXIMO: Fase 3 (filtro final)
+  >> EM ANDAMENTO: Fase 3 (filtro final), uma sugestão por vez:
+     ✅ glTF validado (cgltf_validate) e liberado por RAII (item 13)
+     ✅ esperar a GPU num lugar só: DeviceIdleGuard no FirstApp::run (item 12)
+     ✅ handles RAII (engine/core/lve_handle): textura, shadow map, swap chain, pipelines,
+        descriptors, ImGui e device sem destrutor manual de handle (item 14)
+     -- materialSets por endereço de textura no SimpleRenderSystem (item 11)
+     -- VkResult sem checagem (item 13)
+     -- contador de frame do renderer x da swap chain (achado novo, 2026-10-14)
 
 ===============================================================================
 FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
