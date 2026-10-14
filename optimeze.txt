@@ -23,8 +23,10 @@ usuário aprova, um commit cada.
      no std::map, e o limite MAX_LIGHTS só era checado por assert)
   ✅ engine/scene, editor, app (2026-10-13; rotação das luzes da demo removida — animação
      de gameplay vai vir de script no futuro)
-  -- NÃO revisados na Fase 1: os shaders GLSL (shaders/*.vert, *.frag) e o CMakeLists.txt.
-     Decidir se entram numa passada própria antes da Fase 2.
+  ✅ shaders GLSL + CMakeLists.txt (2026-10-14; GlobalUbo num include único
+     shaders/global_ubo.glsl; /W4 no código do projeto com zero avisos; implementação das
+     libs só-header em src/engine/third_party_impl.cpp). Filtro usado: não mexer no que
+     uma fase seguinte já vai reescrever (iluminação -> PBR, pointLight[10] -> M9, libs -> M7).
   >> PRÓXIMO: Fase 2, 2B (modernização), 3 — ver roadmap item 2.2.
 
 ===============================================================================
@@ -180,6 +182,10 @@ M6. Uploads síncronos: endSingleTimeCommands faz vkQueueWaitIdle a cada cópia 
 M7. Bibliotecas: stb no GIT_TAG master (não fixado — o build pode mudar sozinho);
     tinyobjloader v1.0.7 antiga (precisa do hack CMAKE_POLICY_VERSION_MINIMUM) —
     atualizar ou remover o suporte a OBJ de vez, já que o formato do jogo é glTF.
+    (Visto 2026-10-14: o set(CMAKE_POLICY_VERSION_MINIMUM 3.5) vale pra todas as libs
+    declaradas depois dele no CMake, não só a tinyobjloader; e o projeto linka o alvo
+    tinyobjloader E define TINYOBJLOADER_IMPLEMENTATION no third_party_impl.cpp — usar
+    um dos dois.)
 
 M8. Defines do GLM (GLM_FORCE_RADIANS / GLM_FORCE_DEPTH_ZERO_TO_ONE) repetidos em 12
     lugares no src/ — centralizar (no CMake via target_compile_definitions, ou num header
@@ -312,6 +318,10 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    tangentes), rugosidade/PBR, imagens externas (.gltf + arquivos separados — hoje são
    ignoradas sem aviso), nó com escala negativa (espelhado) inverte a ordem dos triângulos
    e o culling some com a face errada, mipmaps + anisotropia na LveTexture.
+   Ao fazer o PBR (anotado na revisão dos shaders, 2026-10-14): hoje o especular é
+   multiplicado pela cor do objeto (fisicamente o reflexo não é tingido pelo albedo) e o
+   clamp depois do max no blinnTerm é redundante — não foi corrigido porque o modelo de
+   iluminação inteiro vai ser trocado.
 
 2.1. ✅ Caixa do sol segue a câmera (concluído 2026-10-12) — centro da caixa ortográfica
      do shadow map = alvo da câmera orbital, encaixado na grade de texels pra não tremer;
