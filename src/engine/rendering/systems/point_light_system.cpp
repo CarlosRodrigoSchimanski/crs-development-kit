@@ -72,9 +72,14 @@ namespace lve {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
 
-            assert(lightIndex < MAX_LIGHTS && "Point lights exceed maximum specified");
-
             obj.transform.translation = glm::vec3(rotateLight * glm::vec4(obj.transform.translation, 1.f));
+
+            //o assert só avisa no Debug; no Release some, então a trava de verdade é o continue:
+            //escrever além do array atropelaria o numLights e o que vier depois na memória
+            if (lightIndex >= MAX_LIGHTS) {
+                assert(false && "Point lights exceed maximum specified");
+                continue;
+            }
 
             ubo.pointLights[lightIndex].position = glm::vec4(obj.transform.translation, 1.f);
             ubo.pointLights[lightIndex].color = glm::vec4(obj.color, obj.pointLight->lightIntensity);
