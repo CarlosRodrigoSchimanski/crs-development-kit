@@ -13,6 +13,9 @@ namespace lve {
         float radius{};
     };
 
+    //quantas luzes cabem no storage buffer de cada frame no começo (cresce sozinho se precisar)
+    constexpr size_t INITIAL_LIGHT_CAPACITY = 64;
+
     PointLightSystem::PointLightSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
         pipelineLayout = LvePipeline::createPipelineLayout(
             lveDevice,
@@ -20,6 +23,26 @@ namespace lve {
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             sizeof(PointLightPushConstants));
         createPipeline(colorFormat, depthFormat);
+
+        lightBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (auto &lightBuffer : lightBuffers) {
+            lightBuffer = createLightBuffer(INITIAL_LIGHT_CAPACITY);
+        }
+    }
+
+    std::unique_ptr<LveBuffer> PointLightSystem::createLightBuffer(size_t capacity) {
+        auto lightBuffer = std::make_unique<LveBuffer>(
+            lveDevice,
+            sizeof(PointLight),
+            static_cast<uint32_t>(capacity),
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        lightBuffer->map();
+        return lightBuffer;
+    }
+
+    VkDescriptorBufferInfo PointLightSystem::lightBufferInfo(int frameIndex) const {
+        return lightBuffers[frameIndex]->descriptorInfo();
     }
 
     PointLightSystem::~PointLightSystem() {
@@ -48,28 +71,31 @@ namespace lve {
 
     //copia as point lights da cena pro storage buffer do frame (só lê a cena; mover as luzes é com
     //quem usa a engine)
-    void PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo, LveBuffer& lightBuffer) {
-        const size_t capacity = lightBuffer.getBufferSize() / sizeof(PointLight);
-
+    bool PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
         std::vector<PointLight> lights;
         for (auto& kv : frameInfo.gameObjects) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
-
-            //o assert só avisa no Debug; no Release some, então a trava de verdade é o continue:
-            //escrever além do buffer atropelaria a memória vizinha
-            if (lights.size() >= capacity) {
-                assert(false && "Point lights exceed light buffer capacity");
-                continue;
-            }
-
             lights.push_back({glm::vec4(obj.transform.translation, 1.f), glm::vec4(obj.color, obj.pointLight->lightIntensity)});
         }
 
+        //não cabe: troca o buffer deste frame por um maior. Seguro porque o beginFrame já esperou a
+        //fence deste frame (a GPU terminou de ler o buffer antigo) e nenhum sistema fez o bind do
+        //descriptor neste frame ainda
+        auto &lightBuffer = lightBuffers[frameInfo.frameIndex];
+        size_t capacity = lightBuffer->getBufferSize() / sizeof(PointLight);
+        bool recreated = false;
+        if (lights.size() > capacity) {
+            while (capacity < lights.size()) capacity *= 2;
+            lightBuffer = createLightBuffer(capacity);
+            recreated = true;
+        }
+
         if (!lights.empty()) {
-            lightBuffer.writeToBuffer(lights.data(), lights.size() * sizeof(PointLight));
+            lightBuffer->writeToBuffer(lights.data(), lights.size() * sizeof(PointLight));
         }
         ubo.numLights = static_cast<int>(lights.size());
+        return recreated;
     }
 
     void PointLightSystem::render(FrameInfo& frameInfo) {

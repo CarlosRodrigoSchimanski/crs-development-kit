@@ -63,18 +63,6 @@ namespace lve {
             uboBuffers[i]->map();
         }
 
-        //point lights: um storage buffer por frame em voo (a CPU reescreve todo frame, igual o UBO)
-        std::vector<std::unique_ptr<LveBuffer>> lightBuffers(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
-        for (auto &lightBuffer : lightBuffers) {
-            lightBuffer = std::make_unique<LveBuffer>(
-                lveDevice,
-                sizeof(PointLight),
-                LIGHT_BUFFER_CAPACITY,
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            lightBuffer->map();
-        }
-
         LveShadowMap shadowMap{lveDevice};
 
 
@@ -83,16 +71,25 @@ namespace lve {
             .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
             .build();
+
+        //formatos das imagens da tela: todo pipeline que desenha nela é criado com eles
+        VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
+        VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
+        SimpleRenderSystem simpleRenderSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
+        //criado antes dos descriptor sets: ele é dono dos buffers de luz (binding 2)
+        PointLightSystem pointLightSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
+        ShadowRenderSystem shadowRenderSystem{lveDevice, shadowMap, globalSetLayout->getDescriptorSetLayout()};
+        LveImgui lveImgui{lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount()};
         
         std::vector<VkDescriptorSet> globalDescriptorSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < globalDescriptorSets.size(); i++)
         {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
-            auto lightBufferInfo = lightBuffers[i]->descriptorInfo();
+            auto lightBufferInfo = pointLightSystem.lightBufferInfo(static_cast<int>(i));
             VkDescriptorImageInfo shadowMapInfo{};
             shadowMapInfo.sampler = shadowMap.getSampler();
             shadowMapInfo.imageView = shadowMap.getImageView();
-            //tem que bater com o finalLayout do render pass do shadow map
+            //tem que bater com o layout da barreira de saída do ShadowRenderSystem::renderShadowMap
             shadowMapInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
             LveDescriptorWriter(*globalSetLayout, *globalPool)
@@ -102,13 +99,6 @@ namespace lve {
                 .build(globalDescriptorSets[i]);
         }
         
-        //formatos das imagens da tela: todo pipeline que desenha nela é criado com eles
-        VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
-        VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
-        SimpleRenderSystem simpleRenderSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
-        PointLightSystem pointLightSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
-        ShadowRenderSystem shadowRenderSystem{lveDevice, shadowMap, globalSetLayout->getDescriptorSetLayout()};
-        LveImgui lveImgui{lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount()};
         LveCamera camera{};
         LveCamera shadowCamera{};
         //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
@@ -161,7 +151,13 @@ namespace lve {
                 //a caixa do sol acompanha o ponto que a câmera orbital está olhando
                 updateShadowCamera(shadowCamera, cameraController.target, lightDirection, shadowMap.getExtent().width);
                 ubo.lightSpaceMatrix = shadowCamera.getProjection() * shadowCamera.getView();
-                pointLightSystem.update(frameInfo, ubo, *lightBuffers[frameIndex]);
+                if (pointLightSystem.update(frameInfo, ubo)) {
+                    //o buffer de luzes deste frame foi recriado maior: o descriptor aponta pro novo
+                    auto lightBufferInfo = pointLightSystem.lightBufferInfo(frameIndex);
+                    LveDescriptorWriter(*globalSetLayout, *globalPool)
+                        .writeBuffer(2, &lightBufferInfo)
+                        .overwrite(globalDescriptorSets[frameIndex]);
+                }
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 

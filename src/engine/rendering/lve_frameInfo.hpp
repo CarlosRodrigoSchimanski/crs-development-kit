@@ -13,9 +13,6 @@ namespace lve {
         glm::vec4 color{};  //w = intensidade
     };
 
-    //quantas luzes cabem no storage buffer de cada frame
-    constexpr uint32_t LIGHT_BUFFER_CAPACITY = 64;
-
     struct GlobalUbo {
         glm::mat4 projection{1.f};
         glm::mat4 view{1.f};
