@@ -201,7 +201,7 @@ namespace lve {
         gameObjects.emplace(cube.getId(), std::move(cube));
 
         //chão embaixo do cubo (Y aponta pra baixo, então +1 = base do cubo), pra receber a sombra
-        lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.obj");
+        lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
         auto floor = LveGameObject::createGameObject();
         floor.model = lveModel;
         floor.transform.translation = {0.f, 1.5f, 0.f};

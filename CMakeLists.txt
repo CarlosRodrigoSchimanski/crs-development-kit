@@ -31,18 +31,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 #----------------------------------------------------------#
 
-#incluir tinyobjloader (carregamento de modelos .obj)
-FetchContent_Declare(
-    tinyobjloader
-    GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
-    GIT_TAG v1.0.7
-)
-#a v1.0.7 é antiga e pede uma versão mínima de CMake que o CMake atual já removeu;
-#isso avisa pra tratar como se pedisse 3.5 em vez da original
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-FetchContent_MakeAvailable(tinyobjloader)
-#----------------------------------------------------------#
-
 #incluir cgltf (carregamento de modelos glTF .gltf/.glb, formato final do jogo)
 #é só um header (como o stb): não tem alvo pra linkar, só a pasta de include
 FetchContent_Declare(
@@ -57,7 +45,8 @@ FetchContent_MakeAvailable(cgltf)
 FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG master
+    #o stb não publica versões: fixado num commit (2026-08-01) pra o build não mudar sozinho
+    GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
 )
 FetchContent_MakeAvailable(stb)
 
@@ -154,7 +143,7 @@ endif()
 target_include_directories(G_E_Youtube PRIVATE src ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
 
 #linkando as bibliotecas
-target_link_libraries(G_E_Youtube PRIVATE glfw Vulkan::Vulkan glm::glm tinyobjloader)
+target_link_libraries(G_E_Youtube PRIVATE glfw Vulkan::Vulkan glm::glm)
 
 #configuração do glm definida UMA vez pro projeto inteiro (antes estava repetida em 7 arquivos):
 #profundidade 0..1 como o Vulkan espera (o padrão do glm é -1..1, do OpenGL). Vale pra todo

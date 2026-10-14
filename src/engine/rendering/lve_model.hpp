@@ -32,12 +32,8 @@ namespace lve {
                 //imagem de cor do material (png/jpg ainda codificado); vazio = modelo sem textura
                 std::vector<unsigned char> baseColorImage{};
 
-                //escolhe o carregador pela extensão (.obj ou .gltf/.glb)
+                //carrega um .gltf/.glb (formato do jogo: exportado direto do Blender)
                 void loadModel(const std::string &filepath);
-
-                private:
-                void loadObj(const std::string &filepath);
-                void loadGltf(const std::string &filepath);
             };
 
             LveModel(LveDevice &device, const LveModel::Builder &builder);
