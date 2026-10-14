@@ -1,7 +1,10 @@
 #include "engine/rendering/lve_buffer.hpp"
 
+#include <vk_mem_alloc.h>
+
 #include <cassert>
 #include <cstring>
+#include <stdexcept>
 
 namespace lve {
 
@@ -22,25 +25,39 @@ namespace lve {
         : lveDevice{device} {
         VkDeviceSize alignmentSize = getAlignment(instanceSize, minOffsetAlignment);
         bufferSize = alignmentSize * instanceCount;
-        device.createBuffer(bufferSize, usageFlags, memoryPropertyFlags, buffer, memory);
+
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = bufferSize;
+        bufferInfo.usage = usageFlags;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        //as mesmas flags de antes (DEVICE_LOCAL, HOST_VISIBLE...): a VMA acha o tipo de memória
+        //que tem todas elas (o que o findMemoryType fazia) e encaixa o buffer num bloco dela
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.requiredFlags = memoryPropertyFlags;
+
+        //cria o buffer, aloca e liga a memória, tudo numa chamada
+        if (vmaCreateBuffer(lveDevice.allocator(), &bufferInfo, &allocInfo, &buffer, &allocation, nullptr) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create buffer!");
+        }
     }
 
     LveBuffer::~LveBuffer() {
         unmap();
-        vkDestroyBuffer(lveDevice.device(), buffer, nullptr);
-        vkFreeMemory(lveDevice.device(), memory, nullptr);
+        //destrói o buffer e devolve o pedaço de memória pra VMA
+        vmaDestroyBuffer(lveDevice.allocator(), buffer, allocation);
     }
 
-    //mapeia um intervalo de memória deste buffer; se der certo, "mapped" passa a apontar pra ele
-    VkResult LveBuffer::map(VkDeviceSize size, VkDeviceSize offset) {
-        assert(buffer && memory && "Called map on buffer before create");
-        return vkMapMemory(lveDevice.device(), memory, offset, size, 0, &mapped);
+    //se der certo, "mapped" passa a apontar pro começo do buffer
+    VkResult LveBuffer::map() {
+        assert(buffer && allocation && "Called map on buffer before create");
+        return vmaMapMemory(lveDevice.allocator(), allocation, &mapped);
     }
 
-    //desmapeia o intervalo mapeado (vkUnmapMemory não tem como falhar, por isso não retorna nada)
     void LveBuffer::unmap() {
         if (mapped) {
-            vkUnmapMemory(lveDevice.device(), memory);
+            vmaUnmapMemory(lveDevice.allocator(), allocation);
             mapped = nullptr;
         }
     }
@@ -58,13 +75,9 @@ namespace lve {
     }
 
     //só necessário pra memória não-coerente: avisa a GPU que a CPU escreveu nesse intervalo
+    //(em memória coerente a VMA simplesmente não faz nada)
     VkResult LveBuffer::flush(VkDeviceSize size, VkDeviceSize offset) const {
-        VkMappedMemoryRange mappedRange{};
-        mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-        mappedRange.memory = memory;
-        mappedRange.offset = offset;
-        mappedRange.size = size;
-        return vkFlushMappedMemoryRanges(lveDevice.device(), 1, &mappedRange);
+        return vmaFlushAllocation(lveDevice.allocator(), allocation, offset, size);
     }
 
     VkDescriptorBufferInfo LveBuffer::descriptorInfo(VkDeviceSize size, VkDeviceSize offset) const {

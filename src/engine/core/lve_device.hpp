@@ -2,10 +2,11 @@
 
 #include "engine/core/lve_window.hpp"
 
-//declaração antecipada do handle da VMA (é a mesma linha que o vk_mem_alloc.h usa): assim este
-//header, incluído no projeto inteiro, não precisa puxar as ~20 mil linhas da VMA; só os .cpp
+//declaração antecipada dos handles da VMA (são as mesmas linhas que o vk_mem_alloc.h usa): assim
+//este header, incluído no projeto inteiro, não precisa puxar as ~20 mil linhas da VMA; só os .cpp
 //que chamam funções da VMA incluem <vk_mem_alloc.h>
 VK_DEFINE_HANDLE(VmaAllocator)
+VK_DEFINE_HANDLE(VmaAllocation)
 
 #include <array>
 #include <optional>
@@ -74,13 +75,6 @@ namespace lve {
                 VkMemoryPropertyFlags requiredProperties,
                 VkImage &image,
                 VkDeviceMemory &imageMemory);
-            //cria um VkBuffer já com a memória alocada e vinculada
-            void createBuffer(
-                VkDeviceSize size,
-                VkBufferUsageFlags usage,
-                VkMemoryPropertyFlags requiredProperties,
-                VkBuffer &buffer,
-                VkDeviceMemory &bufferMemory);
             //command buffer descartável pra um comando avulso (cópia, troca de layout...):
             //begin aloca e começa a gravar; end submete, espera a GPU terminar e libera
             VkCommandBuffer beginSingleTimeCommands();

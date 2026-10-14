@@ -18,7 +18,8 @@ namespace lve {
             LveBuffer(const LveBuffer&) = delete;
             LveBuffer& operator=(const LveBuffer&) = delete;
 
-            VkResult map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
+            //mapeia o buffer inteiro na memória da CPU (a VMA sempre mapeia a alocação toda)
+            VkResult map();
             void unmap();
 
             void writeToBuffer(const void* data, VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
@@ -34,7 +35,8 @@ namespace lve {
             LveDevice& lveDevice;
             void* mapped = nullptr;
             VkBuffer buffer = VK_NULL_HANDLE;
-            VkDeviceMemory memory = VK_NULL_HANDLE;
+            //memória do buffer, gerenciada pela VMA (pode ser um pedaço de um bloco maior)
+            VmaAllocation allocation = VK_NULL_HANDLE;
 
             VkDeviceSize bufferSize;
     };
