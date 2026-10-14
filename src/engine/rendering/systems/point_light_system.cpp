@@ -46,7 +46,6 @@ namespace lve {
     }
 
     PointLightSystem::~PointLightSystem() {
-        vkDeviceWaitIdle(lveDevice.device());
         vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
     }
 

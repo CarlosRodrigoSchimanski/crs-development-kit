@@ -46,6 +46,15 @@ namespace lve {
         ~RefreshCallbackGuard() { window.setRefreshCallback(nullptr); }
     };
 
+    //espera a GPU terminar todo o trabalho pendente quando é destruído. No run() ele é declarado
+    //DEPOIS de todos os recursos de GPU: variáveis locais são destruídas na ordem inversa da
+    //declaração, então ele é o PRIMEIRO a ser destruído e a espera acontece antes de qualquer
+    //recurso que a GPU ainda possa estar usando sumir (no fim normal e também por exceção)
+    struct DeviceIdleGuard {
+        LveDevice &device;
+        ~DeviceIdleGuard() { vkDeviceWaitIdle(device.device()); }
+    };
+
     FirstApp::FirstApp() {
         globalPool = LveDescriptorPool::Builder{lveDevice}
             .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)
@@ -205,6 +214,8 @@ namespace lve {
         };
 
         RefreshCallbackGuard refreshGuard{lveWindow};
+        //último recurso declarado do run(): ver o comentário do DeviceIdleGuard
+        DeviceIdleGuard deviceIdleGuard{lveDevice};
         if (platform::needsRedrawDuringResize()) {
             lveWindow.setRefreshCallback(drawFrame);
         }
@@ -233,7 +244,6 @@ namespace lve {
                 }
             }
         }
-        vkDeviceWaitIdle(lveDevice.device());
     }
 
     void FirstApp::loadGameObjects() {

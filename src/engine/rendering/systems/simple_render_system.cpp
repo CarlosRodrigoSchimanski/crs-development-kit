@@ -38,7 +38,6 @@ namespace lve {
     }
 
     SimpleRenderSystem::~SimpleRenderSystem() {
-        vkDeviceWaitIdle(lveDevice.device());
         vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
     }
 
