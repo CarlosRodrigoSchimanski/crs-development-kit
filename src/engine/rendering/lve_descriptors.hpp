@@ -28,7 +28,6 @@ namespace lve {
 
             LveDescriptorSetLayout(
                 LveDevice &lveDevice, std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings);
-            ~LveDescriptorSetLayout();
             LveDescriptorSetLayout(const LveDescriptorSetLayout &) = delete;
             LveDescriptorSetLayout &operator=(const LveDescriptorSetLayout &) = delete;
 
@@ -36,7 +35,7 @@ namespace lve {
 
         private:
             LveDevice &lveDevice;
-            VkDescriptorSetLayout descriptorSetLayout;
+            LveDescriptorSetLayoutHandle descriptorSetLayout;
             std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings;
 
             friend class LveDescriptorWriter;
@@ -62,7 +61,6 @@ namespace lve {
                 LveDevice &lveDevice,
                 uint32_t maxSets,
                 const std::vector<VkDescriptorPoolSize> &poolSizes);
-            ~LveDescriptorPool();
             LveDescriptorPool(const LveDescriptorPool &) = delete;
             LveDescriptorPool &operator=(const LveDescriptorPool &) = delete;
 
@@ -70,7 +68,7 @@ namespace lve {
 
         private:
             LveDevice &lveDevice;
-            VkDescriptorPool descriptorPool;
+            LveDescriptorPoolHandle descriptorPool;
 
             friend class LveDescriptorWriter;
     };

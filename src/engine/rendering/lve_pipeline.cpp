@@ -17,10 +17,6 @@ namespace lve {
         createGraphicsPipeline(vertFilepath, fragFilepath, configInfo);
     }
 
-    LvePipeline::~LvePipeline() {
-        vkDestroyPipeline(lveDevice.device(), graphicsPipeline, nullptr);
-    }
-
     std::vector<char> LvePipeline::readFile(const std::string& filepath) {
         //ios::ate abre já posicionado no fim: o tellg() dá o tamanho do arquivo direto
         std::ifstream file{filepath, std::ios::ate | std::ios::binary};
@@ -45,19 +41,20 @@ namespace lve {
             "Cannot create graphics pipeline: no attachment formats provided in configInfo");
 
         //os shader modules só são necessários DURANTE a criação: depois disso o pipeline já tem
-        //o código compilado dentro dele, então são destruídos no fim desta função
-        VkShaderModule vertShaderModule = createShaderModule(readFile(vertFilepath));
-        VkShaderModule fragShaderModule = createShaderModule(readFile(fragFilepath));
+        //o código compilado dentro dele. Como são handles RAII locais, são destruídos no fim desta
+        //função por qualquer caminho (inclusive se o .frag não existir depois do .vert já criado)
+        LveShaderModule vertShaderModule = createShaderModule(readFile(vertFilepath));
+        LveShaderModule fragShaderModule = createShaderModule(readFile(fragFilepath));
 
         VkPipelineShaderStageCreateInfo shaderStages[2]{};
         shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-        shaderStages[0].module = vertShaderModule;
+        shaderStages[0].module = vertShaderModule.get();
         shaderStages[0].pName = "main";
 
         shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        shaderStages[1].module = fragShaderModule;
+        shaderStages[1].module = fragShaderModule.get();
         shaderStages[1].pName = "main";
 
         auto& bindingDescriptions = configInfo.bindingDescriptions;
@@ -96,19 +93,14 @@ namespace lve {
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
         pipelineInfo.basePipelineIndex = -1;
 
-        VkResult result = vkCreateGraphicsPipelines(
-            lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline);
-
-        //destruídos antes do throw: se a criação falhar eles não vazam
-        vkDestroyShaderModule(lveDevice.device(), fragShaderModule, nullptr);
-        vkDestroyShaderModule(lveDevice.device(), vertShaderModule, nullptr);
-
-        if (result != VK_SUCCESS) {
+        VkPipeline pipeline;
+        if (vkCreateGraphicsPipelines(lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline");
         }
+        graphicsPipeline = LvePipelineHandle{lveDevice.device(), pipeline};
     }
 
-    VkShaderModule LvePipeline::createShaderModule(const std::vector<char> &code) {
+    LveShaderModule LvePipeline::createShaderModule(const std::vector<char> &code) {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.codeSize = code.size();
@@ -120,11 +112,11 @@ namespace lve {
         if (vkCreateShaderModule(lveDevice.device(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
             throw std::runtime_error("failed to create shader module");
         }
-        return shaderModule;
+        return LveShaderModule{lveDevice.device(), shaderModule};
     }
 
     void LvePipeline::bind(VkCommandBuffer commandBuffer) {
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.get());
     }
 
     void LvePipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo) {
@@ -190,7 +182,7 @@ namespace lve {
         configInfo.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
     }
 
-    VkPipelineLayout LvePipeline::createPipelineLayout(
+    LvePipelineLayout LvePipeline::createPipelineLayout(
         LveDevice &device,
         const std::vector<VkDescriptorSetLayout> &setLayouts,
         VkShaderStageFlags pushStages,
@@ -211,6 +203,6 @@ namespace lve {
         if (vkCreatePipelineLayout(device.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create pipeline layout!");
         }
-        return pipelineLayout;
+        return LvePipelineLayout{device.device(), pipelineLayout};
     }
 }

@@ -12,7 +12,6 @@ namespace lve {
     class ShadowRenderSystem {
         public:
             ShadowRenderSystem(LveDevice& device, LveShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout);
-            ~ShadowRenderSystem();
 
             ShadowRenderSystem(const ShadowRenderSystem&) = delete;
             ShadowRenderSystem& operator=(const ShadowRenderSystem&) = delete;
@@ -27,6 +26,6 @@ namespace lve {
             LveDevice& lveDevice;
             LveShadowMap& shadowMap;
             std::unique_ptr<LvePipeline> lvePipeline;
-            VkPipelineLayout pipelineLayout;
+            LvePipelineLayout pipelineLayout;
     };
 }

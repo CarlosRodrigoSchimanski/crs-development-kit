@@ -18,7 +18,6 @@ namespace lve {
         public:
 
             SimpleRenderSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
-            ~SimpleRenderSystem();
 
             //codigo para evitar duplicação de ponteiros
             SimpleRenderSystem(const SimpleRenderSystem&) = delete;
@@ -33,7 +32,7 @@ namespace lve {
 
             LveDevice& lveDevice;
             std::unique_ptr<LvePipeline> lvePipeline;
-            VkPipelineLayout pipelineLayout;
+            LvePipelineLayout pipelineLayout;
 
             std::unique_ptr<LveDescriptorSetLayout> materialSetLayout;
             std::unique_ptr<LveDescriptorPool> materialPool;

@@ -43,20 +43,14 @@ namespace lve {
         descriptorSetLayoutInfo.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
         descriptorSetLayoutInfo.pBindings = setLayoutBindings.data();
 
-        if (vkCreateDescriptorSetLayout(
-                lveDevice.device(),
-                &descriptorSetLayoutInfo,
-                nullptr,
-                &descriptorSetLayout) != VK_SUCCESS) {
+        VkDescriptorSetLayout setLayout;
+        if (vkCreateDescriptorSetLayout(lveDevice.device(), &descriptorSetLayoutInfo, nullptr, &setLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor set layout!");
         }
+        descriptorSetLayout = LveDescriptorSetLayoutHandle{lveDevice.device(), setLayout};
     }
 
-    LveDescriptorSetLayout::~LveDescriptorSetLayout() {
-        vkDestroyDescriptorSetLayout(lveDevice.device(), descriptorSetLayout, nullptr);
-    }
-
-    VkDescriptorSetLayout LveDescriptorSetLayout::getDescriptorSetLayout() const { return descriptorSetLayout; }
+    VkDescriptorSetLayout LveDescriptorSetLayout::getDescriptorSetLayout() const { return descriptorSetLayout.get(); }
 
     // *************** Descriptor Pool Builder *********************
 
@@ -90,21 +84,18 @@ namespace lve {
         descriptorPoolInfo.pPoolSizes = poolSizes.data();
         descriptorPoolInfo.maxSets = maxSets;
 
-        if (vkCreateDescriptorPool(lveDevice.device(), &descriptorPoolInfo, nullptr, &descriptorPool) !=
-            VK_SUCCESS) {
+        VkDescriptorPool pool;
+        if (vkCreateDescriptorPool(lveDevice.device(), &descriptorPoolInfo, nullptr, &pool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor pool!");
         }
-    }
-
-    LveDescriptorPool::~LveDescriptorPool() {
-        vkDestroyDescriptorPool(lveDevice.device(), descriptorPool, nullptr);
+        descriptorPool = LveDescriptorPoolHandle{lveDevice.device(), pool};
     }
 
     bool LveDescriptorPool::allocateDescriptor(
         VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const {
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorPool = descriptorPool.get();
         allocInfo.pSetLayouts = &descriptorSetLayout;
         allocInfo.descriptorSetCount = 1;
 

@@ -22,12 +22,8 @@ namespace lve {
         createPipeline();
     }
 
-    ShadowRenderSystem::~ShadowRenderSystem() {
-        vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
-    }
-
     void ShadowRenderSystem::createPipeline() {
-        assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+        assert(pipelineLayout.get() != VK_NULL_HANDLE && "Cannot create pipeline before pipeline layout");
 
         PipelineConfigInfo pipelineConfig{};
         LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
@@ -47,7 +43,7 @@ namespace lve {
         pipelineConfig.attributeDescriptions = positionOnly;
         //dynamic rendering: sem render pass, o pipeline só precisa saber o formato da profundidade
         pipelineConfig.depthAttachmentFormat = shadowMap.getFormat();
-        pipelineConfig.pipelineLayout = pipelineLayout;
+        pipelineConfig.pipelineLayout = pipelineLayout.get();
         lvePipeline = std::make_unique<LvePipeline>(
             lveDevice,
             "shaders/shadow.vert.spv",
@@ -105,7 +101,7 @@ namespace lve {
         vkCmdBindDescriptorSets(
             frameInfo.commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            pipelineLayout,
+            pipelineLayout.get(),
             0,
             1,
             &frameInfo.globalDescriptorSet,
@@ -120,7 +116,7 @@ namespace lve {
 
             vkCmdPushConstants(
                 frameInfo.commandBuffer,
-                pipelineLayout,
+                pipelineLayout.get(),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 sizeof(ShadowPushConstantData),

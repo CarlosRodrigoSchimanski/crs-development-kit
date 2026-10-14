@@ -16,7 +16,6 @@ namespace lve {
         public:
 
             PointLightSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
-            ~PointLightSystem();
 
             PointLightSystem(const PointLightSystem&) = delete;
             PointLightSystem& operator=(const PointLightSystem&) = delete;
@@ -37,7 +36,7 @@ namespace lve {
 
             LveDevice& lveDevice;
             std::unique_ptr<LvePipeline> lvePipeline;
-            VkPipelineLayout pipelineLayout;
+            LvePipelineLayout pipelineLayout;
             //um por frame em voo: a CPU reescreve todo frame, e o frame anterior pode estar sendo lido
             std::vector<std::unique_ptr<LveBuffer>> lightBuffers;
     };

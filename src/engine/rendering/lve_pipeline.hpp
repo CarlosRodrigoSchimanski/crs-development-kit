@@ -45,7 +45,6 @@ namespace lve {
                 const std::string& fragFilepath,
                 const PipelineConfigInfo& configInfo
             );
-            ~LvePipeline();
 
             //evita duplicar os ponteiros dos objetos Vulkan que essa classe gerencia
             LvePipeline(const LvePipeline&) = delete;
@@ -60,7 +59,7 @@ namespace lve {
             static void enableAlphaBlending(PipelineConfigInfo& configInfo);
             //pipeline layout = quais descriptor sets e qual push constant os shaders recebem;
             //quem chama é dono do layout e destrói com vkDestroyPipelineLayout
-            static VkPipelineLayout createPipelineLayout(
+            static LvePipelineLayout createPipelineLayout(
                 LveDevice &device,
                 const std::vector<VkDescriptorSetLayout> &setLayouts,
                 VkShaderStageFlags pushStages,
@@ -77,10 +76,10 @@ namespace lve {
                 const PipelineConfigInfo& configInfo
             );
 
-            VkShaderModule createShaderModule(const std::vector<char> &code);
+            LveShaderModule createShaderModule(const std::vector<char> &code);
 
             //referência: o device precisa existir durante toda a vida do pipeline
             LveDevice &lveDevice;
-            VkPipeline graphicsPipeline;
+            LvePipelineHandle graphicsPipeline;
     };
 }

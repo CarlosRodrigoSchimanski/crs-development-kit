@@ -61,8 +61,14 @@ namespace lve {
     using LveSampler = LveHandle<VkSampler, vkDestroySampler>;
     using LveSemaphore = LveHandle<VkSemaphore, vkDestroySemaphore>;
     using LveFence = LveHandle<VkFence, vkDestroyFence>;
-    //"Handle" no nome pra não confundir com a classe LveSwapChain, que é dona de um destes
+    using LveShaderModule = LveHandle<VkShaderModule, vkDestroyShaderModule>;
+    using LvePipelineLayout = LveHandle<VkPipelineLayout, vkDestroyPipelineLayout>;
+    //"Handle" no nome pra não confundir com as classes LveSwapChain, LvePipeline, LveDescriptorSetLayout
+    //e LveDescriptorPool, que são donas de um destes
     using LveSwapchainHandle = LveHandle<VkSwapchainKHR, vkDestroySwapchainKHR>;
+    using LvePipelineHandle = LveHandle<VkPipeline, vkDestroyPipeline>;
+    using LveDescriptorSetLayoutHandle = LveHandle<VkDescriptorSetLayout, vkDestroyDescriptorSetLayout>;
+    using LveDescriptorPoolHandle = LveHandle<VkDescriptorPool, vkDestroyDescriptorPool>;
 
     //mesma ideia pra uma imagem com memória da VMA: são DOIS handles (imagem + alocação) e a
     //destruição é pela VMA (vmaDestroyImage), por isso não cabe no LveHandle acima

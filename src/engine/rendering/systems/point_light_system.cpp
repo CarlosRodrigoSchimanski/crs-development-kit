@@ -45,12 +45,8 @@ namespace lve {
         return lightBuffers[frameIndex]->descriptorInfo();
     }
 
-    PointLightSystem::~PointLightSystem() {
-        vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
-    }
-
     void PointLightSystem::createPipeline(VkFormat colorFormat, VkFormat depthFormat) {
-        assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
+        assert(pipelineLayout.get() != VK_NULL_HANDLE && "Cannot create pipeline before pipeline layout");
 
         PipelineConfigInfo pipelineConfig{};
         LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
@@ -60,7 +56,7 @@ namespace lve {
         //desenha na imagem da tela (cor + profundidade)
         pipelineConfig.colorAttachmentFormats = {colorFormat};
         pipelineConfig.depthAttachmentFormat = depthFormat;
-        pipelineConfig.pipelineLayout = pipelineLayout;
+        pipelineConfig.pipelineLayout = pipelineLayout.get();
         lvePipeline = std::make_unique<LvePipeline>(
             lveDevice,
             "shaders/point_light.vert.spv",
@@ -115,7 +111,7 @@ namespace lve {
         vkCmdBindDescriptorSets(
             frameInfo.commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            pipelineLayout,
+            pipelineLayout.get(),
             0,
             1,
             &frameInfo.globalDescriptorSet,
@@ -132,7 +128,7 @@ namespace lve {
 
             vkCmdPushConstants(
                 frameInfo.commandBuffer,
-                pipelineLayout,
+                pipelineLayout.get(),
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 0,
                 sizeof(PointLightPushConstants),
