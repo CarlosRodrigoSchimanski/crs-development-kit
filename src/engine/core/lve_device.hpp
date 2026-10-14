@@ -2,6 +2,11 @@
 
 #include "engine/core/lve_window.hpp"
 
+//declaração antecipada do handle da VMA (é a mesma linha que o vk_mem_alloc.h usa): assim este
+//header, incluído no projeto inteiro, não precisa puxar as ~20 mil linhas da VMA; só os .cpp
+//que chamam funções da VMA incluem <vk_mem_alloc.h>
+VK_DEFINE_HANDLE(VmaAllocator)
+
 #include <array>
 #include <optional>
 #include <vector>
@@ -52,6 +57,8 @@ namespace lve {
             VkQueue graphicsQueue() const;
             VkQueue presentQueue() const;
             VkCommandPool getCommandPool() const;
+            //alocador de memória (VMA): de onde saem as memórias de buffers e imagens
+            VmaAllocator allocator() const;
 
             SwapChainSupportDetails getSwapChainSupport() const;
             QueueFamilyIndices findPhysicalQueueFamilies() const;
@@ -94,6 +101,8 @@ namespace lve {
             void createLogicalDevice();
             //cria o command pool de onde saem os command buffers
             void createCommandPool();
+            //cria o alocador da VMA (precisa do instance, da GPU e do device já prontos)
+            void createAllocator();
 
             //funções auxiliares
             bool checkValidationLayerSupport();
@@ -114,6 +123,7 @@ namespace lve {
             VkCommandPool commandPool;
             VkSurfaceKHR surface_;
             VkDevice device_;
+            VmaAllocator allocator_;
             VkQueue graphicsQueue_;
             VkQueue presentQueue_;
 

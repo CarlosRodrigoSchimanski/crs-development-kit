@@ -1,5 +1,7 @@
 #include "engine/core/lve_device.hpp"
 
+#include <vk_mem_alloc.h>
+
 #include <cstring>
 #include <iostream>
 #include <set>
@@ -53,6 +55,7 @@ namespace lve {
     VkDevice LveDevice::device() const { return device_; }
     VkSurfaceKHR LveDevice::surface() const { return surface_; }
     VkQueue LveDevice::graphicsQueue() const { return graphicsQueue_; }
+    VmaAllocator LveDevice::allocator() const { return allocator_; }
     VkQueue LveDevice::presentQueue() const { return presentQueue_; }
     VkCommandPool LveDevice::getCommandPool() const { return commandPool; }
 
@@ -65,11 +68,15 @@ namespace lve {
         createSurface();
         pickPhysicalDevice();
         createLogicalDevice();
+        createAllocator();
         createCommandPool();
     }
 
     LveDevice::~LveDevice() {
         vkDestroyCommandPool(device_, commandPool, nullptr);
+        //depois de todo buffer/imagem (que vivem em objetos destruídos antes do device) e antes do
+        //device; se ainda houver alocação viva aqui, a VMA acusa (detector de vazamento de graça)
+        vmaDestroyAllocator(allocator_);
         vkDestroyDevice(device_, nullptr);
 
         if (enableValidationLayers) {
@@ -219,6 +226,19 @@ namespace lve {
 
         if (vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create command pool!");
+        }
+    }
+
+    void LveDevice::createAllocator() {
+        VmaAllocatorCreateInfo allocatorInfo{};
+        //a mesma versão pedida no createInstance: deixa a VMA usar o que é do núcleo do 1.3
+        allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+        allocatorInfo.instance = instance_;
+        allocatorInfo.physicalDevice = physicalDevice_;
+        allocatorInfo.device = device_;
+
+        if (vmaCreateAllocator(&allocatorInfo, &allocator_) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create memory allocator!");
         }
     }
 

@@ -41,6 +41,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cgltf)
 #----------------------------------------------------------#
 
+#incluir VMA (Vulkan Memory Allocator, da AMD): em vez de um vkAllocateMemory por buffer/imagem,
+#pede poucos blocos grandes à GPU e divide eles por dentro (como um malloc faz com a RAM).
+#Só header, como o stb: a implementação fica no third_party_impl.cpp
+FetchContent_Declare(
+    vma
+    GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+    GIT_TAG v3.4.0
+)
+FetchContent_MakeAvailable(vma)
+#----------------------------------------------------------#
+
 #incluir stb_image (carregamento de arquivos de imagem pra textura)
 FetchContent_Declare(
     stb
@@ -144,7 +155,7 @@ endif()
 target_include_directories(G_E_Youtube PRIVATE src ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
 
 #linkando as bibliotecas
-target_link_libraries(G_E_Youtube PRIVATE glfw Vulkan::Vulkan glm::glm)
+target_link_libraries(G_E_Youtube PRIVATE glfw Vulkan::Vulkan glm::glm GPUOpen::VulkanMemoryAllocator)
 
 #configuração do glm definida UMA vez pro projeto inteiro (antes estava repetida em 7 arquivos):
 #profundidade 0..1 como o Vulkan espera (o padrão do glm é -1..1, do OpenGL). Vale pra todo
