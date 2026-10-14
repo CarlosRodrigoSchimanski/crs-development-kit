@@ -12,7 +12,7 @@ namespace lve {
     ) {
         //aspect zero (ou quase) faria a divisão abaixo explodir
         assert(glm::abs(aspect) > std::numeric_limits<float>::epsilon());
-        const float tanHalfFovy = tan(fovy / 2.f);
+        const float tanHalfFovy = glm::tan(fovy / 2.f);
         projectionMatrix = glm::mat4{0.0f};
         projectionMatrix[0][0] = 1.f / (aspect * tanHalfFovy);
         projectionMatrix[1][1] = 1.f / (tanHalfFovy);

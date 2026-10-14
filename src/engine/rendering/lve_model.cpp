@@ -12,7 +12,6 @@
 #include <glm/gtc/constants.hpp>
 
 #include <cassert>
-#include <cstring>
 #include <unordered_map>
 #include <filesystem>
 #include <stdexcept>
@@ -46,7 +45,7 @@ namespace lve {
         Builder builder{};
         builder.loadModel(filepath);
         return std::make_unique<LveModel>(device, builder);
-    };
+    }
 
     void LveModel::createVertexBuffers(const std::vector<Vertex>& vertices) {
         vertexCount = static_cast<uint32_t>(vertices.size());
@@ -263,7 +262,7 @@ namespace lve {
 
         if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath.c_str())) {
             throw std::runtime_error(warn + err);
-        };
+        }
 
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
         for(const auto &shape : shapes) {

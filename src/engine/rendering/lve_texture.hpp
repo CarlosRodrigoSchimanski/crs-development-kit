@@ -22,6 +22,9 @@ namespace lve {
             VkSampler getSampler() const;
 
         private:
+            //RGBA 8 bits por canal, em sRGB (o shader recebe a cor já convertida pra linear)
+            static constexpr VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+
             void upload(uint32_t width, uint32_t height, const unsigned char *pixels);
             void createTextureImage(uint32_t width, uint32_t height, const unsigned char *pixels);
             void transitionImageLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout);
