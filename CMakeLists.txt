@@ -114,8 +114,8 @@ endforeach()
 #incluir vulkan
 find_package(Vulkan REQUIRED)
 
-#nome do executável e arquivo principal
-add_executable(G_E_Youtube
+#arquivos do projeto (separados das bibliotecas: os avisos extras valem só pra eles)
+set(PROJECT_SOURCES
     src/main.cpp
     src/engine/core/lve_window.cpp
     src/engine/core/lve_device.cpp
@@ -135,8 +135,19 @@ add_executable(G_E_Youtube
     src/editor/lve_imgui.cpp
     src/engine/rendering/lve_texture.cpp
     src/engine/rendering/lve_shadow_map.cpp
-    ${IMGUI_SOURCES}
 )
+
+#nome do executável: código do projeto + ImGui (que é compilado junto, não linkado) +
+#a implementação das libs só-header (fora do PROJECT_SOURCES de propósito: sem os avisos extras)
+add_executable(G_E_Youtube ${PROJECT_SOURCES} ${IMGUI_SOURCES} src/engine/third_party_impl.cpp)
+
+#avisos extras do compilador só no nosso código: /W4 no MSVC, -Wall -Wextra no GCC/Clang.
+#As bibliotecas (ImGui etc.) ficam no nível padrão, o aviso delas não é nosso pra resolver.
+if(MSVC)
+    set_source_files_properties(${PROJECT_SOURCES} PROPERTIES COMPILE_OPTIONS "/W4")
+else()
+    set_source_files_properties(${PROJECT_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra")
+endif()
 
 #todo #include do projeto é escrito a partir de src/ (ex: "engine/rendering/lve_model.hpp"),
 #assim o include já diz de qual subsistema o arquivo vem. Regra: engine/ nunca inclui editor/, game/ ou app/

@@ -60,18 +60,18 @@ namespace lve {
             VkFormat findSupportedFormat(
                 const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const;
             //acha o tipo de memória da GPU compatível com o que está sendo pedido
-            uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+            uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags requiredProperties) const;
             //cria uma VkImage já com a memória alocada e vinculada
             void createImageWithInfo(
                 const VkImageCreateInfo &imageInfo,
-                VkMemoryPropertyFlags properties,
+                VkMemoryPropertyFlags requiredProperties,
                 VkImage &image,
                 VkDeviceMemory &imageMemory);
             //cria um VkBuffer já com a memória alocada e vinculada
             void createBuffer(
                 VkDeviceSize size,
                 VkBufferUsageFlags usage,
-                VkMemoryPropertyFlags properties,
+                VkMemoryPropertyFlags requiredProperties,
                 VkBuffer &buffer,
                 VkDeviceMemory &bufferMemory);
             //command buffer descartável pra um comando avulso (cópia, troca de layout...):

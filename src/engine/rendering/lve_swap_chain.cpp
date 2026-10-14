@@ -46,9 +46,9 @@ namespace lve {
         }
     }
 
-    bool LveSwapChain::compareSwapFormats(const LveSwapChain &swapChain) const {
-        return swapChain.swapChainDepthFormat == swapChainDepthFormat &&
-            swapChain.swapChainImageFormat == swapChainImageFormat;
+    bool LveSwapChain::compareSwapFormats(const LveSwapChain &other) const {
+        return other.swapChainDepthFormat == swapChainDepthFormat &&
+            other.swapChainImageFormat == swapChainImageFormat;
     }
 
     VkFramebuffer LveSwapChain::getFrameBuffer(int index) const { return swapChainFramebuffers[index]; }

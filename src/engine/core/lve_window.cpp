@@ -74,7 +74,7 @@ namespace lve {
         lveWindow->height = height;
     }
 
-    void LveWindow::scrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
+    void LveWindow::scrollCallback(GLFWwindow *window, double /*xoffset*/, double yoffset) {
         auto lveWindow = static_cast<LveWindow*>(glfwGetWindowUserPointer(window));
         lveWindow->scrollDeltaY += static_cast<float>(yoffset);
     }

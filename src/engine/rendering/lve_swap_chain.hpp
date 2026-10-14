@@ -25,7 +25,7 @@ namespace lve {
             LveSwapChain &operator=(const LveSwapChain &) = delete;
 
             //compara se o novo swap chain manteve os mesmos formatos do antigo
-            bool compareSwapFormats(const LveSwapChain &swapChain) const;
+            bool compareSwapFormats(const LveSwapChain &other) const;
 
             VkFramebuffer getFrameBuffer(int index) const;
             VkRenderPass getRenderPass() const;

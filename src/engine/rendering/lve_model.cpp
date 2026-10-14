@@ -1,9 +1,7 @@
 #include "engine/rendering/lve_model.hpp"
 #include "engine/core/lve_utils.hpp"
 
-#define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
-#define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>

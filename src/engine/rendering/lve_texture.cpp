@@ -1,7 +1,6 @@
 #include "engine/rendering/lve_texture.hpp"
 #include "engine/rendering/lve_buffer.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include <stdexcept>
