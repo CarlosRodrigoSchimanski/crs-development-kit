@@ -28,6 +28,8 @@ namespace lve {
             float targetFps{144.f};
 
         private:
+            glm::vec3 orbitDirection() const;
+
             bool firstMouse{true};
             double lastMouseX{0.0};
             double lastMouseY{0.0};

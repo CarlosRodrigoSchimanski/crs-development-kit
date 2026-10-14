@@ -34,11 +34,7 @@ namespace lve {
         //direção do alvo até a câmera, a partir dos ângulos atuais (antes de atualizar) —
         //usada pra calcular os eixos direita/cima da câmera, pro pan
         const glm::vec3 worldUp{0.f, -1.f, 0.f}; //"pra cima" nesse motor é -Y, não +Y
-        glm::vec3 orbitDir{
-            cos(pitch) * sin(yaw),
-            -sin(pitch),
-            cos(pitch) * cos(yaw)
-        };
+        glm::vec3 orbitDir = orbitDirection();
         glm::vec3 right = glm::normalize(glm::cross(worldUp, orbitDir));
         glm::vec3 camUp = glm::cross(orbitDir, right);
 
@@ -64,14 +60,17 @@ namespace lve {
         }
 
         //recalcula a direção já com os ângulos atualizados, pra posicionar a câmera de fato
-        orbitDir = glm::vec3{
-            cos(pitch) * sin(yaw),
-            -sin(pitch),
-            cos(pitch) * cos(yaw)
-        };
-
-        glm::vec3 position = target + distance * orbitDir;
+        glm::vec3 position = target + distance * orbitDirection();
         camera.setViewTarget(position, target);
+    }
+
+    //direção do alvo até a câmera, a partir de yaw/pitch (vetor unitário na esfera em volta do alvo)
+    glm::vec3 OrbitCameraController::orbitDirection() const {
+        return {
+            glm::cos(pitch) * glm::sin(yaw),
+            -glm::sin(pitch),
+            glm::cos(pitch) * glm::cos(yaw)
+        };
     }
 
 }
