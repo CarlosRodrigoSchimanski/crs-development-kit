@@ -1,6 +1,5 @@
 #include "engine/rendering/lve_shadow_map.hpp"
 
-#include <array>
 #include <stdexcept>
 
 namespace lve {
@@ -9,24 +8,20 @@ namespace lve {
         createDepthImage();
         createImageView();
         createSampler();
-        createRenderPass();
-        createFramebuffer();
     }
 
-    //ordem inversa da criação: o framebuffer depende do render pass e da view, a view depende da imagem
+    //ordem inversa da criação: a view depende da imagem
     LveShadowMap::~LveShadowMap() {
-        vkDestroyFramebuffer(lveDevice.device(), framebuffer, nullptr);
-        vkDestroyRenderPass(lveDevice.device(), renderPass, nullptr);
         vkDestroySampler(lveDevice.device(), depthSampler, nullptr);
         vkDestroyImageView(lveDevice.device(), depthImageView, nullptr);
         vkDestroyImage(lveDevice.device(), depthImage, nullptr);
         vkFreeMemory(lveDevice.device(), depthImageMemory, nullptr);
     }
 
-    VkRenderPass LveShadowMap::getRenderPass() const { return renderPass; }
-    VkFramebuffer LveShadowMap::getFramebuffer() const { return framebuffer; }
+    VkImage LveShadowMap::getImage() const { return depthImage; }
     VkImageView LveShadowMap::getImageView() const { return depthImageView; }
     VkSampler LveShadowMap::getSampler() const { return depthSampler; }
+    VkFormat LveShadowMap::getFormat() const { return depthFormat; }
     VkExtent2D LveShadowMap::getExtent() const { return {size, size}; }
 
     void LveShadowMap::createDepthImage() {
@@ -89,74 +84,6 @@ namespace lve {
 
         if (vkCreateSampler(lveDevice.device(), &samplerInfo, nullptr, &depthSampler) != VK_SUCCESS) {
             throw std::runtime_error("failed to create shadow map sampler!");
-        }
-    }
-
-    void LveShadowMap::createRenderPass() {
-        VkAttachmentDescription depthAttachment{};
-        depthAttachment.format = depthFormat;
-        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        //diferente do depth da swap chain: aqui o resultado É o produto do passe, tem que ser guardado
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        //o próprio render pass deixa a imagem pronta pra leitura no shader ao terminar
-        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-
-        VkAttachmentReference depthRef{};
-        depthRef.attachment = 0;
-        depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        //só profundidade, nenhum color attachment
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 0;
-        subpass.pDepthStencilAttachment = &depthRef;
-
-        std::array<VkSubpassDependency, 2> dependencies{};
-        //antes: o frame anterior tem que terminar de LER o shadow map antes da gente escrever de novo
-        dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[0].dstSubpass = 0;
-        dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        //depois: terminar de ESCREVER a profundidade antes do passe principal ler no fragment shader
-        dependencies[1].srcSubpass = 0;
-        dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        dependencies[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = 1;
-        renderPassInfo.pAttachments = &depthAttachment;
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-        renderPassInfo.pDependencies = dependencies.data();
-
-        if (vkCreateRenderPass(lveDevice.device(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create shadow map render pass!");
-        }
-    }
-
-    void LveShadowMap::createFramebuffer() {
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = &depthImageView;
-        framebufferInfo.width = size;
-        framebufferInfo.height = size;
-        framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(lveDevice.device(), &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create shadow map framebuffer!");
         }
     }
 }

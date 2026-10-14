@@ -10,6 +10,32 @@ namespace lve {
         glm::mat4 modelMatrix{1.f};
     };
 
+    //troca o layout do shadow map, esperando (src) o que veio antes terminar antes de (dst) o que vem depois
+    static void transitionShadowMap(
+        VkCommandBuffer commandBuffer, VkImage image,
+        VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess,
+        VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess,
+        VkImageLayout oldLayout, VkImageLayout newLayout) {
+        VkImageMemoryBarrier2 barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+        barrier.srcStageMask = srcStage;
+        barrier.srcAccessMask = srcAccess;
+        barrier.dstStageMask = dstStage;
+        barrier.dstAccessMask = dstAccess;
+        barrier.oldLayout = oldLayout;
+        barrier.newLayout = newLayout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = image;
+        barrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+
+        VkDependencyInfo dependencyInfo{};
+        dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dependencyInfo.imageMemoryBarrierCount = 1;
+        dependencyInfo.pImageMemoryBarriers = &barrier;
+        vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+    }
+
     ShadowRenderSystem::ShadowRenderSystem(LveDevice& device, LveShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout)
         : lveDevice{device}, shadowMap{shadowMap} {
         //mesmo set global dos outros sistemas: é dele que sai a lightSpaceMatrix
@@ -30,7 +56,7 @@ namespace lve {
 
         PipelineConfigInfo pipelineConfig{};
         LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
-        //o render pass do shadow map não tem color attachment, então o pipeline também não pode ter
+        //o passe de sombra não tem imagem de cor, então o pipeline também não pode ter
         pipelineConfig.colorBlendInfo.attachmentCount = 0;
         pipelineConfig.colorBlendInfo.pAttachments = nullptr;
         //depth bias: empurra a profundidade gravada um pouco pra longe da luz,
@@ -44,7 +70,8 @@ namespace lve {
             if (attribute.location == 0) positionOnly.push_back(attribute);
         }
         pipelineConfig.attributeDescriptions = positionOnly;
-        pipelineConfig.renderPass = shadowMap.getRenderPass();
+        //dynamic rendering: sem render pass, o pipeline só precisa saber o formato da profundidade
+        pipelineConfig.depthAttachmentFormat = shadowMap.getFormat();
         pipelineConfig.pipelineLayout = pipelineLayout;
         lvePipeline = std::make_unique<LvePipeline>(
             lveDevice,
@@ -56,19 +83,35 @@ namespace lve {
     void ShadowRenderSystem::renderShadowMap(FrameInfo& frameInfo) {
         VkExtent2D extent = shadowMap.getExtent();
 
-        VkClearValue clearValue{};
-        clearValue.depthStencil = {1.0f, 0};  //1.0 = "nada na frente", o mais longe possível
+        //ENTRADA: o frame anterior pode ainda estar LENDO o shadow map no fragment shader do passe
+        //principal; espera isso terminar antes de escrever profundidade nova. Basta esperar a
+        //execução (acesso de origem NONE): leitura não deixa nada pendente pra "publicar".
+        //layout antigo UNDEFINED = pode descartar o conteúdo, a imagem vai ser limpa mesmo
+        transitionShadowMap(frameInfo.commandBuffer, shadowMap.getImage(),
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = shadowMap.getRenderPass();
-        renderPassInfo.framebuffer = shadowMap.getFramebuffer();
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = extent;
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearValue;
+        //o que o render pass fazia escondido: limpar no começo e guardar no fim
+        VkRenderingAttachmentInfo depthAttachment{};
+        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthAttachment.imageView = shadowMap.getImageView();
+        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        //diferente do depth da tela: aqui a profundidade É o resultado do passe, tem que ser guardada
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.clearValue.depthStencil = {1.0f, 0};  //1.0 = "nada na frente", o mais longe possível
 
-        vkCmdBeginRenderPass(frameInfo.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        //só profundidade, nenhuma imagem de cor
+        VkRenderingInfo renderingInfo{};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.renderArea = {{0, 0}, extent};
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 0;
+        renderingInfo.pDepthAttachment = &depthAttachment;
+
+        vkCmdBeginRendering(frameInfo.commandBuffer, &renderingInfo);
 
         //viewport e scissor são dinâmicos: aqui do tamanho do shadow map, não da janela
         VkViewport viewport{};
@@ -113,6 +156,13 @@ namespace lve {
             obj.model->draw(frameInfo.commandBuffer);
         }
 
-        vkCmdEndRenderPass(frameInfo.commandBuffer);
+        vkCmdEndRendering(frameInfo.commandBuffer);
+
+        //SAÍDA: terminar de escrever a profundidade antes do fragment shader do passe principal
+        //ler; e deixar a imagem no layout de leitura (tem que bater com o descriptor do first_app)
+        transitionShadowMap(frameInfo.commandBuffer, shadowMap.getImage(),
+            VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
     }
 }

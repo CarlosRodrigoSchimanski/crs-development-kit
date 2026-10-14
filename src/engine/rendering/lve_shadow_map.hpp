@@ -12,18 +12,18 @@ namespace lve {
             LveShadowMap(const LveShadowMap&) = delete;
             LveShadowMap& operator=(const LveShadowMap&) = delete;
 
-            VkRenderPass getRenderPass() const;
-            VkFramebuffer getFramebuffer() const;
+            //a imagem em si: as barreiras de layout (antes/depois do passe de sombra) precisam dela
+            VkImage getImage() const;
             VkImageView getImageView() const;
             VkSampler getSampler() const;
+            //o pipeline do passe de sombra precisa saber o formato (dynamic rendering)
+            VkFormat getFormat() const;
             VkExtent2D getExtent() const;
 
         private:
             void createDepthImage();
             void createImageView();
             void createSampler();
-            void createRenderPass();
-            void createFramebuffer();
 
             LveDevice &lveDevice;
             uint32_t size;
@@ -33,7 +33,5 @@ namespace lve {
             VkDeviceMemory depthImageMemory;
             VkImageView depthImageView;
             VkSampler depthSampler;
-            VkRenderPass renderPass;
-            VkFramebuffer framebuffer;
     };
 }

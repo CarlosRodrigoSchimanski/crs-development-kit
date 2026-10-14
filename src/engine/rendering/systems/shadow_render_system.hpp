@@ -17,7 +17,8 @@ namespace lve {
             ShadowRenderSystem(const ShadowRenderSystem&) = delete;
             ShadowRenderSystem& operator=(const ShadowRenderSystem&) = delete;
 
-            //grava o passe de sombra inteiro (begin render pass -> objetos -> end); chamar ANTES do passe da swap chain
+            //grava o passe de sombra inteiro (barreira -> begin rendering -> objetos -> end -> barreira);
+            //chamar ANTES do passe da swap chain
             void renderShadowMap(FrameInfo& frameInfo);
 
         private:
