@@ -40,8 +40,9 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
   ✅ M5  VMA (2026-10-14; v3.4.0; buffers e imagens; detector de vazamento conferido)
   ✅ M6  uploads agrupados (2026-10-14; LveUploadBatch: modelo inteiro em 1 envio; pronto pro
      scene manager subir uma cena inteira num lote só)
-  >> PRÓXIMO: M9  luzes em SSBO (reescreve global_ubo.glsl e PointLightSystem)
-  -- Fase 2, item 10 (desenhar no resize): depois do M2/M3, que reescrevem o loop de frame
+  ✅ M9  luzes em SSBO (2026-10-14; storage buffer por frame, cresce sozinho; conferido por
+     comparação de print antes/depois)
+  >> PRÓXIMO: Fase 2, item 10 (desenhar no resize)
   -- Fase 3 (filtro final)
 
 ===============================================================================
@@ -214,7 +215,8 @@ M8. Defines do GLM (GLM_FORCE_RADIANS / GLM_FORCE_DEPTH_ZERO_TO_ONE) repetidos e
     único). Hoje, se um arquivo incluir glm antes do define, a convenção de profundidade
     fica diferente entre arquivos sem nenhum erro de compilação.
 
-M9. Luzes sem teto fixo: hoje as point lights vão num array de tamanho fixo dentro do UBO
+M9. ✅ (feito 2026-10-14; clustered lighting continua como futuro, quando houver muitas luzes)
+    Luzes sem teto fixo: hoje as point lights vão num array de tamanho fixo dentro do UBO
     (MAX_LIGHTS = 10 no C++ e pointLight[10] escrito à mão nos 4 shaders — tem que bater).
     As luzes já são da cena (game objects); o fixo é só a CAPACIDADE, porque array em
     uniform buffer precisa de tamanho na compilação do shader. Solução moderna: storage
