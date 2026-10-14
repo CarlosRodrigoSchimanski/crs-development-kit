@@ -34,8 +34,8 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
   -- Fase 2, itens 5/6/7 (layout, batching, culling): esperam cena grande pra medir
   -- Fase 2, item 9: só revisitar se aparecer por frame
   ✅ M7  bibliotecas (2026-10-14: OBJ removido, stb fixado)
-  >> PRÓXIMO: M1  Vulkan 1.3 (pré-requisito do M2/M3)
-  -- M2 + M3 juntos (dynamic rendering + synchronization2: mexem nos mesmos arquivos)
+  ✅ M1  Vulkan 1.3 (2026-10-14; dynamicRendering e synchronization2 já ligados no device)
+  >> PRÓXIMO: M2 + M3 juntos (dynamic rendering + synchronization2: mexem nos mesmos arquivos)
   -- M5  VMA (reescreve createBuffer/createImageWithInfo)
   -- M6  uploads agrupados (DEPOIS do M5: mexe nas mesmas funções)
   -- M9  luzes em SSBO (reescreve global_ubo.glsl e PointLightSystem)
@@ -166,7 +166,7 @@ Itens confirmados no código em 2026-10-12. Fica ANTES da Fase 3 porque são mud
 invasivas (reescrevem criação de recurso, sincronização e render pass) — exatamente o
 tipo de coisa que a varredura de ponteiros/RAII/destruição precisa revisar depois.
 
-M1. Versão da API: appInfo.apiVersion = VK_API_VERSION_1_0 (lve_device.cpp). A GPU
+M1. ✅ (feito 2026-10-14) Versão da API: appInfo.apiVersion = VK_API_VERSION_1_0 (lve_device.cpp). A GPU
     (RTX 5060) e o SDK (1.4) suportam 1.3+; subir pra 1.3 libera os itens M2 e M3 como
     recursos do core, sem extensão.
 
