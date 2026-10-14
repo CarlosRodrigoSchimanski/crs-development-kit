@@ -7,7 +7,6 @@
 #include <glm/gtx/hash.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/constants.hpp>
 
 #include <cassert>
 #include <unordered_map>
@@ -155,8 +154,9 @@ namespace lve {
         }
 
         //glTF é Y pra cima, a engine é Y pra baixo: gira 180 graus em X, (x, y, z) -> (x, -y, -z).
-        //só negar o Y espelharia o modelo (troca a "mão" do sistema e inverte a ordem dos triângulos)
-        const glm::mat4 yUpToYDown = glm::rotate(glm::mat4{1.f}, glm::pi<float>(), glm::vec3{1.f, 0.f, 0.f});
+        //só negar o Y espelharia o modelo (troca a "mão" do sistema e inverte a ordem dos triângulos);
+        //negar Y e Z juntos é exatamente essa rotação, sem o erro de float do sin(pi) != 0
+        const glm::mat4 yUpToYDown = glm::scale(glm::mat4{1.f}, glm::vec3{1.f, -1.f, -1.f});
 
         //glTF é uma cena: cada nó tem sua transformação (e pode ser filho de outro).
         //por enquanto achata tudo numa malha só, já com a transformação aplicada nos vértices
