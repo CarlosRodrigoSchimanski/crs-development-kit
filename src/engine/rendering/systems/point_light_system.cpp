@@ -85,14 +85,16 @@ namespace lve {
     }
 
     void PointLightSystem::render(FrameInfo& frameInfo) {
-        std::map<float, LveGameObject::id_t> sorted;
+        //de trás pra frente por causa da transparência; multimap porque duas luzes podem estar
+        //à mesma distância (com map, a segunda sobrescreveria a primeira e uma sumiria)
+        std::multimap<float, LveGameObject::id_t> sorted;
         for (auto& kv : frameInfo.gameObjects) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
         
             auto offset = obj.transform.translation - frameInfo.camera.getPosition();
             float dis = glm::dot(offset, offset);
-            sorted[dis] = obj.getId();
+            sorted.emplace(dis, obj.getId());
         }
 
         lvePipeline->bind(frameInfo.commandBuffer);
