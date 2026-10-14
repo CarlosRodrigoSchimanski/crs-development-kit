@@ -19,8 +19,9 @@ C cosmético / D fica pra outra fase), usuário aprova, um commit por grupo.
   ✅ engine/rendering: pipeline + buffer + descriptors
   ✅ engine/rendering: model + texture + shadow_map + camera (2026-10-13; feito uma
      sugestão por vez, um commit cada; shadow_map revisado e sem mudança)
-  >> PRÓXIMO: engine/rendering/systems (simple_render, point_light, shadow_render)
-  -- engine/scene, editor, app
+  ✅ engine/rendering/systems (2026-10-13; inclui 2 bugs: luzes à mesma distância sumiam
+     no std::map, e o limite MAX_LIGHTS só era checado por assert)
+  >> PRÓXIMO: engine/scene, editor, app
 Depois da Fase 1: Fase 2, 2B (modernização), 3 — ver roadmap item 2.2.
 
 ===============================================================================
@@ -201,10 +202,20 @@ FASE 3 — Varredura final de segurança/correção (fazer por ÚLTIMO, é o fil
       pra viewport/scissor do mesmo struct, dentro de defaultPipelineConfigInfo, que retorna
       por valor) — já corrigido, mas é exatamente o tipo de bug que as Fases 0-2 podem
       reintroduzir sem querer, por isso essa checagem vem depois delas.
+    - Achado na Fase 1 (2026-10-13): SimpleRenderSystem::materialSets usa o ENDEREÇO da
+      LveTexture como chave. Se um modelo for destruído durante o jogo, o descriptor set
+      fica apontando pra uma image view destruída, e uma textura nova alocada no mesmo
+      endereço herdaria o set velho. Hoje não acontece (modelos vivem o programa todo);
+      vira bug real quando houver carregar/descarregar de cena. Junto: os sets do pool de
+      materiais (MAX_MATERIALS = 100) nunca são devolvidos.
 
 12. Ordem de destruição dos recursos Vulkan
     - Em cada destrutor (LveDevice, LveSwapChain, LvePipeline, etc.), conferir se a ordem
       de destruição é o inverso exato da ordem de criação.
+    - Achado na Fase 1 (2026-10-13): SimpleRenderSystem e PointLightSystem fazem
+      vkDeviceWaitIdle no destrutor, ShadowRenderSystem não. O FirstApp::run já espera no
+      fim do loop, mas se der exceção no meio os sistemas são destruídos sem essa espera.
+      Decidir um lugar só pra esperar a GPU (ex: um guard no run) em vez de cada destrutor.
 
 13. Vazamento de recurso (resource leak)
     - Todo vkCreate*/vkAllocate* deve ter um vkDestroy*/vkFree* correspondente em algum lugar.
