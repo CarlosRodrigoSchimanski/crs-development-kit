@@ -69,11 +69,8 @@ namespace lve {
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VkImage image;
-        VmaAllocation allocation;
-        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, allocation);
         //a partir daqui a imagem tem dono: se algo abaixo (ou a view, ou o sampler) falhar, ela é liberada
-        textureImage = LveAllocatedImage{lveDevice.allocator(), image, allocation};
+        textureImage = lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         //só grava no command buffer do lote; a cópia acontece de fato no batch.submit()
         VkCommandBuffer commandBuffer = batch.commandBuffer();

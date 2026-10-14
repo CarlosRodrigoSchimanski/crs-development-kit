@@ -33,10 +33,7 @@ namespace lve {
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VkImage image;
-        VmaAllocation allocation;
-        lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, allocation);
-        depthImage = LveAllocatedImage{lveDevice.allocator(), image, allocation};
+        depthImage = lveDevice.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     void LveShadowMap::createImageView() {

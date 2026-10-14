@@ -19,7 +19,7 @@ namespace lve {
             //(janela redimensionada); nullptr quando é a primeira criação. Só é usado durante
             //a construção, quem chama continua sendo o dono dele
             LveSwapChain(LveDevice &deviceRef, VkExtent2D windowExtent, const LveSwapChain *previous = nullptr);
-            ~LveSwapChain();
+            //sem destrutor escrito: os handles RAII se destroem sozinhos (ver a ordem dos membros)
 
             LveSwapChain(const LveSwapChain &) = delete;
             LveSwapChain &operator=(const LveSwapChain &) = delete;
@@ -61,25 +61,28 @@ namespace lve {
             VkFormat swapChainDepthFormat;
             VkExtent2D swapChainExtent;
 
-            std::vector<VkImage> depthImages;
-            std::vector<VmaAllocation> depthImageAllocations;
-            std::vector<VkImageView> depthImageViews;
-            std::vector<VkImage> swapChainImages;
-            std::vector<VkImageView> swapChainImageViews;
-
             //referência ao device: mesma lógica de sempre, o device precisa sobreviver ao swap chain
             LveDevice &device;
             //tamanho da janela, usado como referência caso a GPU não dite o tamanho da imagem
             VkExtent2D windowExtent;
 
-            VkSwapchainKHR swapChain;
+            //A ORDEM DOS MEMBROS IMPORTA: eles são destruídos na ordem INVERSA da declaração. O swap
+            //chain vem antes das views das imagens dele (as views morrem primeiro), e cada imagem de
+            //profundidade vem antes da view dela
+            LveSwapchainHandle swapChain;
+            //as imagens em si pertencem à swap chain (vêm do vkGetSwapchainImagesKHR): não são nossas pra destruir
+            std::vector<VkImage> swapChainImages;
+            std::vector<LveImageView> swapChainImageViews;
+            std::vector<LveAllocatedImage> depthImages;
+            std::vector<LveImageView> depthImageViews;
 
             //sincronização: imageAvailable é por frame em voo (usado ANTES de saber qual imagem vem);
             //renderFinished é por IMAGEM da swap chain, porque a apresentação da imagem segura o
             //semáforo até aquela mesma imagem ser adquirida de novo
-            std::vector<VkSemaphore> imageAvailableSemaphores;
-            std::vector<VkSemaphore> renderFinishedSemaphores;
-            std::vector<VkFence> inFlightFences;
+            std::vector<LveSemaphore> imageAvailableSemaphores;
+            std::vector<LveSemaphore> renderFinishedSemaphores;
+            std::vector<LveFence> inFlightFences;
+            //NÃO é dono: só aponta pra uma das inFlightFences (qual frame está usando cada imagem)
             std::vector<VkFence> imagesInFlight;
             size_t currentFrame = 0;
     };

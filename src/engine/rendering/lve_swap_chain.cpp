@@ -1,7 +1,5 @@
 #include "engine/rendering/lve_swap_chain.hpp"
 
-#include <vk_mem_alloc.h>
-
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -12,31 +10,10 @@ namespace lve {
 
     LveSwapChain::LveSwapChain(LveDevice &deviceRef, VkExtent2D extent, const LveSwapChain *previous)
         : device{deviceRef}, windowExtent{extent} {
-        createSwapChain(previous == nullptr ? VK_NULL_HANDLE : previous->swapChain);
+        createSwapChain(previous == nullptr ? VK_NULL_HANDLE : previous->swapChain.get());
         createImageViews();
         createDepthResources();
         createSyncObjects();
-    }
-
-    LveSwapChain::~LveSwapChain() {
-        for (auto imageView : swapChainImageViews) {
-            vkDestroyImageView(device.device(), imageView, nullptr);
-        }
-
-        vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
-
-        for (size_t i = 0; i < depthImages.size(); i++) {
-            vkDestroyImageView(device.device(), depthImageViews[i], nullptr);
-            vmaDestroyImage(device.allocator(), depthImages[i], depthImageAllocations[i]);
-        }
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            vkDestroySemaphore(device.device(), imageAvailableSemaphores[i], nullptr);
-            vkDestroyFence(device.device(), inFlightFences[i], nullptr);
-        }
-        for (auto semaphore : renderFinishedSemaphores) {
-            vkDestroySemaphore(device.device(), semaphore, nullptr);
-        }
     }
 
     bool LveSwapChain::compareSwapFormats(const LveSwapChain &other) const {
@@ -45,9 +22,9 @@ namespace lve {
     }
 
     VkImage LveSwapChain::getImage(uint32_t index) const { return swapChainImages[index]; }
-    VkImageView LveSwapChain::getImageView(uint32_t index) const { return swapChainImageViews[index]; }
-    VkImage LveSwapChain::getDepthImage(uint32_t index) const { return depthImages[index]; }
-    VkImageView LveSwapChain::getDepthImageView(uint32_t index) const { return depthImageViews[index]; }
+    VkImageView LveSwapChain::getImageView(uint32_t index) const { return swapChainImageViews[index].get(); }
+    VkImage LveSwapChain::getDepthImage(uint32_t index) const { return depthImages[index].get(); }
+    VkImageView LveSwapChain::getDepthImageView(uint32_t index) const { return depthImageViews[index].get(); }
     size_t LveSwapChain::imageCount() const { return swapChainImages.size(); }
     VkFormat LveSwapChain::getSwapChainImageFormat() const { return swapChainImageFormat; }
     VkFormat LveSwapChain::getSwapChainDepthFormat() const { return swapChainDepthFormat; }
@@ -59,18 +36,14 @@ namespace lve {
 
     VkResult LveSwapChain::acquireNextImage(uint32_t *imageIndex) {
         //espera o frame anterior (do mesmo "slot") terminar antes de reaproveitar seus recursos
-        vkWaitForFences(
-            device.device(),
-            1,
-            &inFlightFences[currentFrame],
-            VK_TRUE,
-            UINT64_MAX);
+        VkFence frameFence = inFlightFences[currentFrame].get();
+        vkWaitForFences(device.device(), 1, &frameFence, VK_TRUE, UINT64_MAX);
 
         VkResult result = vkAcquireNextImageKHR(
             device.device(),
-            swapChain,
+            swapChain.get(),
             UINT64_MAX,
-            imageAvailableSemaphores[currentFrame],
+            imageAvailableSemaphores[currentFrame].get(),
             VK_NULL_HANDLE,
             imageIndex);
 
@@ -81,14 +54,15 @@ namespace lve {
         if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
             vkWaitForFences(device.device(), 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
         }
-        imagesInFlight[imageIndex] = inFlightFences[currentFrame];
+        VkFence frameFence = inFlightFences[currentFrame].get();
+        imagesInFlight[imageIndex] = frameFence;
 
         //espera a imagem ser liberada pela tela, só no estágio de escrever cor: o que vem antes
         //(vértices, sombra...) pode rodar enquanto isso. É o mesmo estágio da barreira de cor do
         //LveRenderer::beginSwapChainRendering, que se encadeia com esta espera
         VkSemaphoreSubmitInfo waitInfo{};
         waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        waitInfo.semaphore = imageAvailableSemaphores[currentFrame];
+        waitInfo.semaphore = imageAvailableSemaphores[currentFrame].get();
         waitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
         VkCommandBufferSubmitInfo commandBufferInfo{};
@@ -98,7 +72,7 @@ namespace lve {
         //sinaliza quando TUDO terminar; indexado pela imagem, não pelo frame: ver comentário no header
         VkSemaphoreSubmitInfo signalInfo{};
         signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        signalInfo.semaphore = renderFinishedSemaphores[imageIndex];
+        signalInfo.semaphore = renderFinishedSemaphores[imageIndex].get();
         signalInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
         VkSubmitInfo2 submitInfo{};
@@ -110,8 +84,8 @@ namespace lve {
         submitInfo.signalSemaphoreInfoCount = 1;
         submitInfo.pSignalSemaphoreInfos = &signalInfo;
 
-        vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
-        if (vkQueueSubmit2(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+        vkResetFences(device.device(), 1, &frameFence);
+        if (vkQueueSubmit2(device.graphicsQueue(), 1, &submitInfo, frameFence) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
@@ -119,9 +93,10 @@ namespace lve {
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = &renderFinishedSemaphores[imageIndex];
+        VkSemaphore renderFinished = renderFinishedSemaphores[imageIndex].get();
+        presentInfo.pWaitSemaphores = &renderFinished;
 
-        VkSwapchainKHR swapChains[] = {swapChain};
+        VkSwapchainKHR swapChains[] = {swapChain.get()};
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
         presentInfo.pImageIndices = &imageIndex;
@@ -181,15 +156,17 @@ namespace lve {
         //senão, VK_NULL_HANDLE (primeira criação)
         createInfo.oldSwapchain = oldSwapchain;
 
-        if (vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
+        VkSwapchainKHR newSwapChain;
+        if (vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &newSwapChain) != VK_SUCCESS) {
             throw std::runtime_error("failed to create swap chain!");
         }
+        swapChain = LveSwapchainHandle{device.device(), newSwapChain};
 
         //só pedimos um número mínimo de imagens; o driver pode ter criado mais.
         //por isso consultamos de novo o número real antes de pegar os handles.
-        vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, nullptr);
+        vkGetSwapchainImagesKHR(device.device(), swapChain.get(), &imageCount, nullptr);
         swapChainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, swapChainImages.data());
+        vkGetSwapchainImagesKHR(device.device(), swapChain.get(), &imageCount, swapChainImages.data());
 
         swapChainImageFormat = surfaceFormat.format;
         swapChainExtent = extent;
@@ -209,9 +186,11 @@ namespace lve {
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = 1;
 
-            if (vkCreateImageView(device.device(), &viewInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
+            VkImageView imageView;
+            if (vkCreateImageView(device.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
                 throw std::runtime_error("failed to create swap chain image view!");
             }
+            swapChainImageViews[i] = LveImageView{device.device(), imageView};
         }
     }
 
@@ -221,7 +200,6 @@ namespace lve {
         VkExtent2D extent = getSwapChainExtent();
 
         depthImages.resize(imageCount());
-        depthImageAllocations.resize(imageCount());
         depthImageViews.resize(imageCount());
 
         for (size_t i = 0; i < depthImages.size(); i++) {
@@ -241,12 +219,11 @@ namespace lve {
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
             imageInfo.flags = 0;
 
-            device.createImageWithInfo(
-                imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImages[i], depthImageAllocations[i]);
+            depthImages[i] = device.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
             VkImageViewCreateInfo viewInfo{};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            viewInfo.image = depthImages[i];
+            viewInfo.image = depthImages[i].get();
             viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
             viewInfo.format = depthFormat;
             viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -255,9 +232,11 @@ namespace lve {
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = 1;
 
-            if (vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]) != VK_SUCCESS) {
+            VkImageView imageView;
+            if (vkCreateImageView(device.device(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
                 throw std::runtime_error("failed to create depth image view!");
             }
+            depthImageViews[i] = LveImageView{device.device(), imageView};
         }
     }
 
@@ -275,17 +254,24 @@ namespace lve {
         //já nasce "sinalizado", senão o primeiro frame ficaria esperando um fence que nunca dispararia
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            if (vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) !=
-                    VK_SUCCESS ||
-                vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create synchronization objects for a frame!");
+        auto createSemaphore = [&]() {
+            VkSemaphore semaphore;
+            if (vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create semaphore!");
             }
+            return LveSemaphore{device.device(), semaphore};
+        };
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            imageAvailableSemaphores[i] = createSemaphore();
+            VkFence fence;
+            if (vkCreateFence(device.device(), &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create fence!");
+            }
+            inFlightFences[i] = LveFence{device.device(), fence};
         }
         for (auto &semaphore : renderFinishedSemaphores) {
-            if (vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create render finished semaphore!");
-            }
+            semaphore = createSemaphore();
         }
     }
 

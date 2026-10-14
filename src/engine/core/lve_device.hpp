@@ -62,13 +62,9 @@ namespace lve {
             //acha, entre os formatos candidatos, o primeiro que a GPU realmente suporta pro uso pedido
             VkFormat findSupportedFormat(
                 const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const;
-            //cria uma VkImage já com a memória alocada (pela VMA) e vinculada;
-            //destruir com vmaDestroyImage(allocator(), image, allocation)
-            void createImageWithInfo(
-                const VkImageCreateInfo &imageInfo,
-                VkMemoryPropertyFlags requiredProperties,
-                VkImage &image,
-                VmaAllocation &allocation);
+            //cria uma VkImage já com a memória alocada (pela VMA) e vinculada; o LveAllocatedImage
+            //devolvido é o dono e destrói as duas sozinho
+            LveAllocatedImage createImageWithInfo(const VkImageCreateInfo &imageInfo, VkMemoryPropertyFlags requiredProperties);
 
         private:
             //cria o VkInstance

@@ -428,17 +428,17 @@ namespace lve {
         throw std::runtime_error("failed to find supported format!");
     }
 
-    void LveDevice::createImageWithInfo(
-        const VkImageCreateInfo &imageInfo,
-        VkMemoryPropertyFlags requiredProperties,
-        VkImage &image,
-        VmaAllocation &allocation) {
+    LveAllocatedImage LveDevice::createImageWithInfo(const VkImageCreateInfo &imageInfo, VkMemoryPropertyFlags requiredProperties) {
         VmaAllocationCreateInfo allocInfo{};
         allocInfo.requiredFlags = requiredProperties;
 
         //cria a imagem, aloca e liga a memória, tudo numa chamada (igual o vmaCreateBuffer do LveBuffer)
+        VkImage image;
+        VmaAllocation allocation;
         if (vmaCreateImage(allocator_, &imageInfo, &allocInfo, &image, &allocation, nullptr) != VK_SUCCESS) {
             throw std::runtime_error("failed to create image!");
         }
+        //daqui em diante a imagem já tem dono
+        return LveAllocatedImage{allocator_, image, allocation};
     }
 }
