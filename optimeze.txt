@@ -48,7 +48,7 @@ no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 in
      ✅ esperar a GPU num lugar só: DeviceIdleGuard no FirstApp::run (item 12)
      ✅ handles RAII (engine/core/lve_handle): textura, shadow map, swap chain, pipelines,
         descriptors, ImGui e device sem destrutor manual de handle (item 14)
-     -- materialSets por endereço de textura no SimpleRenderSystem (item 11)
+     ⏭ materialSets por endereço de textura (item 11): vira requisito do scene manager (roadmap 2.3)
      -- VkResult sem checagem (item 13)
      -- contador de frame do renderer x da swap chain (achado novo, 2026-10-14)
 
@@ -383,6 +383,20 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    - Fase 4 (LTO/NDEBUG) continua no fim do projeto: é configuração de build de produção.
    - Itens da Fase 2 que só fazem sentido com cena grande (batching, culling) podem ficar
      anotados e voltar quando houver conteúdo pra medir.
+
+2.3. Scene manager (carregar/descarregar cenas) — planejado pra logo depois da revisão
+   (anotado 2026-10-14). Requisitos que a revisão já deixou levantados:
+   - DONO DO DESCRIPTOR SET DE TEXTURA/MATERIAL: hoje o SimpleRenderSystem guarda um cache
+     materialSets indexado pelo ENDEREÇO da LveTexture. Ao descarregar um modelo, o set fica
+     apontando pra uma image view destruída, e uma textura nova no mesmo endereço herdaria o
+     set velho. Decidir no desenho do scene manager: material como objeto dono do set? um
+     descriptor pool por cena, zerado (vkResetDescriptorPool) ao descarregar? modelos
+     compartilhados entre cenas? Descarregar uma cena tem que invalidar e liberar os sets dela.
+     (o pool de materiais tem teto fixo MAX_MATERIALS = 100 e nunca devolve sets)
+   - Carregar a cena inteira num LveUploadBatch só (1 espera); depois, fence no lugar do
+     vkQueueWaitIdle pra carregar em segundo plano sem travar.
+   - Sistemas e estado do frame saem do FirstApp::run() e a lambda drawFrame vira método
+     (ver Fase 2 item 10).
 
 3. Câmera de jogo como objeto da cena, e só DEPOIS o modo Play
    (ordem revista em 2026-10-12, substitui a ordem anterior):
