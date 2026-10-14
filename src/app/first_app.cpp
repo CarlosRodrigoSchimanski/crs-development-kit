@@ -11,21 +11,16 @@
 #include <imgui.h>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
 
-#include <stdexcept>
 #include <chrono>
 #include <thread>
-#include <array>
-#include <cassert>
-#include <numeric>
 
 namespace lve {
-    const float MAX_FRAME_TIME = 0.05f;
+    constexpr float MAX_FRAME_TIME = 0.05f;
     //metade do lado da caixa que o sol enxerga (sombra existe num quadrado de 2x isso em volta do alvo)
-    const float SHADOW_HALF_SIZE = 10.f;
+    constexpr float SHADOW_HALF_SIZE = 10.f;
     //quanto a câmera do sol fica "recuada" do centro; objetos mais altos que isso acima do centro não projetam sombra
-    const float SHADOW_SUN_DISTANCE = 30.f;
+    constexpr float SHADOW_SUN_DISTANCE = 30.f;
 
     //posiciona a câmera do sol olhando pra center, recuada SHADOW_SUN_DISTANCE na direção da luz
     //(função só deste arquivo: static = não aparece pra quem inclui o first_app.hpp)
@@ -51,12 +46,10 @@ namespace lve {
         loadGameObjects();
     }
 
-    FirstApp::~FirstApp() {}
-
     void FirstApp::run() {
 
         std::vector<std::unique_ptr<LveBuffer>> uboBuffers(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
-        for (int i = 0; i < uboBuffers.size(); i++)
+        for (size_t i = 0; i < uboBuffers.size(); i++)
         {
             uboBuffers[i] = std::make_unique<LveBuffer>(
                 lveDevice,
@@ -78,7 +71,7 @@ namespace lve {
             .build();
         
         std::vector<VkDescriptorSet> globalDescriptorSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
-        for (int i = 0; i < globalDescriptorSets.size(); i++)
+        for (size_t i = 0; i < globalDescriptorSets.size(); i++)
         {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
             VkDescriptorImageInfo shadowMapInfo{};

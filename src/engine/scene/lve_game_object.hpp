@@ -2,8 +2,6 @@
 
 #include "engine/rendering/lve_model.hpp"
 
-#include <glm/gtc/matrix_transform.hpp>
-
 #include <memory>
 #include <unordered_map>
 
@@ -42,7 +40,7 @@ namespace lve {
         id_t getId() const;
 
         glm::vec3 color{};
-        //false = shader ignora a textura global e usa só a cor do vértice
+        //false = usa a textura branca em vez da do modelo (fica só a cor do vértice)
         bool useTexture{true};
         TransformComponent transform{};
         

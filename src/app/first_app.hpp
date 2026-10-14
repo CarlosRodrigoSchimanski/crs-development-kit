@@ -10,38 +10,34 @@
 #include <vector>
 
 namespace lve {
-    // Classe FirstApp esta no mesmo nivel que a classe lvewindow
+    //aplicação: dona da janela, do device e da cena, e roda o loop principal
     class FirstApp {
         public:
-            // Constantes de largura e altura da janela
+            //tamanho inicial da janela
             static constexpr int WIDTH = 800;
             static constexpr int HEIGHT = 600;
 
-            // Construtor e destrutor da classe FirstApp
             FirstApp();
-            ~FirstApp();
 
-            //codigo para evitar duplicação de ponteiros
+            //o app é dono de recursos Vulkan: copiar duplicaria os handles
             FirstApp(const FirstApp&) = delete;
             FirstApp& operator=(const FirstApp&) = delete;
 
-            //função run() que será responsável por executar o loop principal do aplicativo
+            //loop principal: roda até a janela ser fechada
             void run();
 
         private:
-            //função loadModel() que será responsável por carregar o modelo 3D
+            //monta a cena inicial (objetos, modelos)
             void loadGameObjects();
 
-            // Instancia da classe LveWindow
+            //ordem importa: membros são criados de cima pra baixo e destruídos de baixo pra cima,
+            //e cada um depende dos de cima (o device precisa da janela pra criar a surface, etc.)
             LveWindow lveWindow{WIDTH, HEIGHT, "Olá Vulkan"};
-            // Instancia da classe LveDevice: precisa da janela pra criar a surface
             LveDevice lveDevice{lveWindow};
-            // instancia da classe LveRenderer, que é responsável por gerenciar a renderização
             LveRenderer lveRenderer{lveWindow, lveDevice};
-            // Instancia da classe LveDescriptorPool, que é responsável por gerenciar os descritores
+            //descriptors globais (UBO + shadow map), um set por frame em voo
             std::unique_ptr<LveDescriptorPool> globalPool{};
-            // Instancia da classe LveModel, que é responsável pelo modelo 3D a ser renderizado
+            //a cena: todos os objetos, indexados pelo id
             LveGameObject::Map gameObjects;
-
     };
 }
