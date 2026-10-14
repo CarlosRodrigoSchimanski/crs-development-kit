@@ -27,6 +27,21 @@ namespace lve {
     //quanto a câmera do sol fica "recuada" do centro; objetos mais altos que isso acima do centro não projetam sombra
     const float SHADOW_SUN_DISTANCE = 30.f;
 
+    //posiciona a câmera do sol olhando pra center, recuada SHADOW_SUN_DISTANCE na direção da luz
+    //(função só deste arquivo: static = não aparece pra quem inclui o first_app.hpp)
+    static void updateShadowCamera(LveCamera &shadowCamera, glm::vec3 center, glm::vec3 lightDirection, uint32_t shadowMapSize) {
+        shadowCamera.setViewDirection(center - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
+        //"encaixa" o centro na grade de texels do shadow map: sem isso, ao mover a câmera
+        //a caixa anda frações de texel e a borda da sombra fica tremendo (shimmering)
+        float texelWorldSize = (2.f * SHADOW_HALF_SIZE) / static_cast<float>(shadowMapSize);
+        glm::vec3 centerInLightView = glm::vec3{shadowCamera.getView() * glm::vec4{center, 1.f}};
+        glm::vec2 snapped = glm::floor(glm::vec2{centerInLightView} / texelWorldSize) * texelWorldSize;
+        glm::vec3 snapOffset = glm::mat3{shadowCamera.getInverseView()}
+            * glm::vec3{snapped - glm::vec2{centerInLightView}, 0.f};
+        center += snapOffset;
+        shadowCamera.setViewDirection(center - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
+    }
+
     FirstApp::FirstApp() {
         globalPool = LveDescriptorPool::Builder{lveDevice}
             .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)
@@ -84,6 +99,9 @@ namespace lve {
         LveImgui lveImgui{lveWindow, lveDevice, lveRenderer.getSwapChainRenderPass(), lveRenderer.getImageCount()};
         LveCamera camera{};
         LveCamera shadowCamera{};
+        //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
+        shadowCamera.setOrthographicProjection(
+            -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
         OrbitCameraController cameraController{};
 
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -128,22 +146,8 @@ namespace lve {
                 ubo.view = camera.getView();
                 ubo.inverseView = camera.getInverseView();
                 glm::vec3 lightDirection = -glm::normalize(glm::vec3{ubo.sunDirection});
-                shadowCamera.setOrthographicProjection(
-                    -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
-
                 //a caixa do sol acompanha o ponto que a câmera orbital está olhando
-                glm::vec3 shadowCenter = cameraController.target;
-                shadowCamera.setViewDirection(shadowCenter - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
-                //"encaixa" o centro na grade de texels do shadow map: sem isso, ao mover a câmera
-                //a caixa anda frações de texel e a borda da sombra fica tremendo (shimmering)
-                float texelWorldSize = (2.f * SHADOW_HALF_SIZE) / static_cast<float>(shadowMap.getExtent().width);
-                glm::vec3 centerInLightView = glm::vec3{shadowCamera.getView() * glm::vec4{shadowCenter, 1.f}};
-                glm::vec2 snapped = glm::floor(glm::vec2{centerInLightView} / texelWorldSize) * texelWorldSize;
-                glm::vec3 snapOffset = glm::mat3{shadowCamera.getInverseView()}
-                    * glm::vec3{snapped - glm::vec2{centerInLightView}, 0.f};
-                shadowCenter += snapOffset;
-                shadowCamera.setViewDirection(shadowCenter - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
-
+                updateShadowCamera(shadowCamera, cameraController.target, lightDirection, shadowMap.getExtent().width);
                 ubo.lightSpaceMatrix = shadowCamera.getProjection() * shadowCamera.getView();
                 pointLightSystem.update(frameInfo, ubo);
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
