@@ -56,6 +56,13 @@ namespace lve {
             static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
             //liga o alpha blending numa configuração já preenchida (ex: objetos transparentes)
             static void enableAlphaBlending(PipelineConfigInfo& configInfo);
+            //pipeline layout = quais descriptor sets e qual push constant os shaders recebem;
+            //quem chama é dono do layout e destrói com vkDestroyPipelineLayout
+            static VkPipelineLayout createPipelineLayout(
+                LveDevice &device,
+                const std::vector<VkDescriptorSetLayout> &setLayouts,
+                VkShaderStageFlags pushStages,
+                uint32_t pushSize);
 
         private:
             //função que lê o arquivo do shader e retorna um vetor de char

@@ -21,7 +21,6 @@ namespace lve {
             void renderShadowMap(FrameInfo& frameInfo);
 
         private:
-            void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
             void createPipeline();
 
             LveDevice& lveDevice;

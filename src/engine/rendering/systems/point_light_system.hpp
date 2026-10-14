@@ -23,7 +23,6 @@ namespace lve {
             void render(FrameInfo& frameInfo);
 
         private:
-            void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
             void createPipeline(VkRenderPass renderPass);
 
             LveDevice& lveDevice;

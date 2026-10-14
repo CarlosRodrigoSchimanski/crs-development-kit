@@ -181,4 +181,28 @@ namespace lve {
         configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
         configInfo.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
     }
+
+    VkPipelineLayout LvePipeline::createPipelineLayout(
+        LveDevice &device,
+        const std::vector<VkDescriptorSetLayout> &setLayouts,
+        VkShaderStageFlags pushStages,
+        uint32_t pushSize) {
+        VkPushConstantRange pushConstantRange{};
+        pushConstantRange.stageFlags = pushStages;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = pushSize;
+
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
+        pipelineLayoutInfo.pSetLayouts = setLayouts.data();
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+
+        VkPipelineLayout pipelineLayout;
+        if (vkCreatePipelineLayout(device.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create pipeline layout!");
+        }
+        return pipelineLayout;
+    }
 }

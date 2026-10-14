@@ -28,7 +28,12 @@ namespace lve {
         const unsigned char white[4] = {255, 255, 255, 255};
         whiteTexture = std::make_unique<LveTexture>(lveDevice, 1, 1, white);
 
-        createPipelineLayout(globalSetLayout);
+        //set 0 = global (ubo + shadow map), set 1 = textura do objeto
+        pipelineLayout = LvePipeline::createPipelineLayout(
+            lveDevice,
+            {globalSetLayout, materialSetLayout->getDescriptorSetLayout()},
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            sizeof(SimplePushConstantData));
         createPipeline(renderPass);
     }
 
@@ -37,27 +42,6 @@ namespace lve {
         vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
     }
 
-
-    void SimpleRenderSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {
-        VkPushConstantRange pushConstantRange{};
-        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-        pushConstantRange.offset = 0;
-        pushConstantRange.size = sizeof(SimplePushConstantData);
-
-        //set 0 = global (ubo + shadow map), set 1 = textura do objeto
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts{globalSetLayout, materialSetLayout->getDescriptorSetLayout()};
-
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
-        pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 1; // Optional
-        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange; // Optional
-
-        if (vkCreatePipelineLayout(lveDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create pipeline layout!");
-        }
-    }
 
     //createPipeline() que será responsável por criar o pipeline gráfico
     void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {

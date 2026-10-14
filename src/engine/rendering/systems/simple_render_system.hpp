@@ -28,8 +28,6 @@ namespace lve {
             void renderGameObjects(FrameInfo& frameInfo);
 
         private:
-            //função createPipelineLayout() que será responsável por criar o layout do pipeline gráfico
-            void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);
             //função createPipeline() que será responsável por criar o pipeline gráfico
             void createPipeline(VkRenderPass renderPass);
             //descriptor set (set 1) da textura; criado na primeira vez que a textura é desenhada e reaproveitado depois

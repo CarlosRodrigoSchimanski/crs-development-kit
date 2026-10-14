@@ -13,33 +13,17 @@ namespace lve {
 
     ShadowRenderSystem::ShadowRenderSystem(LveDevice& device, LveShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout)
         : lveDevice{device}, shadowMap{shadowMap} {
-        createPipelineLayout(globalSetLayout);
+        //mesmo set global dos outros sistemas: é dele que sai a lightSpaceMatrix
+        pipelineLayout = LvePipeline::createPipelineLayout(
+            lveDevice,
+            {globalSetLayout},
+            VK_SHADER_STAGE_VERTEX_BIT,
+            sizeof(ShadowPushConstantData));
         createPipeline();
     }
 
     ShadowRenderSystem::~ShadowRenderSystem() {
         vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr);
-    }
-
-    void ShadowRenderSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {
-        VkPushConstantRange pushConstantRange{};
-        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        pushConstantRange.offset = 0;
-        pushConstantRange.size = sizeof(ShadowPushConstantData);
-
-        //mesmo set global dos outros sistemas: é dele que sai a lightSpaceMatrix
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts{globalSetLayout};
-
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
-        pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 1;
-        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
-
-        if (vkCreatePipelineLayout(lveDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create shadow pipeline layout!");
-        }
     }
 
     void ShadowRenderSystem::createPipeline() {
