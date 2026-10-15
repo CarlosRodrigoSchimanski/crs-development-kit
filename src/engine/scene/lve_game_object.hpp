@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <optional>
 
 
 namespace lve {
@@ -32,8 +33,8 @@ namespace lve {
         static LveGameObject createGameObject();
         static LveGameObject makePointLight(float intensity = 10.f, float radius = 0.1f, glm::vec3 color = glm::vec3{1.f});
 
-        LveGameObject(const LveGameObject &) = delete;
-        LveGameObject &operator=(const LveGameObject &) = delete;
+        LveGameObject(const LveGameObject &) = default;
+        LveGameObject &operator=(const LveGameObject &) = default;
         LveGameObject(LveGameObject &&) = default;
         LveGameObject &operator=(LveGameObject &&) = default;
 
@@ -45,7 +46,7 @@ namespace lve {
         TransformComponent transform{};
         
         std::shared_ptr<LveModel>model{};
-        std::unique_ptr<PointLightComponent> pointLight = nullptr;
+        std::optional<PointLightComponent> pointLight{};
 
         
         private:

@@ -70,7 +70,7 @@ namespace lve {
         std::vector<PointLight> lights;
         for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
-            if (obj.pointLight == nullptr) continue;
+            if (!obj.pointLight) continue;
             lights.push_back({glm::vec4(obj.transform.translation, 1.f), glm::vec4(obj.color, obj.pointLight->lightIntensity)});
         }
 
@@ -99,7 +99,7 @@ namespace lve {
         std::multimap<float, LveGameObject::id_t> sorted;
         for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
-            if (obj.pointLight == nullptr) continue;
+            if (!obj.pointLight) continue;
         
             auto offset = obj.transform.translation - frameInfo.camera.getPosition();
             float dis = glm::dot(offset, offset);

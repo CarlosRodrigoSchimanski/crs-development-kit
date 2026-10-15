@@ -39,7 +39,7 @@ namespace lve {
         LveGameObject gameObject = LveGameObject::createGameObject();
         gameObject.color = color;
         gameObject.transform.scale.x = radius;
-        gameObject.pointLight = std::make_unique<PointLightComponent>();
+        gameObject.pointLight = PointLightComponent{};
         gameObject.pointLight->lightIntensity = intensity;
         return gameObject;
     }
