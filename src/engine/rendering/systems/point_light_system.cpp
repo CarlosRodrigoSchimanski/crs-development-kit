@@ -68,7 +68,7 @@ namespace lve {
     //quem usa a engine)
     bool PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
         std::vector<PointLight> lights;
-        for (auto& kv : frameInfo.gameObjects) {
+        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
             lights.push_back({glm::vec4(obj.transform.translation, 1.f), glm::vec4(obj.color, obj.pointLight->lightIntensity)});
@@ -97,7 +97,7 @@ namespace lve {
         //de trás pra frente por causa da transparência; multimap porque duas luzes podem estar
         //à mesma distância (com map, a segunda sobrescreveria a primeira e uma sumiria)
         std::multimap<float, LveGameObject::id_t> sorted;
-        for (auto& kv : frameInfo.gameObjects) {
+        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
             if (obj.pointLight == nullptr) continue;
         
@@ -119,7 +119,7 @@ namespace lve {
             nullptr);
         
         for (auto it = sorted.rbegin(); it != sorted.rend(); ++it) {
-            auto& obj = frameInfo.gameObjects.at(it->second);
+            auto& obj = frameInfo.lveScene.getGameObjects().at(it->second);
 
             PointLightPushConstants push{};
             push.position = glm::vec4(obj.transform.translation, 1.f);

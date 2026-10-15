@@ -2,7 +2,7 @@
 
 #include "engine/core/lve_window.hpp"
 #include "engine/core/lve_device.hpp"
-#include "engine/scene/lve_game_object.hpp"
+#include "engine/scene/lve_scene.hpp"
 #include "engine/rendering/lve_renderer.hpp"
 #include "engine/rendering/lve_descriptors.hpp"
 
@@ -38,6 +38,6 @@ namespace lve {
             //descriptors globais (UBO + shadow map), um set por frame em voo
             std::unique_ptr<LveDescriptorPool> globalPool{};
             //a cena: todos os objetos, indexados pelo id
-            LveGameObject::Map gameObjects;
+            LveScene lveScene;
     };
 }

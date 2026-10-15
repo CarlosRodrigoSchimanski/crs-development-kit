@@ -165,7 +165,7 @@ namespace lve {
                     commandBuffer, 
                     camera, 
                     globalDescriptorSets[frameIndex], 
-                    gameObjects
+                    lveScene
                 };
 
                 // update
@@ -249,18 +249,16 @@ namespace lve {
 
     void FirstApp::loadGameObjects() {
         std::shared_ptr<LveModel> lveModel = LveModel::createModelFromFile(lveDevice, "models/iron_cube.glb");
-        auto cube = LveGameObject::createGameObject();
+        auto& cube = lveScene.createGameObject();
         cube.model = lveModel;
         cube.transform.translation = {0.f, 0.f, 0.f};
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
-        gameObjects.emplace(cube.getId(), std::move(cube));
 
         //chão embaixo do cubo (Y aponta pra baixo, então +1 = base do cubo), pra receber a sombra
         lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
-        auto floor = LveGameObject::createGameObject();
+        auto& floor = lveScene.createGameObject();
         floor.model = lveModel;
         floor.transform.translation = {0.f, 1.5f, 0.f};
         floor.transform.scale = glm::vec3{5.f, 1.f, 5.f};
-        gameObjects.emplace(floor.getId(), std::move(floor));
     }
 }

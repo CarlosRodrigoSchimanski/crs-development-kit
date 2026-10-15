@@ -108,7 +108,7 @@ namespace lve {
             0,
             nullptr);
 
-        for (auto& kv : frameInfo.gameObjects) {
+        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
             if (obj.model == nullptr) continue;
             ShadowPushConstantData push{};
