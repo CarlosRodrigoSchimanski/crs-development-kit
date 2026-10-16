@@ -263,7 +263,9 @@ namespace lve {
         floor.transform.scale = glm::vec3{5.f, 1.f, 5.f};
 
         //câmera de jogo: objeto da cena com o componente de câmera (a que renderiza no Play)
+        lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
         auto& gameCamera = lveScene.createGameObject();
+        gameCamera.model = lveModel;
         gameCamera.transform.translation = {0.f, -1.f, -5.f};
         gameCamera.camera.emplace();
         lveScene.setActiveCamera(gameCamera.getId());
