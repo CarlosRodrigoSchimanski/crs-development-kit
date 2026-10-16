@@ -150,17 +150,43 @@ namespace lve {
                 displayFps = displayFps <= 0.f ? instantFps : glm::mix(displayFps, instantFps, 0.1f);
             }
 
-            //uma vez por frame, antes de qualquer um perguntar pelo teclado
+            //teclado: uma vez por frame, antes de qualquer um perguntar por ele;
+            //logo em seguida, P / ' alternam entre editor e Play
             lveInput.update(lveWindow);
             updatePlayMode();
-            cameraController.update(lveWindow, camera);
+            //câmera do editor: a orbital, controlada pelo mouse; no Play ela fica parada onde estava
+            if (!playScene) {
+                cameraController.update(lveWindow, camera);
+            }
+
+            //câmera do jogo: o objeto câmera ativo da cena do Play
+            //(nullptr no editor, ou se a cena não tiver câmera ativa)
+            LveGameObject* gameCamera = nullptr;
+            if (playScene) {
+                if (auto id = playScene->getActiveCamera()) {
+                    gameCamera = playScene->findGameObjectById(*id);
+                }
+            }
+
+            //no Play, a vista sai do transform do objeto câmera: posição dele, olhando pra "frente"
+            //dele (coluna 2 da rotação = eixo Z local = pra onde a lente aponta)
+            if (gameCamera) {
+                glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
+                camera.setViewDirection(gameCamera->transform.translation, forward);
+            }
 
             if (auto commandBuffer = lveRenderer.beginFrame()) {
                 int frameIndex = lveRenderer.getFrameIndex();
 
-                //depois do beginFrame: se a swap chain foi recriada nele (janela mudou de tamanho),
-                //a proporção já é a nova
-                camera.setPerspectiveProjection(glm::radians(50.f), lveRenderer.getAspectRatio(), 0.1f, 100.f);
+                //lente (projeção): no Play vem do componente de câmera do objeto, no editor é fixa.
+                //Fica depois do beginFrame: se a swap chain foi recriada nele (janela mudou de
+                //tamanho), a proporção já é a nova
+                if (gameCamera) {
+                    const CameraComponent& lens = *gameCamera->camera;
+                    camera.setPerspectiveProjection(lens.fovY, lveRenderer.getAspectRatio(), lens.nearPlane, lens.farPlane);
+                } else {
+                    camera.setPerspectiveProjection(glm::radians(50.f), lveRenderer.getAspectRatio(), 0.1f, 100.f);
+                }
 
                 FrameInfo frameInfo{
                     frameIndex, 
@@ -172,15 +198,26 @@ namespace lve {
                     playScene.has_value() //true = modo jogo, false = modo editor
                 };
 
-                // update
+                //dados globais do frame pros shaders (UBO): câmera, sol e luzes
                 GlobalUbo ubo{};
                 ubo.projection = camera.getProjection();
                 ubo.view = camera.getView();
                 ubo.inverseView = camera.getInverseView();
                 glm::vec3 lightDirection = -glm::normalize(glm::vec3{ubo.sunDirection});
-                //a caixa do sol acompanha o ponto que a câmera orbital está olhando
-                updateShadowCamera(shadowCamera, cameraController.target, lightDirection, shadowMap.getExtent().width);
+
+                //configuração de sombra dos objetos da cena pela perspectiva da câmera: a caixa do sol
+                //fica em volta do que a câmera está vendo. No editor, o ponto que a orbital olha; no
+                //Play, meia caixa à frente da câmera de jogo (se fosse centrada nela, metade da caixa
+                //ficaria atrás, cobrindo o que ela não vê)
+                glm::vec3 shadowCenter = cameraController.target;
+                if (gameCamera) {
+                    glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
+                    shadowCenter = gameCamera->transform.translation + forward * SHADOW_HALF_SIZE;
+                }
+                updateShadowCamera(shadowCamera, shadowCenter, lightDirection, shadowMap.getExtent().width);
                 ubo.lightSpaceMatrix = shadowCamera.getProjection() * shadowCamera.getView();
+
+                //point lights: junta as luzes da cena no buffer de luzes e conta quantas são (ubo.numLights)
                 if (pointLightSystem.update(frameInfo, ubo)) {
                     //o buffer de luzes deste frame foi recriado maior: o descriptor aponta pro novo
                     auto lightBufferInfo = pointLightSystem.lightBufferInfo(frameIndex);
@@ -188,10 +225,12 @@ namespace lve {
                         .writeBuffer(2, &lightBufferInfo)
                         .overwrite(globalDescriptorSets[frameIndex]);
                 }
+
+                //ubo pronto: envia pra GPU (o buffer deste frame em voo)
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 
-                //UI (contador de FPS, por enquanto)
+                //UI: contador de FPS e o modo atual (editor/play)
                 lveImgui.newFrame();
                 ImGui::SetNextWindowPos(ImVec2(10, 10));
                 ImGui::SetNextWindowBgAlpha(0.35f);
@@ -271,7 +310,7 @@ namespace lve {
         lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
         auto& gameCamera = lveScene.createGameObject();
         gameCamera.model = lveModel;
-        gameCamera.editorOnly = true;  //não desenha no jogo so no editor
+        gameCamera.editorOnly = true;  //o gizmo só aparece no editor (e nunca projeta sombra)
         gameCamera.transform.translation = {0.f, -1.f, -5.f};
         gameCamera.camera.emplace();
         lveScene.setActiveCamera(gameCamera.getId());

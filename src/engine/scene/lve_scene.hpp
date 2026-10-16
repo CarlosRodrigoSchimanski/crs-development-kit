@@ -14,6 +14,8 @@ namespace lve {
 
             void setActiveCamera(LveGameObject::id_t cameraId);
             std::optional<LveGameObject::id_t> getActiveCamera() const;
+            
+            LveGameObject* findGameObjectById(LveGameObject::id_t id);
         
         private:
             LveGameObject::Map gameObjects;

@@ -23,4 +23,12 @@ namespace lve {
     std::optional<LveGameObject::id_t> LveScene::getActiveCamera() const {
         return activeCameraId;
     }
+
+    LveGameObject* LveScene::findGameObjectById(LveGameObject::id_t id) {
+        auto it = gameObjects.find(id);
+        if (it != gameObjects.end()) {
+            return &it->second;
+        }
+        return nullptr;
+    }
 }
