@@ -168,7 +168,8 @@ namespace lve {
                     commandBuffer, 
                     camera, 
                     globalDescriptorSets[frameIndex], 
-                    activeScene()
+                    activeScene(),
+                    playScene.has_value() //true = modo jogo, false = modo editor
                 };
 
                 // update
@@ -270,6 +271,7 @@ namespace lve {
         lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
         auto& gameCamera = lveScene.createGameObject();
         gameCamera.model = lveModel;
+        gameCamera.editorOnly = true;  //não desenha no jogo so no editor
         gameCamera.transform.translation = {0.f, -1.f, -5.f};
         gameCamera.camera.emplace();
         lveScene.setActiveCamera(gameCamera.getId());

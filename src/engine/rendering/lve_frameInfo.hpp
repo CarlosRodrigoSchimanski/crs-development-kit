@@ -31,6 +31,7 @@ namespace lve {
         LveCamera &camera;
         VkDescriptorSet globalDescriptorSet;
         LveScene &lveScene;
+        bool playing;
     };
 
 }

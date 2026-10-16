@@ -49,6 +49,7 @@ namespace lve {
         glm::vec3 color{};
         //false = usa a textura branca em vez da do modelo (fica só a cor do vértice)
         bool useTexture{true};
+        bool editorOnly{false};
         TransformComponent transform{};
         
         std::shared_ptr<LveModel>model{};

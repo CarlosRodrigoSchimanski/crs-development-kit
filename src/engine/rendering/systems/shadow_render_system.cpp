@@ -111,6 +111,7 @@ namespace lve {
         for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
             if (obj.model == nullptr) continue;
+            if (obj.editorOnly) continue;  //não projeta sombra
             ShadowPushConstantData push{};
             push.modelMatrix = obj.transform.mat4();
 
