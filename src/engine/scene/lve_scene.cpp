@@ -15,4 +15,12 @@ namespace lve {
     const LveGameObject::Map& LveScene::getGameObjects() const {
         return gameObjects;
     }
+
+    void LveScene::setActiveCamera(LveGameObject::id_t cameraId) {
+        activeCameraId = cameraId;
+    }
+
+    std::optional<LveGameObject::id_t> LveScene::getActiveCamera() const {
+        return activeCameraId;
+    }
 }

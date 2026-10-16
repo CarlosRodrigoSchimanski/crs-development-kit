@@ -8,6 +8,12 @@
 
 
 namespace lve {
+    struct CameraComponent{
+        float fovY = glm::radians(50.f);
+        float nearPlane = 0.1f;
+        float farPlane = 100.f;
+    };
+
     struct TransformComponent
     {
         glm::vec3 translation{};
@@ -47,6 +53,7 @@ namespace lve {
         
         std::shared_ptr<LveModel>model{};
         std::optional<PointLightComponent> pointLight{};
+        std::optional<CameraComponent> camera{};
 
         
         private:

@@ -248,6 +248,7 @@ namespace lve {
     }
 
     void FirstApp::loadGameObjects() {
+        //cubo de teste: modelo com textura, luz e sombra
         std::shared_ptr<LveModel> lveModel = LveModel::createModelFromFile(lveDevice, "models/iron_cube.glb");
         auto& cube = lveScene.createGameObject();
         cube.model = lveModel;
@@ -260,5 +261,12 @@ namespace lve {
         floor.model = lveModel;
         floor.transform.translation = {0.f, 1.5f, 0.f};
         floor.transform.scale = glm::vec3{5.f, 1.f, 5.f};
+
+        //câmera de jogo: objeto da cena com o componente de câmera (a que renderiza no Play)
+        auto& gameCamera = lveScene.createGameObject();
+        gameCamera.transform.translation = {0.f, -1.f, -5.f};
+        gameCamera.camera.emplace();
+        lveScene.setActiveCamera(gameCamera.getId());
+
     }
 }

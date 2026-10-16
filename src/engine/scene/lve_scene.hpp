@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/scene/lve_game_object.hpp"
+#include <optional>
 
 namespace lve {
     class LveScene{
@@ -10,8 +11,12 @@ namespace lve {
 
             LveGameObject::Map& getGameObjects();
             const LveGameObject::Map& getGameObjects() const;
+
+            void setActiveCamera(LveGameObject::id_t cameraId);
+            std::optional<LveGameObject::id_t> getActiveCamera() const;
         
         private:
             LveGameObject::Map gameObjects;
+            std::optional<LveGameObject::id_t> activeCameraId{};
     };
 }
