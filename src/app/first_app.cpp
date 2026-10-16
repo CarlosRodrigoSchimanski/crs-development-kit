@@ -150,6 +150,9 @@ namespace lve {
                 displayFps = displayFps <= 0.f ? instantFps : glm::mix(displayFps, instantFps, 0.1f);
             }
 
+            //uma vez por frame, antes de qualquer um perguntar pelo teclado
+            lveInput.update(lveWindow);
+            updatePlayMode();
             cameraController.update(lveWindow, camera);
 
             if (auto commandBuffer = lveRenderer.beginFrame()) {
@@ -165,7 +168,7 @@ namespace lve {
                     commandBuffer, 
                     camera, 
                     globalDescriptorSets[frameIndex], 
-                    lveScene
+                    activeScene()
                 };
 
                 // update
@@ -198,6 +201,7 @@ namespace lve {
                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
                         ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
                 ImGui::Text("FPS: %.0f", displayFps);
+                ImGui::Text("mode: %s", playScene ? "play" : "editor");
                 ImGui::End();
 
                 //render
@@ -269,6 +273,32 @@ namespace lve {
         gameCamera.transform.translation = {0.f, -1.f, -5.f};
         gameCamera.camera.emplace();
         lveScene.setActiveCamera(gameCamera.getId());
+    }
 
+    void FirstApp::startPlay() {
+        //copia a cena do editor pro modo de jogo: a cena do editor fica guardada intacta
+        //(não é desenhada nem atualizada enquanto o jogo roda)
+        playScene = lveScene;
+    }
+
+    void FirstApp::stopPlay() {
+        playScene.reset();
+    }
+
+    void FirstApp::updatePlayMode() {
+        //digitando num campo do ImGui: o P é texto, não comando
+        bool typing = ImGui::GetIO().WantCaptureKeyboard;
+        if (!playScene && !typing && lveInput.wasPressed(GLFW_KEY_P)) {
+            startPlay();
+        }
+        //o GLFW nomeia pela posição no teclado americano: a tecla à esquerda do 1
+        //(' no ABNT2) é a GRAVE_ACCENT
+        else if (playScene && lveInput.wasPressed(GLFW_KEY_GRAVE_ACCENT)) {
+            stopPlay();
+        }
+    }
+
+    LveScene& FirstApp::activeScene() {
+        return playScene.has_value() ? *playScene : lveScene;
     }
 }
