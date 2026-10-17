@@ -129,6 +129,7 @@ set(PROJECT_SOURCES
     src/engine/rendering/lve_renderer.cpp
     src/engine/scene/lve_game_object.cpp
     src/engine/scene/lve_scene.cpp
+    src/engine/physics/lve_physics_system.cpp
     src/engine/rendering/systems/simple_render_system.cpp
     src/engine/rendering/systems/point_light_system.cpp
     src/engine/rendering/systems/shadow_render_system.cpp

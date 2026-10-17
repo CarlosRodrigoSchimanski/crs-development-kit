@@ -3,6 +3,7 @@
 #include "engine/rendering/systems/simple_render_system.hpp"
 #include "engine/rendering/systems/point_light_system.hpp"
 #include "engine/rendering/systems/shadow_render_system.hpp"
+#include "engine/physics/lve_physics_system.hpp"
 #include "editor/orbit_camera_controller.hpp"
 #include "engine/rendering/lve_buffer.hpp"
 #include "editor/lve_imgui.hpp"
@@ -118,12 +119,16 @@ namespace lve {
                 .build(globalDescriptorSets[i]);
         }
         
+        //adiciona sistema de camera
         LveCamera camera{};
+        //adiciona sistema de sombra
         LveCamera shadowCamera{};
         //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
-        shadowCamera.setOrthographicProjection(
-            -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
+        shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
+        //adiciona sistema de controle da camera
         OrbitCameraController cameraController{};
+        //adiciona sistema de fisica
+        PhysicsSystem physicSistem{};
 
         auto currentTime = std::chrono::high_resolution_clock::now();
         float displayFps = 0.f;
@@ -154,6 +159,10 @@ namespace lve {
             //logo em seguida, P / ' alternam entre editor e Play
             lveInput.update(lveWindow);
             updatePlayMode();
+
+            if (playScene) {
+                physicSistem.update(*playScene, frameTime);
+            }
             //câmera do editor: a orbital, controlada pelo mouse; no Play ela fica parada onde estava
             if (!playScene) {
                 cameraController.update(lveWindow, camera);
