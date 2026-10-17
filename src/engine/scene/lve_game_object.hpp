@@ -14,6 +14,12 @@ namespace lve {
         float farPlane = 100.f;
     };
 
+    enum class BodyType {Static, Dynamic};
+    struct RigidBodyComponent{
+        BodyType type = BodyType::Dynamic;
+        glm::vec3 velocity{0.f};
+    };
+
     struct TransformComponent
     {
         glm::vec3 translation{};
@@ -55,6 +61,7 @@ namespace lve {
         std::shared_ptr<LveModel>model{};
         std::optional<PointLightComponent> pointLight{};
         std::optional<CameraComponent> camera{};
+        std::optional<RigidBodyComponent> rigidBody{};
 
         
         private:

@@ -298,6 +298,7 @@ namespace lve {
         cube.model = lveModel;
         cube.transform.translation = {0.f, 0.f, 0.f};
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
+        cube.rigidBody.emplace();
 
         //chão embaixo do cubo (Y aponta pra baixo, então +1 = base do cubo), pra receber a sombra
         lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
@@ -305,6 +306,8 @@ namespace lve {
         floor.model = lveModel;
         floor.transform.translation = {0.f, 1.5f, 0.f};
         floor.transform.scale = glm::vec3{5.f, 1.f, 5.f};
+        floor.rigidBody.emplace();
+        floor.rigidBody->type = BodyType::Static;
 
         //câmera de jogo: objeto da cena com o componente de câmera (a que renderiza no Play)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
