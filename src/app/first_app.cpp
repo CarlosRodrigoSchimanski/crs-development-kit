@@ -317,6 +317,7 @@ namespace lve {
         floor.transform.scale = glm::vec3{5.f, 1.f, 5.f};
         floor.rigidBody.emplace();
         floor.rigidBody->type = BodyType::Static;
+        floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
 
         //câmera de jogo: objeto da cena com o componente de câmera (a que renderiza no Play)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
