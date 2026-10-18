@@ -462,6 +462,14 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      do corpo, em tons de cinza = momento em que cada ponto é tomado (o artista pinta por
      onde ela avança, ex: da mão subindo pelas veias); o shader compara com um único valor
      de progresso (0 a 1) que o jogo aumenta com o tempo. Nada de editar textura na CPU.
+   - Evitar costura visível entre as partes (problema que o usuário já teve no UPBGE): os
+     vértices da borda existem duplicados nas duas partes e precisam ser IDÊNTICOS nelas —
+     (1) mesma posição e mesmos pesos de osso (dividir DEPOIS de pesar o corpo inteiro, nunca
+     repesar uma parte sozinha), senão as bordas deformam diferente e a malha abre na animação;
+     (2) mesma normal (calculada no corpo inteiro antes de dividir e exportada no .glb; o
+     loader já lê as normais do arquivo), senão a luz marca uma linha mesmo sem abrir;
+     (3) mesma UV/textura (já garantido pelo requisito acima). E, se der, cortar onde a roupa
+     costuma cobrir (pulso, tornozelo, pescoço, cintura).
 
 7. Sistema de combate — depende do item 5, se beneficia do item 6 já existir
    (feedback visual de arma equipada, etc.).
