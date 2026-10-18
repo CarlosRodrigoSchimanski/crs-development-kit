@@ -447,6 +447,22 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      já é o buffer de luzes; texturas de material ficam no set 1) — encaixar no layout real.
    - Depende dos itens 5 (animação esquelética) e 6 (equipamento por skinning compartilhado).
 
+6.2. Partes do corpo que ligam/desligam (anotado 2026-10-18, incremental, depois do 6.1) —
+   o corpo dividido em poucas regiões grandes (ex: tronco, braços, pernas, pés) que um item
+   pode desligar inteiras, como os "geosets" do WoW: uma armadura que cobre o tronco todo
+   desliga o tronco, e ele nem é processado (com a máscara, a pele escondida ainda passa
+   pelo skinning e só é descartada no fim). A máscara do 6.1 continua cuidando das bordas,
+   rasgos e aberturas. Custa alguns draw calls a mais por personagem (barato no Vulkan;
+   só pesa com muitos personagens na tela).
+   - Requisito pra não quebrar efeitos de pele: as partes são só um corte da MESMA malha —
+     mesma UV global, mesma textura e mesmo material do corpo. Assim um efeito calculado no
+     shader a partir da UV (ex: maldição se espalhando, ver abaixo) atravessa as costuras
+     entre partes sem emenda.
+   - Ideia de efeito compatível (maldição que se espalha): uma textura de "caminho" na UV
+     do corpo, em tons de cinza = momento em que cada ponto é tomado (o artista pinta por
+     onde ela avança, ex: da mão subindo pelas veias); o shader compara com um único valor
+     de progresso (0 a 1) que o jogo aumenta com o tempo. Nada de editar textura na CPU.
+
 7. Sistema de combate — depende do item 5, se beneficia do item 6 já existir
    (feedback visual de arma equipada, etc.).
 
