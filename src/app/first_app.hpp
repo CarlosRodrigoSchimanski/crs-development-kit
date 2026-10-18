@@ -6,6 +6,10 @@
 #include "engine/scene/lve_scene.hpp"
 #include "engine/rendering/lve_renderer.hpp"
 #include "engine/rendering/lve_descriptors.hpp"
+#include "engine/rendering/lve_camera.hpp"
+#include "engine/physics/lve_physics_system.hpp"
+#include "editor/orbit_camera_controller.hpp"
+
 
 #include <memory>
 #include <vector>
@@ -57,5 +61,13 @@ namespace lve {
             std::optional<LveScene> playScene;
             //teclado do frame atual e do anterior (atualizado no começo de cada frame)
             LveInput lveInput;
+            //câmera que o render usa (matrizes de vista e projeção)
+            LveCamera camera{};
+            //câmera do sol: de onde a sombra é calculada
+            LveCamera shadowCamera{};
+            //câmera do editor: a orbital, estilo Blender
+            OrbitCameraController cameraController{};
+            //física: só roda no Play
+            PhysicsSystem physicsSystem{};
     };
 }
