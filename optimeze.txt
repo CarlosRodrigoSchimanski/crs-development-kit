@@ -427,6 +427,26 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    de matrizes de osso por frame) — depende do item 5. Correção deliberada de um
    erro de uma tentativa anterior em Godot (ver memória de longo prazo do projeto).
 
+6.1. Máscara de opacidade do corpo (anotado 2026-10-18, a partir de uma pesquisa do
+   usuário) — complementa o item 6, não substitui: resolve a pele do corpo atravessando
+   a roupa (clipping) sem fatiar a malha do personagem.
+   - O personagem continua uma malha única (pele contínua, UV estável). Cada item
+     equipável traz, além da malha dele, uma máscara em tons de cinza na MESMA UV do
+     corpo: preto = coberto pela roupa (o pixel do corpo é descartado), branco = pele
+     visível (inclusive rasgos/aberturas da roupa).
+   - No fragment shader do corpo: amostra a máscara e faz `discard` se for quase preto,
+     antes da iluminação. Mudar raça/pele = trocar só a textura do corpo; roupa rasgada
+     = editar só a máscara, sem remodelar nem refazer rig.
+   - Ao equipar/desequipar, combina as máscaras dos itens numa só (o mínimo de cada
+     pixel: coberto por qualquer item = coberto). Só refaz quando o equipamento MUDA,
+     não a cada frame.
+   - Cuidados pra quando for implementar: (1) `discard` atrapalha o teste de profundidade
+     antecipado da GPU, então usar só no pipeline do corpo, não em tudo; (2) o passe de
+     sombra pode ignorar a máscara (a sombra da pele escondida fica embaixo da roupa);
+     (3) os bindings do exemplo da pesquisa não batem com os da engine (set 0 binding 2
+     já é o buffer de luzes; texturas de material ficam no set 1) — encaixar no layout real.
+   - Depende dos itens 5 (animação esquelética) e 6 (equipamento por skinning compartilhado).
+
 7. Sistema de combate — depende do item 5, se beneficia do item 6 já existir
    (feedback visual de arma equipada, etc.).
 
