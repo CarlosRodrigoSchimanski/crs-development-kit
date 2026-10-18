@@ -474,6 +474,10 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      normais no corpo inteiro, marcar as regiões (ex: um material ou grupo por parte só pra
      separar os índices no export), e cortar onde a roupa costuma cobrir (pulso, tornozelo,
      pescoço, cintura).
+     Origem: o corpo, as partes e os itens rigados (item 6) usam TODOS a mesma origem, a do
+     esqueleto/armature (no UPBGE o usuário movia a origem de cada parte pro centro dela com
+     "Origin to Geometry" — isso dá a cada parte uma matriz diferente e foi o que abriu a
+     fresta). Origem no centro é ótimo pra objeto solto (caixa, porta), não pra peça de personagem.
 
 7. Sistema de combate — depende do item 5, se beneficia do item 6 já existir
    (feedback visual de arma equipada, etc.).
