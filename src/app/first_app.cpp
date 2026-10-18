@@ -147,41 +147,21 @@ namespace lve {
                 displayFps = displayFps <= 0.f ? instantFps : glm::mix(displayFps, instantFps, 0.1f);
             }
 
-            //teclado: uma vez por frame, antes de qualquer um perguntar por ele;
-            //logo em seguida, P / ' alternam entre editor e Play
+            //uma vez por frame procura por inputs{inputs devem ser lidos antes de qualquer chamada do frame};
             lveInput.update(lveWindow);
+            //alternam entre editor e Play
             updatePlayMode();
 
             if (playScene) {
                 physicsSystem.update(*playScene, frameTime);
             }
-            //câmera do editor: a orbital, controlada pelo mouse; no Play ela fica parada onde estava
-            if (!playScene) {
-                cameraController.update(lveWindow, camera);
-            }
 
             //câmera do jogo: o objeto câmera ativo da cena do Play
             LveGameObject* gameCamera = findGameCamera();
 
-            //no Play, a vista sai do transform do objeto câmera: posição dele, olhando pra "frente"
-            //dele (coluna 2 da rotação = eixo Z local = pra onde a lente aponta)
-            if (gameCamera) {
-                glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
-                camera.setViewDirection(gameCamera->transform.translation, forward);
-            }
-
             if (auto commandBuffer = lveRenderer.beginFrame()) {
                 int frameIndex = lveRenderer.getFrameIndex();
-
-                //lente (projeção): no Play vem do componente de câmera do objeto, no editor é fixa.
-                //Fica depois do beginFrame: se a swap chain foi recriada nele (janela mudou de
-                //tamanho), a proporção já é a nova
-                if (gameCamera) {
-                    const CameraComponent& lens = *gameCamera->camera;
-                    camera.setPerspectiveProjection(lens.fovY, lveRenderer.getAspectRatio(), lens.nearPlane, lens.farPlane);
-                } else {
-                    camera.setPerspectiveProjection(glm::radians(50.f), lveRenderer.getAspectRatio(), 0.1f, 100.f);
-                }
+                updateCamera(gameCamera, lveRenderer.getAspectRatio());
 
                 FrameInfo frameInfo{
                     frameIndex, 
@@ -190,7 +170,7 @@ namespace lve {
                     camera, 
                     globalDescriptorSets[frameIndex], 
                     activeScene(),
-                    playScene.has_value() //true = modo jogo, false = modo editor
+                    playScene.has_value()
                 };
 
                 //dados globais do frame pros shaders (UBO): câmera, sol e luzes
@@ -307,7 +287,6 @@ namespace lve {
 
     void FirstApp::startPlay() {
         //copia a cena do editor pro modo de jogo: a cena do editor fica guardada intacta
-        //(não é desenhada nem atualizada enquanto o jogo roda)
         playScene = lveScene;
     }
 
@@ -355,5 +334,22 @@ namespace lve {
         auto id = playScene->getActiveCamera();
         if (!id) return nullptr;
         return playScene->findGameObjectById(*id);
+    }
+
+    void FirstApp::updateCamera(LveGameObject* gameCamera, float aspect) {
+        if (gameCamera) {
+            //vista da camera
+            glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
+            camera.setViewDirection(gameCamera->transform.translation, forward);
+            //adiciona a lente a camera
+            const CameraComponent& lens = *gameCamera->camera;
+            camera.setPerspectiveProjection(lens.fovY, aspect, lens.nearPlane, lens.farPlane);
+            return;
+        }
+        //ativar e desativar modo camera orbital
+        if (!playScene) {
+            cameraController.update(lveWindow, camera);
+        }
+        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
     }
 }
