@@ -41,6 +41,8 @@ namespace lve {
             LveScene& activeScene();
             //janela de status
             void drawStatsWindow(float fps);
+            //procurar camera ativa na sena
+            LveGameObject* findGameCamera();
 
             //ordem importa: membros são criados de cima pra baixo e destruídos de baixo pra cima,
             //e cada um depende dos de cima (o device precisa da janela pra criar a surface, etc.)

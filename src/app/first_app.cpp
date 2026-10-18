@@ -169,13 +169,7 @@ namespace lve {
             }
 
             //câmera do jogo: o objeto câmera ativo da cena do Play
-            //(nullptr no editor, ou se a cena não tiver câmera ativa)
-            LveGameObject* gameCamera = nullptr;
-            if (playScene) {
-                if (auto id = playScene->getActiveCamera()) {
-                    gameCamera = playScene->findGameObjectById(*id);
-                }
-            }
+            LveGameObject* gameCamera = findGameCamera();
 
             //no Play, a vista sai do transform do objeto câmera: posição dele, olhando pra "frente"
             //dele (coluna 2 da rotação = eixo Z local = pra onde a lente aponta)
@@ -362,5 +356,12 @@ namespace lve {
         ImGui::Text("FPS: %.0f", fps);
         ImGui::Text("Mode %s",playScene ? "Play" : "Editor");
         ImGui::End();
+    }
+
+    LveGameObject* FirstApp::findGameCamera() {
+        if (!playScene) return nullptr;
+        auto id = playScene->getActiveCamera();
+        if (!id) return nullptr;
+        return playScene->findGameObjectById(*id);
     }
 }
