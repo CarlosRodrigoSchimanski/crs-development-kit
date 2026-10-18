@@ -39,6 +39,8 @@ namespace lve {
             void updatePlayMode();
             //a sena que esta ativa
             LveScene& activeScene();
+            //janela de status
+            void drawStatsWindow(float fps);
 
             //ordem importa: membros são criados de cima pra baixo e destruídos de baixo pra cima,
             //e cada um depende dos de cima (o device precisa da janela pra criar a surface, etc.)

@@ -241,17 +241,7 @@ namespace lve {
 
                 //UI: contador de FPS e o modo atual (editor/play)
                 lveImgui.newFrame();
-                ImGui::SetNextWindowPos(ImVec2(10, 10));
-                ImGui::SetNextWindowBgAlpha(0.35f);
-                ImGui::Begin(
-                    "Stats",
-                    nullptr,
-                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
-                ImGui::Text("FPS: %.0f", displayFps);
-                ImGui::Text("mode: %s", playScene ? "play" : "editor");
-                ImGui::End();
+                drawStatsWindow(displayFps);
 
                 //render
                 //passe de sombra primeiro: o passe principal vai ler o shadow map que ele produz
@@ -354,5 +344,23 @@ namespace lve {
 
     LveScene& FirstApp::activeScene() {
         return playScene.has_value() ? *playScene : lveScene;
+    }
+
+    void FirstApp::drawStatsWindow(float fps) {
+        ImGui::SetNextWindowPos(ImVec2(10,10));
+        ImGui::SetNextWindowBgAlpha(0.35f);
+        ImGui::Begin(
+            "stats",
+            nullptr,
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoFocusOnAppearing |
+            ImGuiWindowFlags_NoNav |
+            ImGuiWindowFlags_NoMove
+        );
+        ImGui::Text("FPS: %.0f", fps);
+        ImGui::Text("Mode %s",playScene ? "Play" : "Editor");
+        ImGui::End();
     }
 }
