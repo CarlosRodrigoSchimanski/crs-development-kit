@@ -180,17 +180,8 @@ namespace lve {
                 ubo.inverseView = camera.getInverseView();
                 glm::vec3 lightDirection = -glm::normalize(glm::vec3{ubo.sunDirection});
 
-                //configuração de sombra dos objetos da cena pela perspectiva da câmera: a caixa do sol
-                //fica em volta do que a câmera está vendo. No editor, o ponto que a orbital olha; no
-                //Play, meia caixa à frente da câmera de jogo (se fosse centrada nela, metade da caixa
-                //ficaria atrás, cobrindo o que ela não vê)
-                glm::vec3 shadowCenter = cameraController.target;
-                if (gameCamera) {
-                    glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
-                    shadowCenter = gameCamera->transform.translation + forward * SHADOW_HALF_SIZE;
-                }
-                updateShadowCamera(shadowCamera, shadowCenter, lightDirection, shadowMap.getExtent().width);
-                ubo.lightSpaceMatrix = shadowCamera.getProjection() * shadowCamera.getView();
+                //configuração de sombra 
+                ubo.lightSpaceMatrix = computeLightSpaceMatrix(gameCamera, lightDirection, shadowMap.getExtent().width);
 
                 //point lights: junta as luzes da cena no buffer de luzes e conta quantas são (ubo.numLights)
                 if (pointLightSystem.update(frameInfo, ubo)) {
@@ -351,5 +342,16 @@ namespace lve {
             cameraController.update(lveWindow, camera);
         }
         camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
+    }
+
+    glm::mat4 FirstApp::computeLightSpaceMatrix(LveGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize) {
+        //projeta sombra apenas para aquilo que a camera ve
+        glm::vec3 shadowCenter = cameraController.target;
+        if (gameCamera) {
+            glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
+            shadowCenter = gameCamera->transform.translation + forward * SHADOW_HALF_SIZE;
+        }
+        updateShadowCamera(shadowCamera, shadowCenter, lightDirection, shadowMapSize);
+        return shadowCamera.getProjection() * shadowCamera.getView();
     }
 }
