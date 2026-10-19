@@ -7,6 +7,7 @@
 #include "engine/rendering/lve_renderer.hpp"
 #include "engine/rendering/lve_descriptors.hpp"
 #include "engine/rendering/lve_camera.hpp"
+#include "engine/rendering/lve_buffer.hpp"
 #include "engine/physics/lve_physics_system.hpp"
 #include "editor/orbit_camera_controller.hpp"
 
@@ -59,6 +60,8 @@ namespace lve {
             LveRenderer lveRenderer{lveWindow, lveDevice};
             //descriptors globais (UBO + shadow map), um set por frame em voo
             std::unique_ptr<LveDescriptorPool> globalPool{};
+            //um buffer de UBO por frame em voo (dados globais do frame pros shaders)
+            std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
             //a cena: todos os objetos, indexados pelo id
             LveScene lveScene;
             //modo start/stop: do modo jogo

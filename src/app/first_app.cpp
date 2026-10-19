@@ -64,14 +64,8 @@ namespace lve {
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .build();
-        loadGameObjects();
-    }
-
-    void FirstApp::run() {
-
-        std::vector<std::unique_ptr<LveBuffer>> uboBuffers(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < uboBuffers.size(); i++)
-        {
+        uboBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+        for(size_t i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<LveBuffer>(
                 lveDevice,
                 sizeof(GlobalUbo),
@@ -82,6 +76,10 @@ namespace lve {
             );
             uboBuffers[i]->map();
         }
+        loadGameObjects();
+    }
+
+    void FirstApp::run() {
 
         LveShadowMap shadowMap{lveDevice};
 
