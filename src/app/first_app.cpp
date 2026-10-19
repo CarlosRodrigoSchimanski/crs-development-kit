@@ -39,9 +39,7 @@ namespace lve {
         shadowCamera.setViewDirection(center - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
     }
 
-    //desregistra o refresh callback da janela ao sair do run(), inclusive por exceção: a função
-    //registrada captura variáveis locais do run() por referência, que deixam de existir ao sair
-    //(se a janela ainda chamasse ela, seria acesso a memória já destruída)
+    //desregistra o refresh callback ao sair do run(), inclusive por exceção: depois disso a janela não pode mais desenhar um frame
     struct RefreshCallbackGuard {
         LveWindow &window;
         ~RefreshCallbackGuard() { window.setRefreshCallback(nullptr); }
@@ -120,63 +118,11 @@ namespace lve {
 
         currentTime = std::chrono::high_resolution_clock::now();
 
-        //um frame inteiro (tempo, câmera, update, desenho). É uma função (lambda) e não só o corpo
-        //do while porque, onde o SO trava o loop durante o redimensionamento (Windows), ela também
-        //é chamada de dentro do refresh callback da janela
-        bool drawingFrame = false;
-
-        auto drawFrame = [&]() {
-            //trava contra reentrada: recriar a swap chain pode chamar glfwWaitEvents (janela minimizada), que pode disparar o refresh callback NO MEIO deste frame
-            if (drawingFrame) return;
-            drawingFrame = true;
-
-            float frameTime = updateFrameTime();
-
-            //uma vez por frame procura por inputs{inputs devem ser lidos antes de qualquer chamada do frame};
-            lveInput.update(lveWindow);
-            //alternam entre editor e Play
-            updatePlayMode();
-
-            if (playScene) {
-                physicsSystem.update(*playScene, frameTime);
-            }
-
-            //câmera do jogo: o objeto câmera ativo da cena do Play
-            LveGameObject* gameCamera = findGameCamera();
-
-            if (auto commandBuffer = lveRenderer.beginFrame()) {
-                int frameIndex = lveRenderer.getFrameIndex();
-                updateCamera(gameCamera, lveRenderer.getAspectRatio());
-
-                FrameInfo frameInfo{
-                    frameIndex, 
-                    frameTime, 
-                    commandBuffer, 
-                    camera, 
-                    globalDescriptorSets[frameIndex], 
-                    activeScene(),
-                    playScene.has_value()
-                };
-
-                updateGlobalUbo(frameInfo, gameCamera);
-
-                //UI: contador de FPS e o modo atual (editor/play)
-                lveImgui->newFrame();
-                drawStatsWindow(displayFps);
-
-                //render
-                renderFrame(frameInfo);
-                lveRenderer.endFrame();
-            }
-
-            drawingFrame = false;
-        };
-
         RefreshCallbackGuard refreshGuard{lveWindow};
         //último recurso declarado do run(): ver o comentário do DeviceIdleGuard
         DeviceIdleGuard deviceIdleGuard{lveDevice};
         if (platform::needsRedrawDuringResize()) {
-            lveWindow.setRefreshCallback(drawFrame);
+            lveWindow.setRefreshCallback([this]() { drawFrame(); });
         }
 
         while (!lveWindow.shouldClose()) {
@@ -360,5 +306,52 @@ namespace lve {
             displayFps = displayFps <= 0.f ? instantFps : glm::mix(displayFps, instantFps, 0.1f);
         }
         return frameTime;
+    }
+
+    void FirstApp::drawFrame() {
+        //trava contra reentrada: recriar a swap chain pode chamar glfwWaitEvents (janela minimizada), que pode disparar o refresh callback NO MEIO deste frame
+        if (drawingFrame) return;
+        drawingFrame = true;
+
+        float frameTime = updateFrameTime();
+
+        //uma vez por frame procura por inputs{inputs devem ser lidos antes de qualquer chamada do frame};
+        lveInput.update(lveWindow);
+        //alternam entre editor e Play
+        updatePlayMode();
+
+        if (playScene) {
+            physicsSystem.update(*playScene, frameTime);
+        }
+
+        //câmera do jogo: o objeto câmera ativo da cena do Play
+        LveGameObject* gameCamera = findGameCamera();
+
+        if (auto commandBuffer = lveRenderer.beginFrame()) {
+            int frameIndex = lveRenderer.getFrameIndex();
+            updateCamera(gameCamera, lveRenderer.getAspectRatio());
+
+            FrameInfo frameInfo{
+                frameIndex, 
+                frameTime, 
+                commandBuffer, 
+                camera, 
+                globalDescriptorSets[frameIndex], 
+                activeScene(),
+                playScene.has_value()
+            };
+
+            updateGlobalUbo(frameInfo, gameCamera);
+
+            //UI: contador de FPS e o modo atual (editor/play)
+            lveImgui->newFrame();
+            drawStatsWindow(displayFps);
+
+            //render
+            renderFrame(frameInfo);
+            lveRenderer.endFrame();
+        }
+
+        drawingFrame = false;
     }
 }

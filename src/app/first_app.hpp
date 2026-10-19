@@ -65,6 +65,8 @@ namespace lve {
             void updateGlobalUbo(FrameInfo& frameInfo, LveGameObject* gameCamera);
             //tempo desde o frame anterior (limitado) e atualiza o FPS exibido
             float updateFrameTime();
+            //um frame inteiro: tempo, input, física, câmera e desenho
+            void drawFrame();
 
             //ordem importa: membros são criados de cima pra baixo e destruídos de baixo pra cima,
             //e cada um depende dos de cima (o device precisa da janela pra criar a surface, etc.)
@@ -89,10 +91,13 @@ namespace lve {
             std::unique_ptr<LveImgui> lveImgui{};
             //liga UBO + shadow map + luzes aos shaders: um set por frame em voo
             std::vector<VkDescriptorSet> globalDescriptorSets;
-            
+
             //relógio do frame anterior e FPS suavizado da janela de Stats
             std::chrono::high_resolution_clock::time_point currentTime{};
             float displayFps = 0.f;
+            
+            //trava contra reentrada do drawFrame (ver o comentário dentro dele)
+            bool drawingFrame = false;
 
             //a cena: todos os objetos, indexados pelo id
             LveScene lveScene;
