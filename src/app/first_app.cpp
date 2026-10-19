@@ -108,13 +108,13 @@ namespace lve {
                 .build(globalDescriptorSets[i]);
         }
 
+        //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
+        shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
+
         loadGameObjects();
     }
 
     void FirstApp::run() {
-
-        //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
-        shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
 
         currentTime = std::chrono::high_resolution_clock::now();
 
