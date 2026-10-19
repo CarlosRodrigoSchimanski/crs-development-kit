@@ -16,15 +16,13 @@
 #include "editor/orbit_camera_controller.hpp"
 #include "editor/lve_imgui.hpp"
 
-
-
 #include <memory>
 #include <vector>
 #include <optional>
 #include <chrono>
 
 namespace lve {
-    //aplicação: dona da janela, do device e da cena, e roda o loop principal
+    //aplicação: cria a engine, monta a cena e roda o loop
     class FirstApp {
         public:
             //tamanho inicial da janela
@@ -33,85 +31,84 @@ namespace lve {
 
             FirstApp();
 
-            //o app é dono de recursos Vulkan: copiar duplicaria os handles
+            //não copiável (é dona dos recursos Vulkan)
             FirstApp(const FirstApp&) = delete;
             FirstApp& operator=(const FirstApp&) = delete;
 
-            //loop principal: roda até a janela ser fechada
+            //loop principal, até fechar a janela
             void run();
 
         private:
-            //monta a cena inicial (objetos, modelos)
+            //monta a cena inicial
             void loadGameObjects();
-            //play: copia a cena do editor e passa a rodar a copia
+            //entra no Play: copia a cena do editor
             void startPlay();
-            //stop: descarta a cena de jogo e volta a rodar a cena do editor
+            //sai do Play: descarta a cópia
             void stopPlay();
-            //le P = play / ' (tecla à esquerda do 1) = stop
+            //P entra no Play, ' sai
             void updatePlayMode();
-            //a sena que esta ativa
+            //cena que está valendo (Play ou editor)
             LveScene& activeScene();
-            //janela de status
+            //janela de Stats (FPS e modo)
             void drawStatsWindow(float fps);
-            //procurar camera ativa na sena
+            //câmera ativa da cena do Play
             LveGameObject* findGameCamera();
-            //configuração da camera
+            //posiciona a câmera do render (orbital ou de jogo)
             void updateCamera(LveGameObject* gameCamera, float aspect);
-            //configuração de sombra
+            //sombra apenas para o que a câmera mostra
             glm::mat4 computeLightSpaceMatrix(LveGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize);
-            //desenha o frame: sombra primeiro, depois a cena, as luzes e a UI
+            //desenha o frame (sombra, cena, luzes, UI)
             void renderFrame(FrameInfo& frameInfo);
-            //monta os dados globais do frame pros shaders (câmera, sombra, luzes) e envia pra GPU
+            //dados globais do frame pros shaders (câmera, sombra, luzes)
             void updateGlobalUbo(FrameInfo& frameInfo, LveGameObject* gameCamera);
-            //tempo desde o frame anterior (limitado) e atualiza o FPS exibido
+            //tempo do frame e FPS
             float updateFrameTime();
-            //um frame inteiro: tempo, input, física, câmera e desenho
+            //um frame inteiro
             void drawFrame();
 
-            //ordem importa: membros são criados de cima pra baixo e destruídos de baixo pra cima,
-            //e cada um depende dos de cima (o device precisa da janela pra criar a surface, etc.)
+            //ordem importa: criados de cima pra baixo, destruídos de baixo pra cima
             LveWindow lveWindow{WIDTH, HEIGHT, "Olá Vulkan"};
             LveDevice lveDevice{lveWindow};
             LveRenderer lveRenderer{lveWindow, lveDevice};
-            //descriptors globais (UBO + shadow map), um set por frame em voo
+            //pool dos descriptor sets globais
             std::unique_ptr<LveDescriptorPool> globalPool{};
-            //formato dos dados globais dos shaders: 0 = UBO, 1 = shadow map, 2 = luzes
+            //formato dos dados globais: 0 = UBO, 1 = shadow map, 2 = luzes
             std::unique_ptr<LveDescriptorSetLayout> globalSetLayout{};
-            //um buffer de UBO por frame em voo (dados globais do frame pros shaders)
+            //buffers do UBO, um por frame em voo
             std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
-            //mapa de profundidade do sol: o passe de sombra escreve, o passe principal lê
+            //mapa de profundidade do sol
             LveShadowMap shadowMap{lveDevice};
 
-            //sistemas de render: cada um desenha um tipo de coisa da cena
+            //sistemas de render
             std::unique_ptr<SimpleRenderSystem> simpleRenderSystem{};
             std::unique_ptr<PointLightSystem> pointLightSystem{};
             std::unique_ptr<ShadowRenderSystem> shadowRenderSystem{};
 
-            //interface do editor (janela de Stats)
+            //interface do editor
             std::unique_ptr<LveImgui> lveImgui{};
-            //liga UBO + shadow map + luzes aos shaders: um set por frame em voo
+            //descriptor sets globais, um por frame em voo
             std::vector<VkDescriptorSet> globalDescriptorSets;
 
-            //relógio do frame anterior e FPS suavizado da janela de Stats
+            //relógio do frame anterior e FPS exibido
             std::chrono::high_resolution_clock::time_point currentTime{};
             float displayFps = 0.f;
-            
-            //trava contra reentrada do drawFrame (ver o comentário dentro dele)
+
+            //trava contra reentrada do drawFrame
             bool drawingFrame = false;
 
-            //a cena: todos os objetos, indexados pelo id
+            //cena do editor
             LveScene lveScene;
-            //modo start/stop: do modo jogo
+            //cópia da cena durante o Play (vazio = editor)
             std::optional<LveScene> playScene;
-            //teclado do frame atual e do anterior (atualizado no começo de cada frame)
+            //teclado
             LveInput lveInput;
-            //câmera que o render usa (matrizes de vista e projeção)
+            //câmera do render
             LveCamera camera{};
-            //câmera do sol: de onde a sombra é calculada
+            //câmera do sol
             LveCamera shadowCamera{};
-            //câmera do editor: a orbital, estilo Blender
+            //câmera orbital do editor
             OrbitCameraController cameraController{};
-            //física: só roda no Play
+            //física do Play
             PhysicsSystem physicsSystem{};
     };
 }

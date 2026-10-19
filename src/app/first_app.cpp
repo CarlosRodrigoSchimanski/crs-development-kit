@@ -18,18 +18,17 @@
 #include <thread>
 
 namespace lve {
+    //limite do tempo de um frame (evita saltos grandes na física)
     constexpr float MAX_FRAME_TIME = 0.05f;
-    //metade do lado da caixa que o sol enxerga (sombra existe num quadrado de 2x isso em volta do alvo)
+    //meia largura da caixa de sombra do sol
     constexpr float SHADOW_HALF_SIZE = 10.f;
-    //quanto a câmera do sol fica "recuada" do centro; objetos mais altos que isso acima do centro não projetam sombra
+    //distância da câmera do sol até o centro da caixa
     constexpr float SHADOW_SUN_DISTANCE = 30.f;
 
-    //posiciona a câmera do sol olhando pra center, recuada SHADOW_SUN_DISTANCE na direção da luz
-    //(função só deste arquivo: static = não aparece pra quem inclui o first_app.hpp)
+    //posiciona a câmera do sol em volta do centro
     static void updateShadowCamera(LveCamera &shadowCamera, glm::vec3 center, glm::vec3 lightDirection, uint32_t shadowMapSize) {
         shadowCamera.setViewDirection(center - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
-        //"encaixa" o centro na grade de texels do shadow map: sem isso, ao mover a câmera
-        //a caixa anda frações de texel e a borda da sombra fica tremendo (shimmering)
+        //alinha à grade de texels (a borda da sombra não treme ao mover)
         float texelWorldSize = (2.f * SHADOW_HALF_SIZE) / static_cast<float>(shadowMapSize);
         glm::vec3 centerInLightView = glm::vec3{shadowCamera.getView() * glm::vec4{center, 1.f}};
         glm::vec2 snapped = glm::floor(glm::vec2{centerInLightView} / texelWorldSize) * texelWorldSize;
@@ -39,36 +38,34 @@ namespace lve {
         shadowCamera.setViewDirection(center - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
     }
 
-    //desregistra o refresh callback ao sair do run(), inclusive por exceção: depois disso a janela não pode mais desenhar um frame
+    //desregistra o refresh callback ao sair do run()
     struct RefreshCallbackGuard {
         LveWindow &window;
         ~RefreshCallbackGuard() { window.setRefreshCallback(nullptr); }
     };
 
-    //espera a GPU terminar todo o trabalho pendente quando é destruído. No run() ele é declarado
-    //DEPOIS de todos os recursos de GPU: variáveis locais são destruídas na ordem inversa da
-    //declaração, então ele é o PRIMEIRO a ser destruído e a espera acontece antes de qualquer
-    //recurso que a GPU ainda possa estar usando sumir (no fim normal e também por exceção)
+    //espera a GPU terminar ao sair do run()
     struct DeviceIdleGuard {
         LveDevice &device;
-        //sem vkCheck de propósito: exceção saindo de destrutor encerra o programa na hora
+        //sem vkCheck de propósito (destrutor não pode lançar exceção)
         ~DeviceIdleGuard() { vkDeviceWaitIdle(device.device()); }
     };
 
     FirstApp::FirstApp() {
+        //pool e layout dos descriptors globais
         globalPool = LveDescriptorPool::Builder{lveDevice}
             .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .build();
-        
         globalSetLayout = LveDescriptorSetLayout::Builder{lveDevice}
             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
             .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
             .build();
 
+        //buffers do UBO
         uboBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for(size_t i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<LveBuffer>(
@@ -82,15 +79,16 @@ namespace lve {
             uboBuffers[i]->map();
         }
 
+        //sistemas de render e UI
         VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
         VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
         VkDescriptorSetLayout globalLayout = globalSetLayout->getDescriptorSetLayout();
         simpleRenderSystem = std::make_unique<SimpleRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         pointLightSystem = std::make_unique<PointLightSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(lveDevice, shadowMap, globalLayout);
-
         lveImgui = std::make_unique<LveImgui>(lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount());
 
+        //descriptor sets globais: ligam UBO, shadow map e luzes aos shaders
         globalDescriptorSets.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < globalDescriptorSets.size(); i++) {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
@@ -98,7 +96,7 @@ namespace lve {
             VkDescriptorImageInfo shadowMapInfo{};
             shadowMapInfo.sampler = shadowMap.getSampler();
             shadowMapInfo.imageView = shadowMap.getImageView();
-            //tem que bater com o layout da barreira de saída do ShadowRenderSystem::renderShadowMap
+            //mesmo layout da barreira de saída do passe de sombra
             shadowMapInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
             LveDescriptorWriter(*globalSetLayout, *globalPool)
@@ -108,38 +106,34 @@ namespace lve {
                 .build(globalDescriptorSets[i]);
         }
 
-        //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
+        //projeção da câmera do sol (fixa)
         shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
 
+        //cena inicial
         loadGameObjects();
     }
 
     void FirstApp::run() {
-
+        //relógio inicial
         currentTime = std::chrono::high_resolution_clock::now();
 
+        //guards da saída: desregistram o callback e esperam a GPU
         RefreshCallbackGuard refreshGuard{lveWindow};
-        //último recurso declarado do run(): ver o comentário do DeviceIdleGuard
         DeviceIdleGuard deviceIdleGuard{lveDevice};
+        //redesenha durante o arrasto da borda (Windows)
         if (platform::needsRedrawDuringResize()) {
             lveWindow.setRefreshCallback([this]() { drawFrame(); });
         }
 
         while (!lveWindow.shouldClose()) {
-            //no Windows, durante o arrasto da borda, o drawFrame roda daqui de dentro (refresh callback)
+            //eventos da janela e um frame
             glfwPollEvents();
             drawFrame();
 
-            //limitador de FPS: espera até completar a duração mínima de um frame no alvo
-            //da câmera atual; <= 0 significa "sem limite"
+            //limitador de FPS (<= 0 = sem limite)
             if (cameraController.targetFps > 0.f) {
                 float targetFrameDuration = 1.f / cameraController.targetFps;
-                //sleep_for sozinho não acorda na hora certa (o SO só garante dormir PELO
-                //MENOS o tempo pedido, nunca exatamente). Em vez de pedir um sleep único
-                //pro tempo que falta, dormimos só 1ms de cada vez e checamos o relógio de
-                //novo a cada volta — isso reduz a chance de "perder a hora" por um estouro
-                //grande. Quando sobrar pouco tempo (<2ms), paramos de dormir e deixamos o
-                //próprio laço girar (espera ativa) até bater o alvo com precisão.
+                //dorme 1ms por vez e termina em espera ativa (precisão)
                 float elapsed = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - currentTime).count();
                 while (elapsed < targetFrameDuration) {
                     if (targetFrameDuration - elapsed > 0.002f) {
@@ -152,7 +146,7 @@ namespace lve {
     }
 
     void FirstApp::loadGameObjects() {
-        //cubo de teste: modelo com textura, luz e sombra
+        //cubo de teste (dinâmico)
         std::shared_ptr<LveModel> lveModel = LveModel::createModelFromFile(lveDevice, "models/iron_cube.glb");
         auto& cube = lveScene.createGameObject();
         cube.model = lveModel;
@@ -160,7 +154,7 @@ namespace lve {
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
         cube.rigidBody.emplace();
 
-        //chão embaixo do cubo (Y aponta pra baixo, então +1 = base do cubo), pra receber a sombra
+        //chão (estático)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
         auto& floor = lveScene.createGameObject();
         floor.model = lveModel;
@@ -170,18 +164,18 @@ namespace lve {
         floor.rigidBody->type = BodyType::Static;
         floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
 
-        //câmera de jogo: objeto da cena com o componente de câmera (a que renderiza no Play)
+        //câmera de jogo
         lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
         auto& gameCamera = lveScene.createGameObject();
         gameCamera.model = lveModel;
-        gameCamera.editorOnly = true;  //o gizmo só aparece no editor (e nunca projeta sombra)
+        gameCamera.editorOnly = true;  //gizmo só no editor
         gameCamera.transform.translation = {0.f, -1.f, -5.f};
         gameCamera.camera.emplace();
         lveScene.setActiveCamera(gameCamera.getId());
     }
 
     void FirstApp::startPlay() {
-        //copia a cena do editor pro modo de jogo: a cena do editor fica guardada intacta
+        //a cena do editor fica intacta
         playScene = lveScene;
     }
 
@@ -190,13 +184,12 @@ namespace lve {
     }
 
     void FirstApp::updatePlayMode() {
-        //digitando num campo do ImGui: o P é texto, não comando
+        //não dispara enquanto digita no ImGui
         bool typing = ImGui::GetIO().WantCaptureKeyboard;
         if (!playScene && !typing && lveInput.wasPressed(GLFW_KEY_P)) {
             startPlay();
         }
-        //o GLFW nomeia pela posição no teclado americano: a tecla à esquerda do 1
-        //(' no ABNT2) é a GRAVE_ACCENT
+        //tecla à esquerda do 1 (GRAVE_ACCENT no GLFW)
         else if (playScene && lveInput.wasPressed(GLFW_KEY_GRAVE_ACCENT)) {
             stopPlay();
         }
@@ -233,15 +226,14 @@ namespace lve {
 
     void FirstApp::updateCamera(LveGameObject* gameCamera, float aspect) {
         if (gameCamera) {
-            //vista da camera
+            //Play: vista e lente do objeto câmera
             glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
             camera.setViewDirection(gameCamera->transform.translation, forward);
-            //adiciona a lente a camera
             const CameraComponent& lens = *gameCamera->camera;
             camera.setPerspectiveProjection(lens.fovY, aspect, lens.nearPlane, lens.farPlane);
             return;
         }
-        //ativar e desativar modo camera orbital
+        //editor: orbital
         if (!playScene) {
             cameraController.update(lveWindow, camera);
         }
@@ -249,7 +241,7 @@ namespace lve {
     }
 
     glm::mat4 FirstApp::computeLightSpaceMatrix(LveGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize) {
-        //projeta sombra apenas para aquilo que a camera ve
+        //centro: alvo da orbital, ou à frente da câmera de jogo
         glm::vec3 shadowCenter = cameraController.target;
         if (gameCamera) {
             glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
@@ -260,7 +252,7 @@ namespace lve {
     }
 
     void FirstApp::renderFrame(FrameInfo& frameInfo) {
-        //passe de sombra primeiro: o passe principal lê o shadow map que ele produz
+        //sombra primeiro: o passe principal lê o shadow map
         shadowRenderSystem->renderShadowMap(frameInfo);
         lveRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
         simpleRenderSystem->renderGameObjects(frameInfo);
@@ -282,7 +274,7 @@ namespace lve {
 
         //point lights da cena
         if (pointLightSystem->update(frameInfo, ubo)) {
-            //o buffer de luzes deste frame cresceu: o descriptor passa a apontar pro novo
+            //buffer de luzes cresceu: atualiza o descriptor
             auto lightBufferInfo = pointLightSystem->lightBufferInfo(frameInfo.frameIndex);
             LveDescriptorWriter(*globalSetLayout, *globalPool)
                 .writeBuffer(2, &lightBufferInfo)
@@ -300,7 +292,7 @@ namespace lve {
         currentTime = newTime;
         frameTime = glm::min(frameTime, MAX_FRAME_TIME);
 
-        //média móvel pro número não ficar tremendo
+        //FPS com média móvel (não treme)
         if (frameTime > 0.f) {
             float instantFps = 1.f / frameTime;
             displayFps = displayFps <= 0.f ? instantFps : glm::mix(displayFps, instantFps, 0.1f);
@@ -309,22 +301,23 @@ namespace lve {
     }
 
     void FirstApp::drawFrame() {
-        //trava contra reentrada: recriar a swap chain pode chamar glfwWaitEvents (janela minimizada), que pode disparar o refresh callback NO MEIO deste frame
+        //trava contra reentrada (refresh callback no meio do frame)
         if (drawingFrame) return;
         drawingFrame = true;
 
         float frameTime = updateFrameTime();
 
-        //uma vez por frame procura por inputs{inputs devem ser lidos antes de qualquer chamada do frame};
+        //teclado: lido antes de qualquer coisa do frame
         lveInput.update(lveWindow);
-        //alternam entre editor e Play
+        //P / ' alternam editor e Play
         updatePlayMode();
 
+        //física (só no Play)
         if (playScene) {
             physicsSystem.update(*playScene, frameTime);
         }
 
-        //câmera do jogo: o objeto câmera ativo da cena do Play
+        //câmera de jogo
         LveGameObject* gameCamera = findGameCamera();
 
         if (auto commandBuffer = lveRenderer.beginFrame()) {
@@ -343,7 +336,7 @@ namespace lve {
 
             updateGlobalUbo(frameInfo, gameCamera);
 
-            //UI: contador de FPS e o modo atual (editor/play)
+            //UI
             lveImgui->newFrame();
             drawStatsWindow(displayFps);
 
