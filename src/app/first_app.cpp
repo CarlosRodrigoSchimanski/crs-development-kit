@@ -91,16 +91,12 @@ namespace lve {
         pointLightSystem = std::make_unique<PointLightSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(lveDevice, shadowMap, globalLayout);
 
+        lveImgui = std::make_unique<LveImgui>(lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount());
+
         loadGameObjects();
     }
 
     void FirstApp::run() {
-
-        //formatos das imagens da tela: todo pipeline que desenha nela é criado com eles
-        VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
-        VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
-
-        LveImgui lveImgui{lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount()};
         
         std::vector<VkDescriptorSet> globalDescriptorSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < globalDescriptorSets.size(); i++)
@@ -198,7 +194,7 @@ namespace lve {
                 uboBuffers[frameIndex]->flush();
 
                 //UI: contador de FPS e o modo atual (editor/play)
-                lveImgui.newFrame();
+                lveImgui->newFrame();
                 drawStatsWindow(displayFps);
 
                 //render
@@ -207,7 +203,7 @@ namespace lve {
                 lveRenderer.beginSwapChainRendering(commandBuffer);
                 simpleRenderSystem->renderGameObjects(frameInfo);
                 pointLightSystem->render(frameInfo);
-                lveImgui.render(commandBuffer);
+                lveImgui->render(commandBuffer);
                 lveRenderer.endSwapChainRendering(commandBuffer);
                 lveRenderer.endFrame();
             }

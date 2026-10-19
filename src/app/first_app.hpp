@@ -14,6 +14,8 @@
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/physics/lve_physics_system.hpp"
 #include "editor/orbit_camera_controller.hpp"
+#include "editor/lve_imgui.hpp"
+
 
 
 #include <memory>
@@ -75,6 +77,9 @@ namespace lve {
             std::unique_ptr<SimpleRenderSystem> simpleRenderSystem{};
             std::unique_ptr<PointLightSystem> pointLightSystem{};
             std::unique_ptr<ShadowRenderSystem> shadowRenderSystem{};
+
+            //interface do editor (janela de Stats)
+            std::unique_ptr<LveImgui> lveImgui{};
 
             //a cena: todos os objetos, indexados pelo id
             LveScene lveScene;
