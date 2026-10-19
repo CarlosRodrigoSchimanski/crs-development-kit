@@ -197,13 +197,7 @@ namespace lve {
                 drawStatsWindow(displayFps);
 
                 //render
-                //passe de sombra primeiro: o passe principal vai ler o shadow map que ele produz
-                shadowRenderSystem->renderShadowMap(frameInfo);
-                lveRenderer.beginSwapChainRendering(commandBuffer);
-                simpleRenderSystem->renderGameObjects(frameInfo);
-                pointLightSystem->render(frameInfo);
-                lveImgui->render(commandBuffer);
-                lveRenderer.endSwapChainRendering(commandBuffer);
+                renderFrame(frameInfo);
                 lveRenderer.endFrame();
             }
 
@@ -349,5 +343,15 @@ namespace lve {
         }
         updateShadowCamera(shadowCamera, shadowCenter, lightDirection, shadowMapSize);
         return shadowCamera.getProjection() * shadowCamera.getView();
+    }
+
+    void FirstApp::renderFrame(FrameInfo& frameInfo) {
+        //passe de sombra primeiro: o passe principal lê o shadow map que ele produz
+        shadowRenderSystem->renderShadowMap(frameInfo);
+        lveRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
+        simpleRenderSystem->renderGameObjects(frameInfo);
+        pointLightSystem->render(frameInfo);
+        lveImgui->render(frameInfo.commandBuffer);
+        lveRenderer.endSwapChainRendering(frameInfo.commandBuffer);
     }
 }
