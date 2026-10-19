@@ -21,6 +21,7 @@
 #include <memory>
 #include <vector>
 #include <optional>
+#include <chrono>
 
 namespace lve {
     //aplicação: dona da janela, do device e da cena, e roda o loop principal
@@ -62,6 +63,8 @@ namespace lve {
             void renderFrame(FrameInfo& frameInfo);
             //monta os dados globais do frame pros shaders (câmera, sombra, luzes) e envia pra GPU
             void updateGlobalUbo(FrameInfo& frameInfo, LveGameObject* gameCamera);
+            //tempo desde o frame anterior (limitado) e atualiza o FPS exibido
+            float updateFrameTime();
 
             //ordem importa: membros são criados de cima pra baixo e destruídos de baixo pra cima,
             //e cada um depende dos de cima (o device precisa da janela pra criar a surface, etc.)
@@ -86,6 +89,11 @@ namespace lve {
             std::unique_ptr<LveImgui> lveImgui{};
             //liga UBO + shadow map + luzes aos shaders: um set por frame em voo
             std::vector<VkDescriptorSet> globalDescriptorSets;
+            
+            //relógio do frame anterior e FPS suavizado da janela de Stats
+            std::chrono::high_resolution_clock::time_point currentTime{};
+            float displayFps = 0.f;
+
             //a cena: todos os objetos, indexados pelo id
             LveScene lveScene;
             //modo start/stop: do modo jogo

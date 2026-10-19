@@ -118,30 +118,19 @@ namespace lve {
         //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
         shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
 
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float displayFps = 0.f;
+        currentTime = std::chrono::high_resolution_clock::now();
 
         //um frame inteiro (tempo, câmera, update, desenho). É uma função (lambda) e não só o corpo
         //do while porque, onde o SO trava o loop durante o redimensionamento (Windows), ela também
         //é chamada de dentro do refresh callback da janela
         bool drawingFrame = false;
+
         auto drawFrame = [&]() {
-            //trava contra reentrada: recriar a swap chain pode chamar glfwWaitEvents (janela
-            //minimizada), que pode disparar o refresh callback NO MEIO deste frame
+            //trava contra reentrada: recriar a swap chain pode chamar glfwWaitEvents (janela minimizada), que pode disparar o refresh callback NO MEIO deste frame
             if (drawingFrame) return;
             drawingFrame = true;
 
-            auto newTime = std::chrono::high_resolution_clock::now();
-            float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
-            currentTime = newTime;
-
-            frameTime = glm::min(frameTime, MAX_FRAME_TIME);
-
-            //suaviza o valor exibido (média móvel), senão o número fica tremendo a cada frame
-            if (frameTime > 0.f) {
-                float instantFps = 1.f / frameTime;
-                displayFps = displayFps <= 0.f ? instantFps : glm::mix(displayFps, instantFps, 0.1f);
-            }
+            float frameTime = updateFrameTime();
 
             //uma vez por frame procura por inputs{inputs devem ser lidos antes de qualquer chamada do frame};
             lveInput.update(lveWindow);
@@ -357,5 +346,19 @@ namespace lve {
         //envia pra GPU
         uboBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
         uboBuffers[frameInfo.frameIndex]->flush();
+    }
+
+    float FirstApp::updateFrameTime() {
+        auto newTime = std::chrono::high_resolution_clock::now();
+        float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
+        currentTime = newTime;
+        frameTime = glm::min(frameTime, MAX_FRAME_TIME);
+
+        //média móvel pro número não ficar tremendo
+        if (frameTime > 0.f) {
+            float instantFps = 1.f / frameTime;
+            displayFps = displayFps <= 0.f ? instantFps : glm::mix(displayFps, instantFps, 0.1f);
+        }
+        return frameTime;
     }
 }
