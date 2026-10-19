@@ -165,8 +165,7 @@ FASE 2 — Otimizações de performance/arquitetura (mudanças mais aditivas)
        Solução definitiva: thread de render separada da thread de eventos (Unreal/Unity);
        meio-termo só Windows: WM_TIMER durante o loop modal, no lve_platform_windows.cpp.
        Fazer quando o jogo/editor precisar rodar sem pausar.
-     * drawFrame é uma lambda [&] dentro de um run() de ~200 linhas: quando vier o scene
-       manager (sistemas saem do run()), virar método da classe.
+     * ✅ (2026-10-19) drawFrame virou método do FirstApp; o refresh callback é [this]{ drawFrame(); }.
      * frames do refresh callback não passam pelo limitador de FPS (inofensivo).
    (texto original do item abaixo)
    - No Windows, o SO trava o loop principal (glfwPollEvents) durante o arrasto de
@@ -397,10 +396,11 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      (o pool de materiais tem teto fixo MAX_MATERIALS = 100 e nunca devolve sets)
    - Carregar a cena inteira num LveUploadBatch só (1 espera); depois, fence no lugar do
      vkQueueWaitIdle pra carregar em segundo plano sem travar.
-   - Sistemas e estado do frame saem do FirstApp::run() e a lambda drawFrame vira método
+   - ✅ (2026-10-19) Sistemas e estado do frame saem do FirstApp::run() e a lambda drawFrame vira método
      (ver Fase 2 item 10).
 
-3. Câmera de jogo como objeto da cena, e só DEPOIS o modo Play
+3. ✅ (2026-10-16/17: LveScene, CameraComponent + gizmo, LveInput, Play com P / tecla à esquerda
+   do 1, física simples com gravidade e colisão de caixa) Câmera de jogo como objeto da cena, e só DEPOIS o modo Play
    (ordem revista em 2026-10-12, substitui a ordem anterior):
    - A engine é tratada primeiro como um editor (câmera orbital estilo Blender já
      existe e é a câmera do editor, continua sendo).
