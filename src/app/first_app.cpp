@@ -64,6 +64,7 @@ namespace lve {
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .build();
+
         uboBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for(size_t i = 0; i < uboBuffers.size(); i++) {
             uboBuffers[i] = std::make_unique<LveBuffer>(
@@ -80,9 +81,6 @@ namespace lve {
     }
 
     void FirstApp::run() {
-
-        LveShadowMap shadowMap{lveDevice};
-
 
         auto globalSetLayout = LveDescriptorSetLayout::Builder{lveDevice}
             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)

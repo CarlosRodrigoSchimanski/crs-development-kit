@@ -1,11 +1,12 @@
 #pragma once
 
+#include "engine/scene/lve_scene.hpp"
 #include "engine/core/lve_window.hpp"
 #include "engine/core/lve_device.hpp"
 #include "engine/core/lve_input.hpp"
-#include "engine/scene/lve_scene.hpp"
-#include "engine/rendering/lve_renderer.hpp"
 #include "engine/rendering/lve_descriptors.hpp"
+#include "engine/rendering/lve_shadow_map.hpp"
+#include "engine/rendering/lve_renderer.hpp"
 #include "engine/rendering/lve_camera.hpp"
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/physics/lve_physics_system.hpp"
@@ -62,6 +63,8 @@ namespace lve {
             std::unique_ptr<LveDescriptorPool> globalPool{};
             //um buffer de UBO por frame em voo (dados globais do frame pros shaders)
             std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
+            //mapa de profundidade do sol: o passe de sombra escreve, o passe principal lê
+            LveShadowMap shadowMap{lveDevice};
             //a cena: todos os objetos, indexados pelo id
             LveScene lveScene;
             //modo start/stop: do modo jogo
