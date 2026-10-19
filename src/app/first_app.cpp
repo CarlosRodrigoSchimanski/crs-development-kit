@@ -93,14 +93,8 @@ namespace lve {
 
         lveImgui = std::make_unique<LveImgui>(lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount());
 
-        loadGameObjects();
-    }
-
-    void FirstApp::run() {
-        
-        std::vector<VkDescriptorSet> globalDescriptorSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < globalDescriptorSets.size(); i++)
-        {
+        globalDescriptorSets.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < globalDescriptorSets.size(); i++) {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
             auto lightBufferInfo = pointLightSystem->lightBufferInfo(static_cast<int>(i));
             VkDescriptorImageInfo shadowMapInfo{};
@@ -115,6 +109,11 @@ namespace lve {
                 .writeBuffer(2, &lightBufferInfo)
                 .build(globalDescriptorSets[i]);
         }
+
+        loadGameObjects();
+    }
+
+    void FirstApp::run() {
 
         //o tamanho da caixa do sol é fixo: a projeção só precisa ser montada uma vez
         shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);

@@ -80,7 +80,8 @@ namespace lve {
 
             //interface do editor (janela de Stats)
             std::unique_ptr<LveImgui> lveImgui{};
-
+            //liga UBO + shadow map + luzes aos shaders: um set por frame em voo
+            std::vector<VkDescriptorSet> globalDescriptorSets;
             //a cena: todos os objetos, indexados pelo id
             LveScene lveScene;
             //modo start/stop: do modo jogo
