@@ -83,6 +83,14 @@ namespace lve {
             );
             uboBuffers[i]->map();
         }
+
+        VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
+        VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
+        VkDescriptorSetLayout globalLayout = globalSetLayout->getDescriptorSetLayout();
+        simpleRenderSystem = std::make_unique<SimpleRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
+        pointLightSystem = std::make_unique<PointLightSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
+        shadowRenderSystem = std::make_unique<ShadowRenderSystem>(lveDevice, shadowMap, globalLayout);
+
         loadGameObjects();
     }
 
@@ -91,17 +99,14 @@ namespace lve {
         //formatos das imagens da tela: todo pipeline que desenha nela é criado com eles
         VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
         VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
-        SimpleRenderSystem simpleRenderSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
-        //criado antes dos descriptor sets: ele é dono dos buffers de luz (binding 2)
-        PointLightSystem pointLightSystem{lveDevice, colorFormat, depthFormat, globalSetLayout->getDescriptorSetLayout()};
-        ShadowRenderSystem shadowRenderSystem{lveDevice, shadowMap, globalSetLayout->getDescriptorSetLayout()};
+
         LveImgui lveImgui{lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount()};
         
         std::vector<VkDescriptorSet> globalDescriptorSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < globalDescriptorSets.size(); i++)
         {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
-            auto lightBufferInfo = pointLightSystem.lightBufferInfo(static_cast<int>(i));
+            auto lightBufferInfo = pointLightSystem->lightBufferInfo(static_cast<int>(i));
             VkDescriptorImageInfo shadowMapInfo{};
             shadowMapInfo.sampler = shadowMap.getSampler();
             shadowMapInfo.imageView = shadowMap.getImageView();
@@ -180,9 +185,9 @@ namespace lve {
                 ubo.lightSpaceMatrix = computeLightSpaceMatrix(gameCamera, lightDirection, shadowMap.getExtent().width);
 
                 //point lights: junta as luzes da cena no buffer de luzes e conta quantas são (ubo.numLights)
-                if (pointLightSystem.update(frameInfo, ubo)) {
+                if (pointLightSystem->update(frameInfo, ubo)) {
                     //o buffer de luzes deste frame foi recriado maior: o descriptor aponta pro novo
-                    auto lightBufferInfo = pointLightSystem.lightBufferInfo(frameIndex);
+                    auto lightBufferInfo = pointLightSystem->lightBufferInfo(frameIndex);
                     LveDescriptorWriter(*globalSetLayout, *globalPool)
                         .writeBuffer(2, &lightBufferInfo)
                         .overwrite(globalDescriptorSets[frameIndex]);
@@ -198,10 +203,10 @@ namespace lve {
 
                 //render
                 //passe de sombra primeiro: o passe principal vai ler o shadow map que ele produz
-                shadowRenderSystem.renderShadowMap(frameInfo);
+                shadowRenderSystem->renderShadowMap(frameInfo);
                 lveRenderer.beginSwapChainRendering(commandBuffer);
-                simpleRenderSystem.renderGameObjects(frameInfo);
-                pointLightSystem.render(frameInfo);
+                simpleRenderSystem->renderGameObjects(frameInfo);
+                pointLightSystem->render(frameInfo);
                 lveImgui.render(commandBuffer);
                 lveRenderer.endSwapChainRendering(commandBuffer);
                 lveRenderer.endFrame();

@@ -4,6 +4,9 @@
 #include "engine/core/lve_window.hpp"
 #include "engine/core/lve_device.hpp"
 #include "engine/core/lve_input.hpp"
+#include "engine/rendering/systems/simple_render_system.hpp"
+#include "engine/rendering/systems/point_light_system.hpp"
+#include "engine/rendering/systems/shadow_render_system.hpp"
 #include "engine/rendering/lve_descriptors.hpp"
 #include "engine/rendering/lve_shadow_map.hpp"
 #include "engine/rendering/lve_renderer.hpp"
@@ -67,6 +70,12 @@ namespace lve {
             std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
             //mapa de profundidade do sol: o passe de sombra escreve, o passe principal lê
             LveShadowMap shadowMap{lveDevice};
+
+            //sistemas de render: cada um desenha um tipo de coisa da cena
+            std::unique_ptr<SimpleRenderSystem> simpleRenderSystem{};
+            std::unique_ptr<PointLightSystem> pointLightSystem{};
+            std::unique_ptr<ShadowRenderSystem> shadowRenderSystem{};
+
             //a cena: todos os objetos, indexados pelo id
             LveScene lveScene;
             //modo start/stop: do modo jogo
