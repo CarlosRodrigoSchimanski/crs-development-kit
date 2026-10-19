@@ -61,6 +61,8 @@ namespace lve {
             LveRenderer lveRenderer{lveWindow, lveDevice};
             //descriptors globais (UBO + shadow map), um set por frame em voo
             std::unique_ptr<LveDescriptorPool> globalPool{};
+            //formato dos dados globais dos shaders: 0 = UBO, 1 = shadow map, 2 = luzes
+            std::unique_ptr<LveDescriptorSetLayout> globalSetLayout{};
             //um buffer de UBO por frame em voo (dados globais do frame pros shaders)
             std::vector<std::unique_ptr<LveBuffer>> uboBuffers;
             //mapa de profundidade do sol: o passe de sombra escreve, o passe principal lê
