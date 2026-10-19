@@ -60,6 +60,8 @@ namespace lve {
             glm::mat4 computeLightSpaceMatrix(LveGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize);
             //desenha o frame: sombra primeiro, depois a cena, as luzes e a UI
             void renderFrame(FrameInfo& frameInfo);
+            //monta os dados globais do frame pros shaders (câmera, sombra, luzes) e envia pra GPU
+            void updateGlobalUbo(FrameInfo& frameInfo, LveGameObject* gameCamera);
 
             //ordem importa: membros são criados de cima pra baixo e destruídos de baixo pra cima,
             //e cada um depende dos de cima (o device precisa da janela pra criar a surface, etc.)

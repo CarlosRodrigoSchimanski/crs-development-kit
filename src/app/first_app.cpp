@@ -169,28 +169,7 @@ namespace lve {
                     playScene.has_value()
                 };
 
-                //dados globais do frame pros shaders (UBO): câmera, sol e luzes
-                GlobalUbo ubo{};
-                ubo.projection = camera.getProjection();
-                ubo.view = camera.getView();
-                ubo.inverseView = camera.getInverseView();
-                glm::vec3 lightDirection = -glm::normalize(glm::vec3{ubo.sunDirection});
-
-                //configuração de sombra 
-                ubo.lightSpaceMatrix = computeLightSpaceMatrix(gameCamera, lightDirection, shadowMap.getExtent().width);
-
-                //point lights: junta as luzes da cena no buffer de luzes e conta quantas são (ubo.numLights)
-                if (pointLightSystem->update(frameInfo, ubo)) {
-                    //o buffer de luzes deste frame foi recriado maior: o descriptor aponta pro novo
-                    auto lightBufferInfo = pointLightSystem->lightBufferInfo(frameIndex);
-                    LveDescriptorWriter(*globalSetLayout, *globalPool)
-                        .writeBuffer(2, &lightBufferInfo)
-                        .overwrite(globalDescriptorSets[frameIndex]);
-                }
-
-                //ubo pronto: envia pra GPU (o buffer deste frame em voo)
-                uboBuffers[frameIndex]->writeToBuffer(&ubo);
-                uboBuffers[frameIndex]->flush();
+                updateGlobalUbo(frameInfo, gameCamera);
 
                 //UI: contador de FPS e o modo atual (editor/play)
                 lveImgui->newFrame();
@@ -353,5 +332,30 @@ namespace lve {
         pointLightSystem->render(frameInfo);
         lveImgui->render(frameInfo.commandBuffer);
         lveRenderer.endSwapChainRendering(frameInfo.commandBuffer);
+    }
+
+    void FirstApp::updateGlobalUbo(FrameInfo& frameInfo, LveGameObject* gameCamera) {
+        //câmera
+        GlobalUbo ubo{};
+        ubo.projection = camera.getProjection();
+        ubo.view = camera.getView();
+        ubo.inverseView = camera.getInverseView();
+
+        //configuração de sombra
+        glm::vec3 lightDirection = -glm::normalize(glm::vec3{ubo.sunDirection});
+        ubo.lightSpaceMatrix = computeLightSpaceMatrix(gameCamera, lightDirection, shadowMap.getExtent().width);
+
+        //point lights da cena
+        if (pointLightSystem->update(frameInfo, ubo)) {
+            //o buffer de luzes deste frame cresceu: o descriptor passa a apontar pro novo
+            auto lightBufferInfo = pointLightSystem->lightBufferInfo(frameInfo.frameIndex);
+            LveDescriptorWriter(*globalSetLayout, *globalPool)
+                .writeBuffer(2, &lightBufferInfo)
+                .overwrite(globalDescriptorSets[frameInfo.frameIndex]);
+        }
+
+        //envia pra GPU
+        uboBuffers[frameInfo.frameIndex]->writeToBuffer(&ubo);
+        uboBuffers[frameInfo.frameIndex]->flush();
     }
 }
