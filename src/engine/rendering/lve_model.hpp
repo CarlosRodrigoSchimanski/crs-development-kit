@@ -33,8 +33,14 @@ namespace lve {
                 //imagem de cor do material (png/jpg ainda codificado); vazio = modelo sem textura
                 std::vector<unsigned char> baseColorImage{};
 
+                //pares de índices: as arestas reais (onde a superfície dobra), pros gizmos
+                std::vector<uint32_t> edgeIndices{};
+
                 //carrega um .gltf/.glb (formato do jogo: exportado direto do Blender)
                 void loadModel(const std::string &filepath);
+                //calcula as arestas reais a partir dos triângulos (chamado no fim do loadModel)
+                void buildEdges();
+
             };
 
             LveModel(LveDevice &device, const LveModel::Builder &builder);

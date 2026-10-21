@@ -6,6 +6,10 @@
 
 #include <cassert>
 #include <stdexcept>
+#include <map>
+#include <tuple>
+#include <utility>
+
 
 namespace lve {
 
@@ -220,5 +224,66 @@ namespace lve {
                 }
             }
         }
+        buildEdges();
     }
+
+    //aresta real: borda da malha, ou onde as faces vizinhas dobram mais que este ângulo
+    constexpr float EDGE_ANGLE_DEGREES = 30.f;
+
+    void LveModel::Builder::buildEdges() {
+        edgeIndices.clear();
+
+        //solda: vértices na mesma posição viram um id só (o glb duplica vértice nas costuras)
+        std::map<std::tuple<float, float, float>, uint32_t> positionIds;
+        std::vector<uint32_t> weld(vertices.size());
+        for (size_t i = 0; i < vertices.size(); i++) {
+            const glm::vec3 &p = vertices[i].position;
+            auto result = positionIds.try_emplace({p.x, p.y, p.z}, static_cast<uint32_t>(positionIds.size()));
+            weld[i] = result.first->second;
+        }
+
+        //cada aresta guarda as normais das faces que a usam
+        struct EdgeFaces {
+            uint32_t a = 0;  //índices originais, pra desenhar
+            uint32_t b = 0;
+            std::vector<glm::vec3> normals;
+        };
+        std::map<std::pair<uint32_t, uint32_t>, EdgeFaces> edges;
+
+        for (size_t t = 0; t + 2 < indices.size(); t += 3) {
+            uint32_t tri[3] = {indices[t], indices[t + 1], indices[t + 2]};
+            glm::vec3 normal = glm::cross(
+                vertices[tri[1]].position - vertices[tri[0]].position,
+                vertices[tri[2]].position - vertices[tri[0]].position);
+            if (glm::length(normal) < 1e-12f) continue;  //triângulo degenerado (sem área)
+            normal = glm::normalize(normal);
+
+            for (int e = 0; e < 3; e++) {
+                uint32_t a = tri[e];
+                uint32_t b = tri[(e + 1) % 3];
+                //a mesma aresta tem que dar a mesma chave nos dois triângulos: menor id primeiro
+                uint32_t wa = weld[a];
+                uint32_t wb = weld[b];
+                std::pair<uint32_t, uint32_t> key = wa < wb ? std::pair{wa, wb} : std::pair{wb, wa};
+
+                EdgeFaces &edge = edges[key];
+                if (edge.normals.empty()) {
+                    edge.a = a;
+                    edge.b = b;
+                }
+                edge.normals.push_back(normal);
+            }
+        }
+
+        const float cosLimit = glm::cos(glm::radians(EDGE_ANGLE_DEGREES));
+        for (auto &[key, edge] : edges) {
+            //borda (1 face), junção com 3+ faces, ou dobra maior que o limite
+            bool real = edge.normals.size() != 2 || glm::dot(edge.normals[0], edge.normals[1]) < cosLimit;
+            if (real) {
+                edgeIndices.push_back(edge.a);
+                edgeIndices.push_back(edge.b);
+            }
+        }
+    }
+
 }
