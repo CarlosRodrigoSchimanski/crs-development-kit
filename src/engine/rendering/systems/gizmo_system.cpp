@@ -13,6 +13,9 @@ namespace lve {
     //tint do preenchimento: branco = cor do modelo; a = opacidade
     const glm::vec4 GIZMO_FILL_TINT{1.f, 1.f, 1.f, 0.25f};
 
+    //tint das arestas: cor do modelo mais clara e opaca
+    const glm::vec4 GIZMO_EDGE_TINT{1.5f, 1.5f, 1.5f, 1.f};
+
     GizmoRenderSystem::GizmoRenderSystem(
         LveDevice& device, 
         VkFormat colorFormat, 
@@ -53,6 +56,15 @@ namespace lve {
             "shaders/gizmo.vert.spv",
             "shaders/gizmo.frag.spv",
             pipelineConfig);
+
+        //arestas: mesma configuração, mas cada par de índices vira uma linha
+        pipelineConfig.inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        edgePipeline = std::make_unique<LvePipeline>(
+            lveDevice,
+            "shaders/gizmo.vert.spv",
+            "shaders/gizmo.frag.spv",
+            pipelineConfig);
+
     }
 
     void GizmoRenderSystem::render(FrameInfo& frameInfo) {
@@ -87,6 +99,27 @@ namespace lve {
 
             obj.model->bind(frameInfo.commandBuffer);
             obj.model->draw(frameInfo.commandBuffer);
+        }
+
+        //arestas por cima do preenchimento
+        edgePipeline->bind(frameInfo.commandBuffer);
+        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
+            auto& obj = kv.second;
+            if (!obj.editorOnly || obj.model == nullptr) continue;
+
+            GizmoPushConstantData push{};
+            push.modelMatrix = obj.transform.mat4();
+            push.color = GIZMO_EDGE_TINT;
+
+            vkCmdPushConstants(
+                frameInfo.commandBuffer,
+                pipelineLayout.get(),
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                0,
+                sizeof(GizmoPushConstantData),
+                &push);
+
+            obj.model->drawEdges(frameInfo.commandBuffer);
         }
     }
 }

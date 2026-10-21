@@ -25,5 +25,9 @@ namespace lve {
 
             //preenchimento transparente
             std::unique_ptr<LvePipeline> fillPipeline;
+
+            //arestas reais em linha, opacas
+            std::unique_ptr<LvePipeline> edgePipeline;
+
         };
 }
