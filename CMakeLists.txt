@@ -94,6 +94,8 @@ set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/point_light.frag
     ${CMAKE_SOURCE_DIR}/shaders/shadow.vert
     ${CMAKE_SOURCE_DIR}/shaders/shadow.frag
+    ${CMAKE_SOURCE_DIR}/shaders/gizmo.vert
+    ${CMAKE_SOURCE_DIR}/shaders/gizmo.frag
 )
 #loop para compilar cada shader
 foreach(SHADER ${SHADER_SOURCES})
