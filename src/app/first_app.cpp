@@ -86,6 +86,7 @@ namespace lve {
         simpleRenderSystem = std::make_unique<SimpleRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         pointLightSystem = std::make_unique<PointLightSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(lveDevice, shadowMap, globalLayout);
+        gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         lveImgui = std::make_unique<LveImgui>(lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount());
 
         //descriptor sets globais: ligam UBO, shadow map e luzes aos shaders
@@ -257,6 +258,12 @@ namespace lve {
         lveRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
         simpleRenderSystem->renderGameObjects(frameInfo);
         pointLightSystem->render(frameInfo);
+        
+        //gizmos: transparentes, depois do que é opaco
+        if (!frameInfo.playing) {
+            gizmoRenderSystem->render(frameInfo);
+        }
+
         lveImgui->render(frameInfo.commandBuffer);
         lveRenderer.endSwapChainRendering(frameInfo.commandBuffer);
     }

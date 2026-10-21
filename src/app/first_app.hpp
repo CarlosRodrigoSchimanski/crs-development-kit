@@ -7,6 +7,7 @@
 #include "engine/rendering/systems/simple_render_system.hpp"
 #include "engine/rendering/systems/point_light_system.hpp"
 #include "engine/rendering/systems/shadow_render_system.hpp"
+#include "engine/rendering/systems/gizmo_system.hpp"
 #include "engine/rendering/lve_descriptors.hpp"
 #include "engine/rendering/lve_shadow_map.hpp"
 #include "engine/rendering/lve_renderer.hpp"
@@ -83,6 +84,7 @@ namespace lve {
             std::unique_ptr<SimpleRenderSystem> simpleRenderSystem{};
             std::unique_ptr<PointLightSystem> pointLightSystem{};
             std::unique_ptr<ShadowRenderSystem> shadowRenderSystem{};
+            std::unique_ptr<GizmoRenderSystem> gizmoRenderSystem{};
 
             //interface do editor
             std::unique_ptr<LveImgui> lveImgui{};

@@ -69,7 +69,7 @@ namespace lve {
         for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
             if (obj.model == nullptr) continue;
-            if (obj.editorOnly && frameInfo.playing) continue;  //não desenha no jogo so no editor
+            if (obj.editorOnly) continue;  //gizmos são do GizmoRenderSystem
 
             //set 1: textura do modelo; sem textura (ou com useTexture desligado) usa a branca
             LveTexture *texture = obj.model->getTexture();
