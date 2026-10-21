@@ -135,6 +135,7 @@ set(PROJECT_SOURCES
     src/engine/rendering/systems/simple_render_system.cpp
     src/engine/rendering/systems/point_light_system.cpp
     src/engine/rendering/systems/shadow_render_system.cpp
+    src/engine/rendering/systems/gizmo_system.cpp
     src/engine/rendering/lve_camera.cpp
     src/engine/rendering/lve_buffer.cpp
     src/engine/rendering/lve_descriptors.cpp
