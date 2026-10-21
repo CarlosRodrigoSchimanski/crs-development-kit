@@ -84,6 +84,15 @@ set(IMGUI_SOURCES
 )
 #----------------------------------------------------------#
 
+#incluir doctest (testes automatizados): só um header, sintaxe parecida com a do pytest
+FetchContent_Declare(
+    doctest
+    GIT_REPOSITORY https://github.com/doctest/doctest.git
+    GIT_TAG v2.4.12
+)
+FetchContent_MakeAvailable(doctest)
+#----------------------------------------------------------#
+
 #compilar os shaders (.vert/.frag) para .spv usando glslc do Vulkan SDK
 find_program(GLSLC glslc REQUIRED)
 #lista de arquivos de shader
@@ -189,4 +198,22 @@ add_custom_target(Shaders DEPENDS ${SPIRV_BINARY_FILES})
 
 #garante que os shaders sejam compilados antes do executável
 add_dependencies(G_E_Youtube Shaders)
+#----------------------------------------------------------#
+
+#testes automatizados: executável separado, sem janela nem GPU.
+#Rodar todos: ctest --test-dir build -C Debug --output-on-failure
+enable_testing()
+set(TEST_SOURCES
+    tests/test_main.cpp
+    tests/test_sanity.cpp
+)
+add_executable(G_E_Youtube_tests ${TEST_SOURCES})
+if(MSVC)
+    target_compile_options(G_E_Youtube_tests PRIVATE /W4)
+else()
+    target_compile_options(G_E_Youtube_tests PRIVATE -Wall -Wextra)
+endif()
+target_include_directories(G_E_Youtube_tests PRIVATE src)
+target_link_libraries(G_E_Youtube_tests PRIVATE doctest::doctest)
+add_test(NAME engine_tests COMMAND G_E_Youtube_tests)
 #----------------------------------------------------------#
