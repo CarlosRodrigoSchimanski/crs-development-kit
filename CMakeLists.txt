@@ -125,73 +125,76 @@ endforeach()
 #incluir vulkan
 find_package(Vulkan REQUIRED)
 
-#arquivos do projeto (separados das bibliotecas: os avisos extras valem só pra eles)
-set(PROJECT_SOURCES
-    src/main.cpp
+#engine: biblioteca usada pelo jogo e pelos testes (tudo de src/engine/).
+#Regra: engine/ nunca inclui editor/, game/ ou app/
+set(ENGINE_SOURCES
     src/engine/core/lve_window.cpp
     src/engine/core/lve_device.cpp
     src/engine/core/lve_handle.cpp
     src/engine/core/lve_vk_check.cpp
     src/engine/core/lve_input.cpp
-    src/app/first_app.cpp
     src/engine/rendering/lve_pipeline.cpp
     src/engine/rendering/lve_swap_chain.cpp
     src/engine/rendering/lve_model.cpp
     src/engine/rendering/lve_renderer.cpp
-    src/engine/scene/lve_game_object.cpp
-    src/engine/scene/lve_scene.cpp
-    src/engine/physics/lve_physics_system.cpp
-    src/engine/rendering/systems/simple_render_system.cpp
-    src/engine/rendering/systems/point_light_system.cpp
-    src/engine/rendering/systems/shadow_render_system.cpp
-    src/engine/rendering/systems/gizmo_system.cpp
     src/engine/rendering/lve_camera.cpp
     src/engine/rendering/lve_buffer.cpp
     src/engine/rendering/lve_descriptors.cpp
-    src/editor/orbit_camera_controller.cpp
-    src/editor/lve_imgui.cpp
     src/engine/rendering/lve_texture.cpp
     src/engine/rendering/lve_shadow_map.cpp
     src/engine/rendering/lve_image_barrier.cpp
     src/engine/rendering/lve_upload_batch.cpp
+    src/engine/rendering/systems/simple_render_system.cpp
+    src/engine/rendering/systems/point_light_system.cpp
+    src/engine/rendering/systems/shadow_render_system.cpp
+    src/engine/rendering/systems/gizmo_system.cpp
+    src/engine/scene/lve_game_object.cpp
+    src/engine/scene/lve_scene.cpp
+    src/engine/physics/lve_physics_system.cpp
 )
 
 #camada de plataforma: uma implementação por sistema operacional, escolhida AQUI (o código não
 #tem #ifdef de SO). SO sem implementação própria usa a genérica
 if(WIN32)
-    list(APPEND PROJECT_SOURCES src/engine/platform/lve_platform_windows.cpp)
+    list(APPEND ENGINE_SOURCES src/engine/platform/lve_platform_windows.cpp)
 else()
-    list(APPEND PROJECT_SOURCES src/engine/platform/lve_platform_generic.cpp)
+    list(APPEND ENGINE_SOURCES src/engine/platform/lve_platform_generic.cpp)
 endif()
 
-#nome do executável: código do projeto + ImGui (que é compilado junto, não linkado) +
-#a implementação das libs só-header (fora do PROJECT_SOURCES de propósito: sem os avisos extras)
-add_executable(G_E_Youtube ${PROJECT_SOURCES} ${IMGUI_SOURCES} src/engine/third_party_impl.cpp)
+#jogo/editor: o executável (main, app e editor)
+set(APP_SOURCES
+    src/main.cpp
+    src/app/first_app.cpp
+    src/editor/orbit_camera_controller.cpp
+    src/editor/lve_imgui.cpp
+)
 
 #avisos extras do compilador só no nosso código: /W4 no MSVC, -Wall -Wextra no GCC/Clang.
 #As bibliotecas (ImGui etc.) ficam no nível padrão, o aviso delas não é nosso pra resolver.
 if(MSVC)
-    set_source_files_properties(${PROJECT_SOURCES} PROPERTIES COMPILE_OPTIONS "/W4")
+    set_source_files_properties(${ENGINE_SOURCES} ${APP_SOURCES} PROPERTIES COMPILE_OPTIONS "/W4")
 else()
-    set_source_files_properties(${PROJECT_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra")
+    set_source_files_properties(${ENGINE_SOURCES} ${APP_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra")
 endif()
 
-#todo #include do projeto é escrito a partir de src/ (ex: "engine/rendering/lve_model.hpp"),
-#assim o include já diz de qual subsistema o arquivo vem. Regra: engine/ nunca inclui editor/, game/ ou app/
-target_include_directories(G_E_Youtube PRIVATE src ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
-
-#linkando as bibliotecas
-target_link_libraries(G_E_Youtube PRIVATE glfw Vulkan::Vulkan glm::glm GPUOpen::VulkanMemoryAllocator)
-
-#configuração do glm definida UMA vez pro projeto inteiro (antes estava repetida em 7 arquivos):
-#profundidade 0..1 como o Vulkan espera (o padrão do glm é -1..1, do OpenGL). Vale pra todo
-#arquivo, então a ordem dos #include deixa de importar.
-#(GLM_FORCE_RADIANS foi removido: o glm usa radianos sempre desde a 0.9.6, a macro não faz nada)
-target_compile_definitions(G_E_Youtube PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+#a engine + a implementação das libs só-header (fora do ENGINE_SOURCES de propósito: sem os avisos extras)
+add_library(ge_engine STATIC ${ENGINE_SOURCES} src/engine/third_party_impl.cpp)
+#PUBLIC = vale pra engine E pra quem usa ela (jogo e testes); PRIVATE = só pra engine.
+#Todo #include do projeto é escrito a partir de src/ (ex: "engine/rendering/lve_model.hpp")
+target_include_directories(ge_engine PUBLIC src PRIVATE ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
+target_link_libraries(ge_engine PUBLIC glfw Vulkan::Vulkan glm::glm GPUOpen::VulkanMemoryAllocator)
+#configuração do glm definida UMA vez: profundidade 0..1 como o Vulkan espera (o padrão do glm é
+#-1..1, do OpenGL). PUBLIC: quem usa a engine tem que enxergar o glm do mesmo jeito
+target_compile_definitions(ge_engine PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
 #winmm: só existe/é necessária no Windows (timeBeginPeriod, no lve_platform_windows.cpp)
 if(WIN32)
-    target_link_libraries(G_E_Youtube PRIVATE winmm)
+    target_link_libraries(ge_engine PRIVATE winmm)
 endif()
+
+#o jogo: app + editor + ImGui (compilado junto, não linkado), usando a engine
+add_executable(G_E_Youtube ${APP_SOURCES} ${IMGUI_SOURCES})
+target_include_directories(G_E_Youtube PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+target_link_libraries(G_E_Youtube PRIVATE ge_engine)
 
 #chamada de verificação de compilação dos shaders
 add_custom_target(Shaders DEPENDS ${SPIRV_BINARY_FILES})
@@ -213,7 +216,6 @@ if(MSVC)
 else()
     target_compile_options(G_E_Youtube_tests PRIVATE -Wall -Wextra)
 endif()
-target_include_directories(G_E_Youtube_tests PRIVATE src)
-target_link_libraries(G_E_Youtube_tests PRIVATE doctest::doctest)
+target_link_libraries(G_E_Youtube_tests PRIVATE ge_engine doctest::doctest)
 add_test(NAME engine_tests COMMAND G_E_Youtube_tests)
 #----------------------------------------------------------#
