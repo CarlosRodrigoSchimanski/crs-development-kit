@@ -18,9 +18,17 @@ namespace lve {
         LveUploadBatch upload{device};
         createVertexBuffers(builder.vertices, upload);
         createIndexBuffers(builder.indices, upload);
+
+        edgeIndexCount = static_cast<uint32_t>(builder.edgeIndices.size());
+        if (edgeIndexCount > 0) {
+            edgeIndexBuffer = createDeviceLocalBuffer(
+                builder.edgeIndices.data(), sizeof(uint32_t), edgeIndexCount, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, upload);
+        }
+
         if (!builder.baseColorImage.empty()) {
             texture = std::make_unique<LveTexture>(device, builder.baseColorImage, upload);
         }
+
         upload.submit();
     }
 
@@ -84,6 +92,16 @@ namespace lve {
         } else {
             vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
         }
+    }
+
+    void LveModel::drawEdges(VkCommandBuffer commandBuffer) {
+        if (!edgeIndexBuffer) return;
+        //mesmos vértices dos triângulos; só troca a lista de índices
+        VkBuffer buffers[] = {vertexBuffer->getBuffer()};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+        vkCmdBindIndexBuffer(commandBuffer, edgeIndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(commandBuffer, edgeIndexCount, 1, 0, 0, 0);
     }
 
     std::vector<VkVertexInputBindingDescription> LveModel::Vertex::getBindingDescriptions() {

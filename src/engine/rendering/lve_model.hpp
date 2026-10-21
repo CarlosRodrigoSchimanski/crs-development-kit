@@ -53,6 +53,9 @@ namespace lve {
             void bind(VkCommandBuffer commandBuffer);
             void draw(VkCommandBuffer commandBuffer);
 
+            //desenha as arestas reais como linhas (precisa de uma pipeline LINE_LIST)
+            void drawEdges(VkCommandBuffer commandBuffer);
+
             //nullptr se o modelo não tem textura
             LveTexture *getTexture() const;
 
@@ -69,6 +72,9 @@ namespace lve {
 
             std::unique_ptr<LveBuffer> indexBuffer;  //vazio = modelo sem índices
             uint32_t indexCount;
+
+            std::unique_ptr<LveBuffer> edgeIndexBuffer;  //vazio = modelo sem arestas
+            uint32_t edgeIndexCount = 0;
 
             std::unique_ptr<LveTexture> texture;
     };
