@@ -2,6 +2,8 @@
 
 #include <doctest/doctest.h>
 
+#include <cmath>
+
 using namespace lve;
 
 //passo fixo de 60 quadros por segundo, como um jogo rodando liso
@@ -9,7 +11,8 @@ constexpr float DT = 1.f / 60.f;
 
 //roda a física por uma quantidade de segundos simulados
 static void simulate(PhysicsSystem &physics, LveScene &scene, float seconds) {
-    int steps = static_cast<int>(seconds / DT);
+    //arredonda: 1 / (1/60) dá 59.999... em float, e o static_cast sozinho cortaria pra 59
+    int steps = static_cast<int>(std::lround(seconds / DT));
     for (int i = 0; i < steps; i++) {
         physics.update(scene, DT);
     }

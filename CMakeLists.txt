@@ -151,6 +151,7 @@ set(ENGINE_SOURCES
     src/engine/scene/lve_game_object.cpp
     src/engine/scene/lve_scene.cpp
     src/engine/physics/lve_physics_system.cpp
+    src/engine/gameplay/character_controller_system.cpp
 )
 
 #camada de plataforma: uma implementação por sistema operacional, escolhida AQUI (o código não
@@ -209,6 +210,7 @@ enable_testing()
 set(TEST_SOURCES
     tests/test_main.cpp
     tests/test_physics.cpp
+    tests/test_character.cpp
 )
 add_executable(G_E_Youtube_tests ${TEST_SOURCES})
 if(MSVC)
