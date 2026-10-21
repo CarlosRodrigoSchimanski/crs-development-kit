@@ -2,14 +2,18 @@
 #extension GL_GOOGLE_include_directive : require
 
 layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 color;
+
+layout(location = 0) out vec3 fragColor;
 
 #include "global_ubo.glsl"
 
 layout(push_constant) uniform Push {
     mat4 modelMatrix;
-    vec4 color;  //rgb = cor, a = opacidade
+    vec4 color;  //tint: multiplica a cor do modelo (a = opacidade)
 } push;
 
 void main() {
     gl_Position = ubo.projection * ubo.view * push.modelMatrix * vec4(position, 1.0);
+    fragColor = color;
 }

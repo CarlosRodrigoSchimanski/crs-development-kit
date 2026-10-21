@@ -10,8 +10,8 @@ namespace lve {
         glm::vec4 color{1.f};
     };
     
-    //cor de preenchimento a = opacidade
-    const glm::vec4 GIZMO_FILL_COLOR{1.f, 0.6f, 0.1f, 0.25f};
+    //tint do preenchimento: branco = cor do modelo; a = opacidade
+    const glm::vec4 GIZMO_FILL_TINT{1.f, 1.f, 1.f, 0.25f};
 
     GizmoRenderSystem::GizmoRenderSystem(
         LveDevice& device, 
@@ -68,7 +68,7 @@ namespace lve {
 
             GizmoPushConstantData push{};
             push.modelMatrix = obj.transform.mat4();
-            push.color = GIZMO_FILL_COLOR;
+            push.color = GIZMO_FILL_TINT;
 
             vkCmdPushConstants(
                 frameInfo.commandBuffer,
