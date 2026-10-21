@@ -415,6 +415,13 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      posição/rotação do personagem a cada frame e se posicionando atrás/acima dele
      (setViewTarget/setViewYXZ).
 
+3.1. Seleção de objetos no editor (anotado 2026-10-21) — clicar num objeto seleciona; o
+   selecionado ganha um destaque como o do Blender: uma aura/contorno laranja leve em volta
+   dele (efeito de emissão), não uma troca de cor do modelo. Vale pra objetos normais e pra
+   gizmos. Jeito comum: desenhar o selecionado numa imagem à parte (máscara) e, num passe
+   final, pintar de laranja os pixels na borda dessa máscara, com um leve desfoque pra
+   parecer brilho. Depois disso: transform handles (setas de mover/girar/escalar).
+
 4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
    com o item 3: sobrevoar/inspecionar em modo editor, andar de verdade em modo jogo.
