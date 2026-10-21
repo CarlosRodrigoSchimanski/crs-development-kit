@@ -155,6 +155,14 @@ namespace lve {
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
         cube.rigidBody.emplace();
 
+        //personagem (boneco de teste: caixa alta no lugar do modelo)
+        auto& player = lveScene.createGameObject();
+        player.model = lveModel;
+        player.transform.translation = {3.f, -2.f, 0.f};
+        player.transform.scale = {0.4f, 0.9f, 0.4f};
+        player.rigidBody.emplace();
+        player.character.emplace();
+
         //chão (estático)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
         auto& floor = lveScene.createGameObject();

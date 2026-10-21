@@ -21,6 +21,14 @@ namespace lve {
         glm::vec3 halfExtents{1.f};
     };
 
+    //personagem controlavel: anda pela intenção de movimento
+    struct CharacterComponent
+    {
+        float moveSpeed = 4.f; //unidade por segundo
+        float jumpSpeed = 5.f; //velocidade inicial do pulo
+    };
+    
+
     struct TransformComponent
     {
         glm::vec3 translation{};
@@ -63,6 +71,7 @@ namespace lve {
         std::optional<PointLightComponent> pointLight{};
         std::optional<CameraComponent> camera{};
         std::optional<RigidBodyComponent> rigidBody{};
+        std::optional<CharacterComponent> character{};
 
         
         private:
