@@ -34,6 +34,13 @@ namespace lve {
 
         PipelineConfigInfo pipelineConfig{};
         LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
+        //o gizmo.vert só lê posição (location 0) e cor (location 1)
+        std::vector<VkVertexInputAttributeDescription> positionAndColor{};
+        for (auto& attribute : pipelineConfig.attributeDescriptions) {
+            if (attribute.location <= 1) positionAndColor.push_back(attribute);
+        }
+        pipelineConfig.attributeDescriptions = positionAndColor;
+
         LvePipeline::enableAlphaBlending(pipelineConfig);
 
         //transparente: testa a profundidade, mas não escreve
