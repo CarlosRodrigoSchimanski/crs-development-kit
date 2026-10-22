@@ -28,8 +28,8 @@ namespace lve {
     class FirstApp {
         public:
             //tamanho inicial da janela
-            static constexpr int WIDTH = 800;
-            static constexpr int HEIGHT = 600;
+            static constexpr int WIDTH = 1600;
+            static constexpr int HEIGHT = 1200;
 
             FirstApp();
 
