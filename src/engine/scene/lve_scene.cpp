@@ -31,4 +31,14 @@ namespace lve {
         }
         return nullptr;
     }
+
+    glm::mat4 LveScene::worldMatrix(const LveGameObject &obj) {
+        glm::mat4 local = obj.transform.mat4();
+        if (!obj.parentId) return local;  //raiz: o transform já é no mundo
+
+        LveGameObject *parent = findGameObjectById(*obj.parentId);
+        if (parent == nullptr) return local;  //pai não existe mais: trata como raiz
+        return worldMatrix(*parent) * local;
+    }
+
 }

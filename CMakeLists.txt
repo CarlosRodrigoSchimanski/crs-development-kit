@@ -211,6 +211,7 @@ set(TEST_SOURCES
     tests/test_main.cpp
     tests/test_physics.cpp
     tests/test_character.cpp
+    tests/test_scene.cpp
 )
 add_executable(G_E_Youtube_tests ${TEST_SOURCES})
 if(MSVC)

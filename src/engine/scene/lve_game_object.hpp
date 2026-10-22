@@ -67,6 +67,8 @@ namespace lve {
         bool useTexture{true};
         bool editorOnly{false};
         TransformComponent transform{};
+        //pai na cena (o transform passa a ser relativo a ele); vazio = raiz
+        std::optional<id_t> parentId{};
         
         std::shared_ptr<LveModel>model{};
         std::optional<PointLightComponent> pointLight{};

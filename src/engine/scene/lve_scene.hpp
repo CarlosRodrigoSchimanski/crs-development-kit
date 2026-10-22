@@ -16,6 +16,9 @@ namespace lve {
             std::optional<LveGameObject::id_t> getActiveCamera() const;
             
             LveGameObject* findGameObjectById(LveGameObject::id_t id);
+            //matriz do objeto no mundo: a dos pais (do mais distante ao mais perto) x a dele
+            glm::mat4 worldMatrix(const LveGameObject &obj);
+
         
         private:
             LveGameObject::Map gameObjects;
