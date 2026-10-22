@@ -19,6 +19,7 @@ namespace lve {
         BodyType type = BodyType::Dynamic;
         glm::vec3 velocity{0.f};
         glm::vec3 halfExtents{1.f};
+        bool onGround = false;
     };
 
     //personagem controlavel: anda pela intenção de movimento

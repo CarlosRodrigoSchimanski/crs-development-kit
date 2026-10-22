@@ -78,3 +78,58 @@ TEST_CASE("objeto sem componente de personagem não é movido pelo controlador")
 
     CHECK(box.transform.translation.x == doctest::Approx(0.f));
 }
+
+//personagem em pé num chão estático grande (mesma montagem do loadGameObjects)
+static LveGameObject &addFloor(LveScene &scene) {
+    LveGameObject &floor = scene.createGameObject();
+    floor.transform.translation = {0.f, 1.5f, 0.f};
+    floor.transform.scale = {10.f, 1.f, 10.f};
+    floor.rigidBody.emplace();
+    floor.rigidBody->type = BodyType::Static;
+    floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
+    return floor;
+}
+
+TEST_CASE("personagem apoiado no chão fica onGround") {
+    LveScene scene;
+    addFloor(scene);
+    LveGameObject &player = addCharacter(scene);
+
+    simulate(scene, CharacterInput{}, 1.f);
+
+    CHECK(player.rigidBody->onGround);
+}
+
+TEST_CASE("pulo apoiado no chão sobe (y diminui: o Y aponta pra baixo)") {
+    LveScene scene;
+    addFloor(scene);
+    LveGameObject &player = addCharacter(scene);
+    simulate(scene, CharacterInput{}, 1.f);
+    float standingY = player.transform.translation.y;
+
+    CharacterInput jump;
+    jump.jump = true;
+    simulate(scene, jump, DT);  //um frame com o pulo
+    simulate(scene, CharacterInput{}, 0.2f);
+
+    CHECK(player.transform.translation.y < standingY - 0.5f);
+    CHECK_FALSE(player.rigidBody->onGround);
+}
+
+TEST_CASE("pulo no ar não faz nada") {
+    LveScene scene;
+    addFloor(scene);
+    LveGameObject &player = addCharacter(scene);
+    simulate(scene, CharacterInput{}, 1.f);
+
+    CharacterInput jump;
+    jump.jump = true;
+    simulate(scene, jump, DT);
+    simulate(scene, CharacterInput{}, 0.2f);  //no ar, subindo
+    float velocityBefore = player.rigidBody->velocity.y;
+
+    simulate(scene, jump, DT);  //segundo pulo, ainda no ar
+
+    //a velocidade segue só a gravidade: nada de impulso novo pra cima
+    CHECK(player.rigidBody->velocity.y > velocityBefore);
+}

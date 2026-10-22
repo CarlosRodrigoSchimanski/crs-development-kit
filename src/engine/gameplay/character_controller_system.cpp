@@ -17,7 +17,11 @@ namespace lve {
             obj.rigidBody->velocity.x = direction.x * obj.character->moveSpeed;
             obj.rigidBody->velocity.z = direction.z * obj.character->moveSpeed;
 
-        }
-        
+            //pulo: só apoiado no chão (velocidade pra cima = y negativo, o Y aponta pra baixo)
+            if (input.jump && obj.rigidBody->onGround) {
+                obj.rigidBody->velocity.y = -obj.character->jumpSpeed;
+                obj.rigidBody->onGround = false;
+            }
+        }   
     }
 }

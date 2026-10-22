@@ -8,6 +8,7 @@ namespace lve {
             auto& obj = kv.second;
             if (!obj.rigidBody) continue; //caso seja nulo
             if (obj.rigidBody->type == BodyType::Static) continue; //caso seja estático
+            obj.rigidBody->onGround = false;
 
             //caso seja dinâmico: a gravidade aumenta a velocidade, e a velocidade move o objeto
             obj.rigidBody->velocity += gravity * dt;
@@ -32,6 +33,7 @@ namespace lve {
                 if (obj.rigidBody->velocity.y > 0.f) {
                     obj.transform.translation.y = other.transform.translation.y - otherHalf.y - half.y;
                     obj.rigidBody->velocity.y = 0.f;
+                    obj.rigidBody->onGround = true;
                 }
             }
         }
