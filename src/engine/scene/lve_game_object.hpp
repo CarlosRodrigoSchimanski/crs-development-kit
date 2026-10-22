@@ -19,6 +19,8 @@ namespace lve {
         BodyType type = BodyType::Dynamic;
         glm::vec3 velocity{0.f};
         glm::vec3 halfExtents{1.f};
+        //centro da caixa em relação à origem, antes da escala (personagem com origem nos pés: acima dela)
+        glm::vec3 center{0.f};
         bool onGround = false;
     };
 

@@ -67,3 +67,28 @@ TEST_CASE("objeto sem corpo físico é ignorado") {
     CHECK(prop.transform.translation.y == doctest::Approx(2.f));
     CHECK(prop.transform.translation.z == doctest::Approx(3.f));
 }
+
+TEST_CASE("origem nos pés: o corpo pousa com os pés no chão") {
+    LveScene scene;
+    PhysicsSystem physics;
+
+    //personagem: caixa de altura 1.8 acima da origem (o Y aponta pra baixo: acima = y menor)
+    LveGameObject &player = scene.createGameObject();
+    player.transform.translation = {0.f, -2.f, 0.f};
+    player.transform.scale = {0.4f, 0.9f, 0.4f};
+    player.rigidBody.emplace();
+    player.rigidBody->center = {0.f, -1.f, 0.f};
+
+    LveGameObject &floor = scene.createGameObject();
+    floor.transform.translation = {0.f, 1.5f, 0.f};
+    floor.transform.scale = {10.f, 1.f, 10.f};
+    floor.rigidBody.emplace();
+    floor.rigidBody->type = BodyType::Static;
+    floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
+
+    simulate(physics, scene, 2.f);
+
+    //a origem (os pés) fica exatamente na superfície do chão
+    CHECK(player.transform.translation.y == doctest::Approx(1.5f));
+    CHECK(player.rigidBody->onGround);
+}

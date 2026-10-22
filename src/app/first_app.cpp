@@ -156,11 +156,14 @@ namespace lve {
         cube.rigidBody.emplace();
 
         //personagem (boneco de teste: caixa alta no lugar do modelo)
+        lveModel = LveModel::createModelFromFile(lveDevice, "models/character.glb");
         auto& player = lveScene.createGameObject();
         player.model = lveModel;
+        player.editorOnly = true;
         player.transform.translation = {3.f, -2.f, 0.f};
         player.transform.scale = {0.4f, 0.9f, 0.4f};
         player.rigidBody.emplace();
+        player.rigidBody->center = {0.f, -1.f, 0.f};  //caixa acima dos pés (o Y aponta pra baixo)
         player.character.emplace();
 
         //chão (estático)
