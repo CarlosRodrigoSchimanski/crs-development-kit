@@ -168,7 +168,7 @@ namespace lve {
         auto& floor = lveScene.createGameObject();
         floor.model = lveModel;
         floor.transform.translation = {0.f, 1.5f, 0.f};
-        floor.transform.scale = glm::vec3{5.f, 1.f, 5.f};
+        floor.transform.scale = glm::vec3{10.f, 1.f, 10.f};
         floor.rigidBody.emplace();
         floor.rigidBody->type = BodyType::Static;
         floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
@@ -231,6 +231,31 @@ namespace lve {
         auto id = playScene->getActiveCamera();
         if (!id) return nullptr;
         return playScene->findGameObjectById(*id);
+    }
+
+    CharacterInput FirstApp::readCharacterInput(LveGameObject* gameCamera) {
+        CharacterInput input{};
+        //digitando no ImGui: as teclas são texto
+        if (ImGui::GetIO().WantCaptureKeyboard) return input;
+
+        //frente e direita da câmera, achatadas no chão
+        glm::vec3 forward{0.f, 0.f, 1.f};
+        glm::vec3 right{1.f, 0.f, 0.f};
+        if (gameCamera) {
+            glm::mat3 rotation = gameCamera->transform.rotationMatrix();
+            glm::vec3 flatForward{rotation[2].x, 0.f, rotation[2].z};
+            glm::vec3 flatRight{rotation[0].x, 0.f, rotation[0].z};
+            //câmera olhando reto pra baixo: a frente achatada some, mantém a do mundo
+            if (glm::length(flatForward) > 0.001f) forward = glm::normalize(flatForward);
+            if (glm::length(flatRight) > 0.001f) right = glm::normalize(flatRight);
+        }
+
+        if (lveInput.isDown(GLFW_KEY_W)) input.moveDirection += forward;
+        if (lveInput.isDown(GLFW_KEY_S)) input.moveDirection -= forward;
+        if (lveInput.isDown(GLFW_KEY_D)) input.moveDirection += right;
+        if (lveInput.isDown(GLFW_KEY_A)) input.moveDirection -= right;
+        input.jump = lveInput.wasPressed(GLFW_KEY_SPACE);
+        return input;
     }
 
     void FirstApp::updateCamera(LveGameObject* gameCamera, float aspect) {
@@ -327,13 +352,14 @@ namespace lve {
         //P / ' alternam editor e Play
         updatePlayMode();
 
-        //física (só no Play)
-        if (playScene) {
-            physicsSystem.update(*playScene, frameTime);
-        }
-
         //câmera de jogo
         LveGameObject* gameCamera = findGameCamera();
+
+        //personagens e física (só no Play)
+        if (playScene) {
+            characterController.update(*playScene, readCharacterInput(gameCamera));
+            physicsSystem.update(*playScene, frameTime);
+        }
 
         if (auto commandBuffer = lveRenderer.beginFrame()) {
             int frameIndex = lveRenderer.getFrameIndex();

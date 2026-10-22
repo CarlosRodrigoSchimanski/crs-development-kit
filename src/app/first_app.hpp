@@ -13,6 +13,7 @@
 #include "engine/rendering/lve_renderer.hpp"
 #include "engine/rendering/lve_camera.hpp"
 #include "engine/rendering/lve_buffer.hpp"
+#include "engine/gameplay/character_controller_system.hpp"
 #include "engine/physics/lve_physics_system.hpp"
 #include "editor/orbit_camera_controller.hpp"
 #include "editor/lve_imgui.hpp"
@@ -54,6 +55,8 @@ namespace lve {
             void drawStatsWindow(float fps);
             //câmera ativa da cena do Play
             LveGameObject* findGameCamera();
+            //WASD vira intenção de movimento, relativa à câmera de jogo
+            CharacterInput readCharacterInput(LveGameObject* gameCamera);
             //posiciona a câmera do render (orbital ou de jogo)
             void updateCamera(LveGameObject* gameCamera, float aspect);
             //sombra apenas para o que a câmera mostra
@@ -112,5 +115,7 @@ namespace lve {
             OrbitCameraController cameraController{};
             //física do Play
             PhysicsSystem physicsSystem{};
+            //personagens do Play
+            CharacterControllerSystem characterController{};
     };
 }
