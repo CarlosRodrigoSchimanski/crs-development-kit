@@ -113,7 +113,7 @@ namespace lve {
             if (obj.model == nullptr) continue;
             if (obj.editorOnly) continue;  //não projeta sombra
             ShadowPushConstantData push{};
-            push.modelMatrix = obj.transform.mat4();
+            push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
 
             vkCmdPushConstants(
                 frameInfo.commandBuffer,

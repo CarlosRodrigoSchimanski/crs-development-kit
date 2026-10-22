@@ -86,8 +86,10 @@ namespace lve {
                 nullptr);
 
             SimplePushConstantData push{};
-            push.modelMatrix = obj.transform.mat4();
-            push.normalMatrix = obj.transform.normalMatrix();
+            glm::mat4 world = frameInfo.lveScene.worldMatrix(obj);
+            push.modelMatrix = world;
+            //normais com a escala de todos os pais: inversa transposta da parte 3x3 do mundo
+            push.normalMatrix = glm::transpose(glm::inverse(glm::mat3{world}));
 
             vkCmdPushConstants(
                 frameInfo.commandBuffer,

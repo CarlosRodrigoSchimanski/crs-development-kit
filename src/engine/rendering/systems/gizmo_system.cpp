@@ -86,7 +86,7 @@ namespace lve {
             if (!obj.editorOnly || obj.model == nullptr) continue;
 
             GizmoPushConstantData push{};
-            push.modelMatrix = obj.transform.mat4();
+            push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
             push.color = GIZMO_FILL_TINT;
 
             vkCmdPushConstants(
@@ -108,7 +108,7 @@ namespace lve {
             if (!obj.editorOnly || obj.model == nullptr) continue;
 
             GizmoPushConstantData push{};
-            push.modelMatrix = obj.transform.mat4();
+            push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
             push.color = GIZMO_EDGE_TINT;
 
             vkCmdPushConstants(
