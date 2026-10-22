@@ -159,13 +159,19 @@ namespace lve {
         lveModel = LveModel::createModelFromFile(lveDevice, "models/character.glb");
         auto& player = lveScene.createGameObject();
         player.model = lveModel;
-        player.editorOnly = true;
+        player.editorOnly = true;  //só a física: gizmo no editor, invisível no Play
         player.transform.translation = {3.f, -2.f, 0.f};
         player.transform.scale = {1.f, 1.f, 1.f};
         player.rigidBody.emplace();
         player.rigidBody->halfExtents = {0.5f, 0.87f, 0.49f};  //meia largura, altura e profundidade da cápsula
         player.rigidBody->center = {0.f, -0.87f, 0.f};  //caixa acima dos pés (o Y aponta pra baixo)
         player.character.emplace();
+
+        //visual do personagem: filho da cápsula (anda junto com ela)
+        lveModel = LveModel::createModelFromFile(lveDevice, "models/basicFemaleTest.glb");
+        auto& playerVisual = lveScene.createGameObject();
+        playerVisual.model = lveModel;
+        playerVisual.parentId = player.getId();
 
         //chão (estático)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");

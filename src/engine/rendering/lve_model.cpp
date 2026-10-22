@@ -160,7 +160,10 @@ namespace lve {
 
             float nodeMatrix[16];
             cgltf_node_transform_world(&node, nodeMatrix);  //já inclui as transformações dos pais
-            glm::mat4 world = yUpToYDown * glm::make_mat4(nodeMatrix);
+            //malha com esqueleto: pela especificação do glTF, a transformação do nó é ignorada (quem
+            //posiciona é o esqueleto); sem animação ainda, ela fica na pose de bind (pose de T)
+            glm::mat4 world = node.skin != nullptr ? yUpToYDown : yUpToYDown * glm::make_mat4(nodeMatrix);
+
             glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3{world}));
 
             for (cgltf_size p = 0; p < node.mesh->primitives_count; p++) {
