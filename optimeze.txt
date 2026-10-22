@@ -421,6 +421,10 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    gizmos. Jeito comum: desenhar o selecionado numa imagem à parte (máscara) e, num passe
    final, pintar de laranja os pixels na borda dessa máscara, com um leve desfoque pra
    parecer brilho. Depois disso: transform handles (setas de mover/girar/escalar).
+   Painel de propriedades do selecionado (pedido do usuário, 2026-10-22), crescendo aos poucos:
+   transform, definir pai, escolher modelo/textura/animação. E importar objetos pelo editor:
+   o objeto entra num ponto da cena e é posicionado depois (clicar + mover). Juntos, tiram a
+   montagem da cena do loadGameObjects (que hoje é código) e levam pro arquivo de cena.
 
 4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
