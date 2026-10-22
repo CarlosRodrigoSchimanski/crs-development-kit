@@ -155,15 +155,16 @@ namespace lve {
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
         cube.rigidBody.emplace();
 
-        //personagem (boneco de teste: caixa alta no lugar do modelo)
+        //personagem: cápsula com a física (visível no Play até o visual entrar como filho)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/character.glb");
         auto& player = lveScene.createGameObject();
         player.model = lveModel;
         player.editorOnly = true;
         player.transform.translation = {3.f, -2.f, 0.f};
-        player.transform.scale = {0.4f, 0.9f, 0.4f};
+        player.transform.scale = {1.f, 1.f, 1.f};
         player.rigidBody.emplace();
-        player.rigidBody->center = {0.f, -1.f, 0.f};  //caixa acima dos pés (o Y aponta pra baixo)
+        player.rigidBody->halfExtents = {0.5f, 0.87f, 0.49f};  //meia largura, altura e profundidade da cápsula
+        player.rigidBody->center = {0.f, -0.87f, 0.f};  //caixa acima dos pés (o Y aponta pra baixo)
         player.character.emplace();
 
         //chão (estático)
