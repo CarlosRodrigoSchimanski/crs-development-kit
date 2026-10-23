@@ -426,6 +426,14 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    o objeto entra num ponto da cena e é posicionado depois (clicar + mover). Juntos, tiram a
    montagem da cena do loadGameObjects (que hoje é código) e levam pro arquivo de cena.
 
+3.2. Cursor do mouse no Play configurável por jogo (anotado 2026-10-22) — uma configuração do
+   jogo (com controle na interface do editor) diz como o cursor fica no Play: visível, escondido,
+   ou capturado (escondido e preso na janela, dando o movimento "infinito" que a câmera em
+   terceira pessoa precisa). No editor ele é sempre visível. Primeiro jogo: capturado fora dos
+   menus, visível nos menus. Fazer junto da câmera em terceira pessoa (é quando o mouse passa a
+   girar a câmera); no GLFW são os modos GLFW_CURSOR_NORMAL / HIDDEN / DISABLED, atrás de um
+   método do LveWindow (o resto da engine não fala com o GLFW).
+
 4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
    com o item 3: sobrevoar/inspecionar em modo editor, andar de verdade em modo jogo.
