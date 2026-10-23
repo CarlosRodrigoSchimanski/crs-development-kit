@@ -93,6 +93,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(doctest)
 #----------------------------------------------------------#
 
+#incluir ImGuizmo (gizmo de mover/girar/escalar do editor, por cima do ImGui).
+#Como o ImGui, é compilado direto no executável; o SOURCE_SUBDIR aponta pra uma pasta sem
+#CMakeLists.txt de propósito: assim o FetchContent só baixa (o CMakeLists dele exige um alvo imgui
+#que não existe aqui). Sem versões recentes publicadas: fixado num commit (2026-10-10)
+FetchContent_Declare(
+    imguizmo
+    GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
+    GIT_TAG 105e4fde45e4e74aae8973d98750820ef7aca7e2
+    SOURCE_SUBDIR nao_compilar_pelo_cmake
+)
+FetchContent_MakeAvailable(imguizmo)
+#----------------------------------------------------------#
+
 #compilar os shaders (.vert/.frag) para .spv usando glslc do Vulkan SDK
 find_program(GLSLC glslc REQUIRED)
 #lista de arquivos de shader
@@ -193,9 +206,9 @@ if(WIN32)
     target_link_libraries(ge_engine PRIVATE winmm)
 endif()
 
-#o jogo: app + editor + ImGui (compilado junto, não linkado), usando a engine
-add_executable(G_E_Youtube ${APP_SOURCES} ${IMGUI_SOURCES})
-target_include_directories(G_E_Youtube PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+#o jogo: app + editor + ImGui e ImGuizmo (compilados junto, não linkados), usando a engine
+add_executable(G_E_Youtube ${APP_SOURCES} ${IMGUI_SOURCES} ${imguizmo_SOURCE_DIR}/src/ImGuizmo.cpp)
+target_include_directories(G_E_Youtube PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${imguizmo_SOURCE_DIR}/src)
 target_link_libraries(G_E_Youtube PRIVATE ge_engine)
 
 #chamada de verificação de compilação dos shaders
