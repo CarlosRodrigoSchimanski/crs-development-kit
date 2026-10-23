@@ -54,7 +54,7 @@ namespace lve {
             //janela de Stats (FPS e modo)
             void drawStatsWindow(float fps);
             //painel de propriedades
-            void drawPropertiesWindow();
+            void drawSidePanel();
             //câmera ativa da cena do Play
             LveGameObject* findGameCamera();
             //WASD vira intenção de movimento, relativa à câmera de jogo

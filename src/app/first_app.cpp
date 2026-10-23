@@ -20,6 +20,8 @@
 namespace lve {
     //limite do tempo de um frame (evita saltos grandes na física)
     constexpr float MAX_FRAME_TIME = 0.05f;
+    //largura do painel lateral do editor
+    constexpr float SIDE_PANEL_WIDTH = 320.f;
     //meia largura da caixa de sombra do sol
     constexpr float SHADOW_HALF_SIZE = 10.f;
     //distância da câmera do sol até o centro da caixa
@@ -248,26 +250,44 @@ namespace lve {
         ImGui::End();
     }
 
-    void FirstApp::drawPropertiesWindow() {
+    void FirstApp::drawSidePanel() {
         //só no editor e com algo selecionado
         if (playScene) return;
-        LveGameObject* selected = selectedId ? lveScene.findGameObjectById(*selectedId) : nullptr;
-        if (!selected) return;
 
-        ImGui::SetNextWindowPos(ImVec2(10, 120), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Propriedades");
-        ImGui::Text("%s", selected->name.c_str());
-        ImGui::Separator();
+        //preso na borda direita
+        const ImGuiViewport* screen = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(ImVec2(screen->WorkPos.x + screen->WorkSize.x - SIDE_PANEL_WIDTH, screen->WorkPos.y));
+        ImGui::SetNextWindowSize(ImVec2(SIDE_PANEL_WIDTH, screen->WorkSize.y));
+        ImGui::Begin(
+            "Painel",
+            nullptr,
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoCollapse
+        );
 
-        TransformComponent& transform = selected->transform;
-        ImGui::DragFloat3("Posição", &transform.translation.x, 0.05f);
+        //propriedades do selecionado
+        if (ImGui::CollapsingHeader("Propriedades", ImGuiTreeNodeFlags_DefaultOpen)) {
+            LveGameObject* selected = selectedId ? lveScene.findGameObjectById(*selectedId) : nullptr;
+            if(selected) {
+                ImGui::Text("%s", selected->name.c_str());
+                ImGui::Separator();
 
-        //a engine guarda radianos, o painel mostra graus.
-        glm::vec3 degrees = glm::degrees(transform.rotation);
-        if (ImGui::DragFloat3("Rotação", &degrees.x, 1.f)) {
-            transform.rotation = glm::radians(degrees);
+                TransformComponent& transform = selected->transform;
+                ImGui::DragFloat3("Posição", &transform.translation.x, 0.05f);
+
+                //converte graus
+                glm::vec3 degrees = glm::degrees(transform.rotation);
+                if (ImGui::DragFloat3("Rotação", &degrees.x, 1.f)) {
+                    transform.rotation = glm::radians(degrees);
+                }
+                ImGui::DragFloat3("Escala", &transform.scale.x, 0.01f);
+            } else {
+                ImGui::TextDisabled("Nada selecionado");
+            }
         }
-        ImGui::DragFloat3("Escala", &transform.scale.x, 0.01f);
+
         ImGui::End();
     }
 
@@ -443,7 +463,7 @@ namespace lve {
             drawStatsWindow(displayFps);
 
             //properties
-            drawPropertiesWindow();
+            drawSidePanel();
 
             //render
             renderFrame(frameInfo);
