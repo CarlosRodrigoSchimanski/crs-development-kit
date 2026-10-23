@@ -248,6 +248,29 @@ namespace lve {
         ImGui::End();
     }
 
+    void FirstApp::drawPropertiesWindow() {
+        //só no editor e com algo selecionado
+        if (playScene) return;
+        LveGameObject* selected = selectedId ? lveScene.findGameObjectById(*selectedId) : nullptr;
+        if (!selected) return;
+
+        ImGui::SetNextWindowPos(ImVec2(10, 120), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Propriedades");
+        ImGui::Text("%s", selected->name.c_str());
+        ImGui::Separator();
+
+        TransformComponent& transform = selected->transform;
+        ImGui::DragFloat3("Posição", &transform.translation.x, 0.05f);
+
+        //a engine guarda radianos, o painel mostra graus.
+        glm::vec3 degrees = glm::degrees(transform.rotation);
+        if (ImGui::DragFloat3("Rotação", &degrees.x, 1.f)) {
+            transform.rotation = glm::radians(degrees);
+        }
+        ImGui::DragFloat3("Escala", &transform.scale.x, 0.01f);
+        ImGui::End();
+    }
+
     LveGameObject* FirstApp::findGameCamera() {
         if (!playScene) return nullptr;
         auto id = playScene->getActiveCamera();
@@ -418,6 +441,9 @@ namespace lve {
             //UI
             lveImgui->newFrame();
             drawStatsWindow(displayFps);
+
+            //properties
+            drawPropertiesWindow();
 
             //render
             renderFrame(frameInfo);

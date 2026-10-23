@@ -28,8 +28,8 @@ namespace lve {
     class FirstApp {
         public:
             //tamanho inicial da janela
-            static constexpr int WIDTH = 1600;
-            static constexpr int HEIGHT = 1200;
+            static constexpr int WIDTH = 1920;
+            static constexpr int HEIGHT = 1080;
 
             FirstApp();
 
@@ -53,6 +53,8 @@ namespace lve {
             LveScene& activeScene();
             //janela de Stats (FPS e modo)
             void drawStatsWindow(float fps);
+            //painel de propriedades
+            void drawPropertiesWindow();
             //câmera ativa da cena do Play
             LveGameObject* findGameCamera();
             //WASD vira intenção de movimento, relativa à câmera de jogo
