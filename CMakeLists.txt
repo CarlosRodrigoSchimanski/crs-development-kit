@@ -150,6 +150,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/systems/gizmo_system.cpp
     src/engine/scene/lve_game_object.cpp
     src/engine/scene/lve_scene.cpp
+    src/engine/scene/lve_ray.cpp
     src/engine/physics/lve_physics_system.cpp
     src/engine/gameplay/character_controller_system.cpp
 )
@@ -212,6 +213,7 @@ set(TEST_SOURCES
     tests/test_physics.cpp
     tests/test_character.cpp
     tests/test_scene.cpp
+    tests/test_ray.cpp
 )
 add_executable(G_E_Youtube_tests ${TEST_SOURCES})
 if(MSVC)
