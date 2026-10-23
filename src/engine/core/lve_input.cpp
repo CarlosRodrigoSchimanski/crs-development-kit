@@ -8,6 +8,16 @@ namespace lve {
         for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++) {
             current[key] = glfwGetKey(window.getGLFWwindow(), key) == GLFW_PRESS;
         }
+
+        previousMouse = currentMouse;
+        for (int button = 0; button <= GLFW_MOUSE_BUTTON_LAST; button++) {
+            currentMouse[button] = glfwGetMouseButton(window.getGLFWwindow(), button) == GLFW_PRESS;
+        }
+
+        double x = 0.0;
+        double y = 0.0;
+        glfwGetCursorPos(window.getGLFWwindow(), &x, &y);
+        mousePosition = {static_cast<float>(x), static_cast<float>(y)};
     }
 
     bool LveInput::isDown(int key) const {
@@ -20,5 +30,17 @@ namespace lve {
 
     bool LveInput::wasReleased(int key) const {
         return !current[key] && previous[key];
+    }
+
+    bool LveInput::isMouseDown(int button) const {
+        return currentMouse[button];
+    }
+
+    bool LveInput::wasMousePressed(int button) const {
+        return currentMouse[button] && !previousMouse[button];
+    }
+
+    glm::vec2 LveInput::getMousePosition() const {
+        return mousePosition;
     }
 }
