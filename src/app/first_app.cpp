@@ -150,6 +150,7 @@ namespace lve {
         //cubo de teste (dinâmico)
         std::shared_ptr<LveModel> lveModel = LveModel::createModelFromFile(lveDevice, "models/iron_cube.glb");
         auto& cube = lveScene.createGameObject();
+        cube.name = "cube";
         cube.model = lveModel;
         cube.transform.translation = {0.f, 0.f, 0.f};
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
@@ -158,6 +159,7 @@ namespace lve {
         //personagem: cápsula com a física (visível no Play até o visual entrar como filho)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/character.glb");
         auto& player = lveScene.createGameObject();
+        player.name = "Player";
         player.model = lveModel;
         player.editorOnly = true;  //só a física: gizmo no editor, invisível no Play
         player.transform.translation = {3.f, -2.f, 0.f};
@@ -170,12 +172,14 @@ namespace lve {
         //visual do personagem: filho da cápsula (anda junto com ela)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/basicFemaleTest.glb");
         auto& playerVisual = lveScene.createGameObject();
+        playerVisual.name = "PlayerMesh";
         playerVisual.model = lveModel;
         playerVisual.parentId = player.getId();
 
         //chão (estático)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
         auto& floor = lveScene.createGameObject();
+        floor.name = "Floor";
         floor.model = lveModel;
         floor.transform.translation = {0.f, 1.5f, 0.f};
         floor.transform.scale = glm::vec3{10.f, 1.f, 10.f};
@@ -186,6 +190,7 @@ namespace lve {
         //câmera de jogo
         lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
         auto& gameCamera = lveScene.createGameObject();
+        gameCamera.name = "Camera";
         gameCamera.model = lveModel;
         gameCamera.editorOnly = true;  //gizmo só no editor
         gameCamera.transform.translation = {0.f, -1.f, -5.f};
@@ -233,8 +238,9 @@ namespace lve {
         );
         ImGui::Text("FPS: %.0f", fps);
         ImGui::Text("Mode %s",playScene ? "Play" : "Editor");
-        if (selectedId) {
-            ImGui::Text("Selecionado: %u", *selectedId);
+        LveGameObject* selected = selectedId ? lveScene.findGameObjectById(*selectedId) : nullptr;
+        if (selected) {
+            ImGui::Text("Selecionado: %s", selected->name.c_str());
         } else {
             ImGui::Text("Selecionado: nenhum");
         }

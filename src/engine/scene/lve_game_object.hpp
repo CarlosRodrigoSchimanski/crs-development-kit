@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_map>
 #include <optional>
+#include <string>
 
 
 namespace lve {
@@ -63,6 +64,9 @@ namespace lve {
         LveGameObject &operator=(LveGameObject &&) = default;
 
         id_t getId() const;
+
+        //nome mostrado no editor (como no outliner do Blender)
+        std::string name{};
 
         glm::vec3 color{};
         //false = usa a textura branca em vez da do modelo (fica só a cor do vértice)
