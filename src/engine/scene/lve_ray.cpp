@@ -37,4 +37,20 @@ namespace lve {
             glm::vec3{toLocal * glm::vec4{ray.direction, 0.f}}};
         return intersectRayAabb(local, localMin, localMax);
     }
+
+    Ray screenPointToRay(glm::vec2 pixel, glm::vec2 screenSize, const glm::mat4 &projection, const glm::mat4 &view) {
+        //pixel -> -1..1 nos dois eixos (o Y do Vulkan aponta pra baixo, igual ao do mouse)
+        glm::vec2 ndc = pixel / screenSize * 2.f - 1.f;
+
+        //o caminho da câmera ao contrário: da tela de volta pro mundo
+        glm::mat4 screenToWorld = glm::inverse(projection * view);
+        glm::vec4 nearPoint = screenToWorld * glm::vec4{ndc, 0.f, 1.f};  //profundidade 0 = perto
+        glm::vec4 farPoint = screenToWorld * glm::vec4{ndc, 1.f, 1.f};   //profundidade 1 = longe
+        //divide pelo w: desfaz a perspectiva
+        glm::vec3 nearWorld = glm::vec3{nearPoint} / nearPoint.w;
+        glm::vec3 farWorld = glm::vec3{farPoint} / farPoint.w;
+
+        return Ray{nearWorld, glm::normalize(farWorld - nearWorld)};
+    }
+
 }
