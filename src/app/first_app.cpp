@@ -291,6 +291,14 @@ namespace lve {
         ImGui::End();
     }
 
+    VkRect2D FirstApp::computeSceneArea() const {
+        VkExtent2D extent = lveRenderer.getSwapChainExtent();
+        uint32_t panel = playScene ? 0 : static_cast<uint32_t>(SIDE_PANEL_WIDTH);
+        //janela mais estreita
+        uint32_t width = extent.width > panel ? extent.width - panel : 1;
+        return VkRect2D{{0, 0}, {width, extent.height}};
+    }
+
     LveGameObject* FirstApp::findGameCamera() {
         if (!playScene) return nullptr;
         auto id = playScene->getActiveCamera();
@@ -328,9 +336,10 @@ namespace lve {
         if (playScene || ImGui::GetIO().WantCaptureMouse) return;
         if (!lveInput.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) return;
 
-        VkExtent2D extent = lveWindow.getExtent();
-        glm::vec2 screenSize{static_cast<float>(extent.width), static_cast<float>(extent.height)};
-        Ray ray = screenPointToRay(lveInput.getMousePosition(), screenSize, camera.getProjection(), camera.getView());
+        //raio calculado dentro do retangulo 
+        glm::vec2 areaOffset{static_cast<float>(sceneArea.offset.x), static_cast<float>(sceneArea.offset.y)};
+        glm::vec2 areaSize{static_cast<float>(sceneArea.extent.width), static_cast<float>(sceneArea.extent.height)};
+        Ray ray = screenPointToRay(lveInput.getMousePosition() - areaOffset, areaSize, camera.getProjection(), camera.getView());
         //clicar no vazio desmarca, como no Blender
         selectedId = lveScene.pickObject(ray);
     }
@@ -367,6 +376,8 @@ namespace lve {
         //sombra primeiro: o passe principal lê o shadow map
         shadowRenderSystem->renderShadowMap(frameInfo);
         lveRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
+        //a cena fica no retangulo
+        lveRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);
         simpleRenderSystem->renderGameObjects(frameInfo);
         pointLightSystem->render(frameInfo);
         
@@ -444,7 +455,10 @@ namespace lve {
 
         if (auto commandBuffer = lveRenderer.beginFrame()) {
             int frameIndex = lveRenderer.getFrameIndex();
-            updateCamera(gameCamera, lveRenderer.getAspectRatio());
+
+            sceneArea = computeSceneArea();
+            float sceneAspect = static_cast<float>(sceneArea.extent.width) / static_cast<float>(sceneArea.extent.height);
+            updateCamera(gameCamera, sceneAspect);
 
             FrameInfo frameInfo{
                 frameIndex, 

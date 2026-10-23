@@ -24,6 +24,9 @@ namespace lve {
             VkFormat getSwapChainImageFormat() const;
             VkFormat getSwapChainDepthFormat() const;
             float getAspectRatio() const;
+            VkExtent2D getSwapChainExtent() const;
+            //limita o desenho da cena
+            void setSceneArea(VkCommandBuffer commandBuffer, VkRect2D area) const;
             uint32_t getImageCount() const;
 
             VkCommandBuffer getCurrentCommandBuffer() const;

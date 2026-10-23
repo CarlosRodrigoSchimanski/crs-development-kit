@@ -26,6 +26,20 @@ namespace lve {
 
     float LveRenderer::getAspectRatio() const {return lveSwapChain->extentAspectRatio();}
 
+    VkExtent2D LveRenderer::getSwapChainExtent() const {return lveSwapChain->getSwapChainExtent();}
+    
+    void LveRenderer::setSceneArea(VkCommandBuffer commandBuffer, VkRect2D area) const {
+        VkViewport viewport{};
+        viewport.x = static_cast<float>(area.offset.x);
+        viewport.y = static_cast<float>(area.offset.y);
+        viewport.width = static_cast<float>(area.extent.width);
+        viewport.height = static_cast<float>(area.extent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(commandBuffer, 0, 1, &area);
+    }
+
     uint32_t LveRenderer::getImageCount() const { return static_cast<uint32_t>(lveSwapChain->imageCount()); }
 
     VkCommandBuffer LveRenderer::getCurrentCommandBuffer() const {

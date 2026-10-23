@@ -55,6 +55,8 @@ namespace lve {
             void drawStatsWindow(float fps);
             //painel de propriedades
             void drawSidePanel();
+            //pedaço da tela onde a cena é desenhada
+            VkRect2D computeSceneArea() const;
             //câmera ativa da cena do Play
             LveGameObject* findGameCamera();
             //WASD vira intenção de movimento, relativa à câmera de jogo
@@ -111,6 +113,8 @@ namespace lve {
             std::optional<LveScene> playScene;
             //objeto selecionado no editor (vazio = nenhum)
             std::optional<LveGameObject::id_t> selectedId;
+            //retangulo da cena
+            VkRect2D sceneArea{};
             //teclado
             LveInput lveInput;
             //câmera do render
