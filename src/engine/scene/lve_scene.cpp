@@ -41,4 +41,22 @@ namespace lve {
         return worldMatrix(*parent) * local;
     }
 
+    std::optional<LveGameObject::id_t> LveScene::pickObject(const Ray &ray) {
+        std::optional<LveGameObject::id_t> closestId{};
+        float closestT = 0.f;
+
+        for (auto &kv : gameObjects) {
+            auto &obj = kv.second;
+            if (obj.model == nullptr) continue;  //sem modelo não tem caixa pra clicar
+
+            auto t = intersectRayObject(ray, worldMatrix(obj), obj.model->getBoundsMin(), obj.model->getBoundsMax());
+            if (t && (!closestId || *t < closestT)) {
+                closestId = obj.getId();
+                closestT = *t;
+            }
+        }
+        return closestId;
+    }
+
+
 }
