@@ -233,6 +233,12 @@ namespace lve {
         );
         ImGui::Text("FPS: %.0f", fps);
         ImGui::Text("Mode %s",playScene ? "Play" : "Editor");
+        if (selectedId) {
+            ImGui::Text("Selecionado: %u", *selectedId);
+        } else {
+            ImGui::Text("Selecionado: nenhum");
+        }
+
         ImGui::End();
     }
 
@@ -267,6 +273,19 @@ namespace lve {
         input.jump = lveInput.wasPressed(GLFW_KEY_SPACE);
         return input;
     }
+
+    void FirstApp::updateSelection() {
+        //seleção é do editor; e clique em cima de uma janela do ImGui é da janela
+        if (playScene || ImGui::GetIO().WantCaptureMouse) return;
+        if (!lveInput.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) return;
+
+        VkExtent2D extent = lveWindow.getExtent();
+        glm::vec2 screenSize{static_cast<float>(extent.width), static_cast<float>(extent.height)};
+        Ray ray = screenPointToRay(lveInput.getMousePosition(), screenSize, camera.getProjection(), camera.getView());
+        //clicar no vazio desmarca, como no Blender
+        selectedId = lveScene.pickObject(ray);
+    }
+
 
     void FirstApp::updateCamera(LveGameObject* gameCamera, float aspect) {
         if (gameCamera) {
@@ -361,6 +380,9 @@ namespace lve {
         lveInput.update(lveWindow);
         //P / ' alternam editor e Play
         updatePlayMode();
+        //clique seleciona (só no editor)
+        updateSelection();
+
 
         //câmera de jogo
         LveGameObject* gameCamera = findGameCamera();
