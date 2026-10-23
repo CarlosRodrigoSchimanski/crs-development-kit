@@ -29,10 +29,23 @@ namespace lve {
             texture = std::make_unique<LveTexture>(device, builder.baseColorImage, upload);
         }
 
+        //caixa em volta de todos os vértices (seleção por clique)
+        if (!builder.vertices.empty()) {
+            boundsMin = builder.vertices[0].position;
+            boundsMax = builder.vertices[0].position;
+            for (const Vertex &vertex : builder.vertices) {
+                boundsMin = glm::min(boundsMin, vertex.position);
+                boundsMax = glm::max(boundsMax, vertex.position);
+            }
+        }
+
         upload.submit();
     }
 
     LveTexture *LveModel::getTexture() const { return texture.get(); }
+    glm::vec3 LveModel::getBoundsMin() const { return boundsMin; }
+    glm::vec3 LveModel::getBoundsMax() const { return boundsMax; }
+
 
     std::unique_ptr<LveModel> LveModel::createModelFromFile(LveDevice &device, const std::string &filepath) {
         Builder builder{};

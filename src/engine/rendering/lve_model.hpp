@@ -58,6 +58,9 @@ namespace lve {
 
             //nullptr se o modelo não tem textura
             LveTexture *getTexture() const;
+            //caixa em volta do modelo, no espaço dele (menor e maior ponto dos vértices)
+            glm::vec3 getBoundsMin() const;
+            glm::vec3 getBoundsMax() const;
 
         private:
             void createVertexBuffers(const std::vector<Vertex> &vertices, LveUploadBatch &upload);
@@ -77,5 +80,8 @@ namespace lve {
             uint32_t edgeIndexCount = 0;
 
             std::unique_ptr<LveTexture> texture;
+
+            glm::vec3 boundsMin{0.f};
+            glm::vec3 boundsMax{0.f};
     };
 }
