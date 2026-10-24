@@ -7,13 +7,16 @@
 #include <optional>
 
 namespace lve {
+    //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
     class LveEditor {
         public:
+            //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
-
+            //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             LveGameObject* getSelected(LveScene &scene) const;
         
         private:
+            //objeto selecionado (vazio = nenhum)
             std::optional<LveGameObject::id_t> selectedId;
-    }; 
+    };
 }
