@@ -16,6 +16,7 @@
 #include "engine/gameplay/character_controller_system.hpp"
 #include "engine/physics/lve_physics_system.hpp"
 #include "editor/orbit_camera_controller.hpp"
+#include "editor/lve_editor.hpp"
 #include "editor/lve_imgui.hpp"
 
 #include <memory>
@@ -63,8 +64,6 @@ namespace lve {
             LveGameObject* findGameCamera();
             //WASD vira intenção de movimento, relativa à câmera de jogo
             CharacterInput readCharacterInput(LveGameObject* gameCamera);
-            //clique esquerdo no editor seleciona o objeto sob o cursor
-            void updateSelection();
             //posiciona a câmera do render (orbital ou de jogo)
             void updateCamera(LveGameObject* gameCamera, float aspect);
             //sombra apenas para o que a câmera mostra
@@ -113,8 +112,8 @@ namespace lve {
             LveScene lveScene;
             //cópia da cena durante o Play (vazio = editor)
             std::optional<LveScene> playScene;
-            //objeto selecionado no editor (vazio = nenhum)
-            std::optional<LveGameObject::id_t> selectedId;
+            //ferramentas do editor
+            LveEditor editor;
             //retangulo da cena
             VkRect2D sceneArea{};
             //teclado

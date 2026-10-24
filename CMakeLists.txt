@@ -182,6 +182,7 @@ set(APP_SOURCES
     src/app/first_app.cpp
     src/editor/orbit_camera_controller.cpp
     src/editor/lve_imgui.cpp
+    src/editor/lve_editor.cpp
 )
 
 #avisos extras do compilador só no nosso código: /W4 no MSVC, -Wall -Wextra no GCC/Clang.

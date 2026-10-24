@@ -241,7 +241,7 @@ namespace lve {
         );
         ImGui::Text("FPS: %.0f", fps);
         ImGui::Text("Mode %s",playScene ? "Play" : "Editor");
-        LveGameObject* selected = selectedId ? lveScene.findGameObjectById(*selectedId) : nullptr;
+        LveGameObject* selected = editor.getSelected(lveScene);
         if (selected) {
             ImGui::Text("Selecionado: %s", selected->name.c_str());
         } else {
@@ -270,7 +270,7 @@ namespace lve {
 
         //propriedades do selecionado
         if (ImGui::CollapsingHeader("Propriedades", ImGuiTreeNodeFlags_DefaultOpen)) {
-            LveGameObject* selected = selectedId ? lveScene.findGameObjectById(*selectedId) : nullptr;
+            LveGameObject* selected = editor.getSelected(lveScene);
             if(selected) {
                 ImGui::Text("%s", selected->name.c_str());
                 ImGui::Separator();
@@ -302,7 +302,7 @@ namespace lve {
 
     void FirstApp::drawTransformGizmo() {
         if (playScene) return;
-        LveGameObject* selected = selectedId ? lveScene.findGameObjectById(*selectedId) : nullptr;
+        LveGameObject* selected = editor.getSelected(lveScene);
         if (!selected) return;
 
         //desenha por cima da cena
@@ -366,19 +366,6 @@ namespace lve {
         if (lveInput.isDown(GLFW_KEY_A)) input.moveDirection -= right;
         input.jump = lveInput.wasPressed(GLFW_KEY_SPACE);
         return input;
-    }
-
-    void FirstApp::updateSelection() {
-        //seleção é do editor; e clique em cima de uma janela do ImGui e do guizmo
-        if (playScene || ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsOver()) return;
-        if (!lveInput.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) return;
-
-        //raio calculado dentro do retangulo 
-        glm::vec2 areaOffset{static_cast<float>(sceneArea.offset.x), static_cast<float>(sceneArea.offset.y)};
-        glm::vec2 areaSize{static_cast<float>(sceneArea.extent.width), static_cast<float>(sceneArea.extent.height)};
-        Ray ray = screenPointToRay(lveInput.getMousePosition() - areaOffset, areaSize, camera.getProjection(), camera.getView());
-        //clicar no vazio desmarca, como no Blender
-        selectedId = lveScene.pickObject(ray);
     }
 
     void FirstApp::updateCamera(LveGameObject* gameCamera, float aspect) {
@@ -477,7 +464,9 @@ namespace lve {
         //P / ' alternam editor e Play
         updatePlayMode();
         //clique seleciona (só no editor)
-        updateSelection();
+        if (!playScene) {
+            editor.updateSelection(lveScene, lveInput, camera, sceneArea);
+        }
 
 
         //câmera de jogo
