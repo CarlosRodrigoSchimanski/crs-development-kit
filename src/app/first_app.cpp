@@ -21,8 +21,6 @@
 namespace lve {
     //limite do tempo de um frame (evita saltos grandes na física)
     constexpr float MAX_FRAME_TIME = 0.05f;
-    //largura do painel lateral do editor
-    constexpr float SIDE_PANEL_WIDTH = 320.f;
     //meia largura da caixa de sombra do sol
     constexpr float SHADOW_HALF_SIZE = 10.f;
     //distância da câmera do sol até o centro da caixa
@@ -251,53 +249,10 @@ namespace lve {
         ImGui::End();
     }
 
-    void FirstApp::drawSidePanel() {
-        //só no editor e com algo selecionado
-        if (playScene) return;
-
-        //preso na borda direita
-        const ImGuiViewport* screen = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(ImVec2(screen->WorkPos.x + screen->WorkSize.x - SIDE_PANEL_WIDTH, screen->WorkPos.y));
-        ImGui::SetNextWindowSize(ImVec2(SIDE_PANEL_WIDTH, screen->WorkSize.y));
-        ImGui::Begin(
-            "Painel",
-            nullptr,
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoCollapse
-        );
-
-        //propriedades do selecionado
-        if (ImGui::CollapsingHeader("Propriedades", ImGuiTreeNodeFlags_DefaultOpen)) {
-            LveGameObject* selected = editor.getSelected(lveScene);
-            if(selected) {
-                ImGui::Text("%s", selected->name.c_str());
-                ImGui::Separator();
-
-                TransformComponent& transform = selected->transform;
-                ImGui::DragFloat3("Posição", &transform.translation.x, 0.05f);
-
-                //converte graus
-                glm::vec3 degrees = glm::degrees(transform.rotation);
-                if (ImGui::DragFloat3("Rotação", &degrees.x, 1.f)) {
-                    transform.rotation = glm::radians(degrees);
-                }
-                ImGui::DragFloat3("Escala", &transform.scale.x, 0.01f);
-            } else {
-                ImGui::TextDisabled("Nada selecionado");
-            }
-        }
-
-        ImGui::End();
-    }
-
     VkRect2D FirstApp::computeSceneArea() const {
         VkExtent2D extent = lveRenderer.getSwapChainExtent();
-        uint32_t panel = playScene ? 0 : static_cast<uint32_t>(SIDE_PANEL_WIDTH);
-        //janela mais estreita
-        uint32_t width = extent.width > panel ? extent.width - panel : 1;
-        return VkRect2D{{0, 0}, {width, extent.height}};
+        if (playScene) return VkRect2D{{0, 0}, extent};
+        return editor.sceneArea(extent);
     }
 
     void FirstApp::drawTransformGizmo() {
@@ -502,8 +457,10 @@ namespace lve {
             ImGuizmo::BeginFrame();
             drawStatsWindow(displayFps);
 
-            //properties
-            drawSidePanel();
+            //painel lateral
+            if (!playScene) {
+                editor.drawSidePanel(lveScene);
+            }
 
             //gizmo
             drawTransformGizmo();

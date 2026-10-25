@@ -14,6 +14,10 @@ namespace lve {
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             LveGameObject* getSelected(LveScene &scene) const;
+            //painel lateral preso a direita
+            void drawSidePanel(LveScene &scene);
+            //pedaço da tela que sobra para cena ao lado do painel
+            VkRect2D sceneArea(VkExtent2D screen) const;
         
         private:
             //objeto selecionado (vazio = nenhum)

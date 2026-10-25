@@ -54,8 +54,6 @@ namespace lve {
             LveScene& activeScene();
             //janela de Stats (FPS e modo)
             void drawStatsWindow(float fps);
-            //painel de propriedades
-            void drawSidePanel();
             //pedaço da tela onde a cena é desenhada
             VkRect2D computeSceneArea() const;
             //setas de mover o objeto
