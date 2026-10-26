@@ -72,7 +72,17 @@ namespace lve {
             }
         }
 
+        //ferramentas de consulta
+        if (ImGui::CollapsingHeader("Ferramentas")) {
+            ImGui::Checkbox("Demo do ImGui", &showImGuiDemo);
+        }
+
         ImGui::End();
+
+        //vitrine de todos os componentes do ImGui (o código de cada um está no imgui_demo.cpp)
+        if (showImGuiDemo) {
+            ImGui::ShowDemoWindow(&showImGuiDemo);
+        }
     }
 
     VkRect2D LveEditor::sceneArea(VkExtent2D screen) const {

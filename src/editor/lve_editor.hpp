@@ -33,5 +33,7 @@ namespace lve {
             std::optional<LveGameObject::id_t> selectedId;
             //camera orbital
             OrbitCameraController cameraController{};
+            //janela de demonstração do ImGui (todos os componentes), aberta pelo painel
+            bool showImGuiDemo = false;
     };
 }
