@@ -454,6 +454,16 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    template faz), tamanho da janela, e a intenção de movimento do personagem (CharacterInput).
    Jeito comum de embutir: CPython + pybind11. Antes disso: o cursor capturado (3.2) e a câmera
    seguindo o player (3.3) em C++, que viram o primeiro script a ser portado pra Python.
+   Segundo exemplo-alvo: o template Character Controller do mesmo autor. Ele mapeia quase 1 pra 1
+   no que já existe: walkDirection = CharacterInput.moveDirection, jump() = input.jump,
+   onGround = RigidBodyComponent::onGround, "Make Object Invisible" = editorOnly na cápsula.
+   O que ele pede e a engine ainda não tem (bons candidatos pro CharacterComponent/controlador):
+   correr segurando Shift (runSpeed além do moveSpeed), número máximo de pulos (pulo duplo),
+   "pulo com direção travada" (no ar a direção/rotação não muda) e suavização do movimento
+   (lerp da velocidade em vez de parar/arrancar na hora). O "Avoid Sliding" dele é contorno
+   de um problema da física do UPBGE (Bullet); a nossa não escorrega assim, não precisa.
+   Diferença de projeto: lá a direção é relativa à ROTAÇÃO do personagem (primeira pessoa);
+   aqui é relativa à CÂMERA (terceira pessoa) — os dois modos podem existir, o script escolhe.
 
 4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
