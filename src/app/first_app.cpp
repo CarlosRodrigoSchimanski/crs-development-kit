@@ -322,7 +322,7 @@ namespace lve {
         lveRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);
         simpleRenderSystem->renderGameObjects(frameInfo);
         pointLightSystem->render(frameInfo);
-        
+
         //gizmos: transparentes, depois do que é opaco
         if (!frameInfo.playing) {
             gizmoRenderSystem->render(frameInfo);
@@ -405,11 +405,11 @@ namespace lve {
             updateCamera(gameCamera, sceneAspect);
 
             FrameInfo frameInfo{
-                frameIndex, 
-                frameTime, 
-                commandBuffer, 
-                camera, 
-                globalDescriptorSets[frameIndex], 
+                frameIndex,
+                frameTime,
+                commandBuffer,
+                camera,
+                globalDescriptorSets[frameIndex],
                 activeScene(),
                 playScene.has_value()
             };
@@ -421,14 +421,9 @@ namespace lve {
             editor.beginFrame();
             drawStatsWindow(displayFps);
 
-            //painel lateral
+            //interface do editor (só fora do Play)
             if (!playScene) {
-                editor.drawSidePanel(lveScene);
-            }
-
-            //gizmo
-            if (!playScene) {
-                editor.drawTransformGizmo(lveScene, camera, sceneArea);
+                editor.drawUi(lveScene, camera, sceneArea);
             }
 
             //render

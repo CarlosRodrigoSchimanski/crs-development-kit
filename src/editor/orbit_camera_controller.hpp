@@ -13,6 +13,9 @@ namespace lve {
         public:
             void update(LveWindow &lveWindow, LveCamera &camera);
 
+            //aponta a câmera numa direção (do alvo até a câmera), mantendo o alvo e a distância
+            void setOrbitDirection(glm::vec3 direction);
+
             glm::vec3 target{0.f, 0.f, 0.f};
             float distance{6.f};
             float yaw{0.f};

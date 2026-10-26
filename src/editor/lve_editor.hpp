@@ -16,26 +16,31 @@ namespace lve {
     //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
     class LveEditor {
         public:
-            //comesa o frame das feramentas
+            //começa o frame das ferramentas (logo depois do newFrame do ImGui)
             void beginFrame();
-            //camera do editor 
+            //câmera do editor: a orbital, controlada pelo mouse
             void updateCamera(LveWindow &window, LveCamera &camera);
-            //ponto de vista da camera do editor
+            //ponto que a câmera do editor olha (a caixa do sol fica em volta dele)
             glm::vec3 getFocusPoint() const;
-            //G move, R gira, S escalona
+            //G move, R gira, S escala (como no Blender), fora dos campos de texto
             void updateGizmoMode(const LveInput &input);
             //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             LveGameObject* getSelected(LveScene &scene) const;
-            //painel lateral preso a direita
-            void drawSidePanel(LveScene &scene);
-            //pedaço da tela que sobra para cena ao lado do painel
+            //pedaço da tela que sobra pra cena ao lado do painel
             VkRect2D sceneArea(VkExtent2D screen) const;
-            //setas de mover objetos
-            void drawTransformGizmo(LveScene & scene, const LveCamera &camera, VkRect2D sceneArea);
-        
+            //toda a interface do editor do frame: painel, setas e gizmo de navegação
+            void drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
+
         private:
+            //painel lateral preso à direita (outliner, propriedades, ferramentas)
+            void drawSidePanel(LveScene &scene);
+            //setas de mover/girar/escalar no objeto selecionado (ImGuizmo)
+            void drawTransformGizmo(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
+            //bolinhas dos eixos no canto da cena, como no Blender: clicar põe a câmera daquele lado
+            void drawNavigationGizmo(const LveCamera &camera, VkRect2D sceneArea);
+
             //objeto selecionado (vazio = nenhum)
             std::optional<LveGameObject::id_t> selectedId;
             //modo atual das setas do gizmo

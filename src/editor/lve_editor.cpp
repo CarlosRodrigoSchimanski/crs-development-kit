@@ -3,12 +3,23 @@
 #include <imgui.h>
 #include <cstdint>
 #include <algorithm>
+#include <iterator>
 #include <ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
 
 namespace lve {
-    //largura do painel lateral
+    //largura do painel lateral (pixels)
     constexpr float SIDE_PANEL_WIDTH = 320.f;
+    //raio do gizmo de navegação (pixels)
+    constexpr float NAV_GIZMO_RADIUS = 50.f;
+
+    //centro do gizmo de navegação: canto de cima à direita da cena, com uma margem
+    static ImVec2 navGizmoCenter(VkRect2D sceneArea) {
+        return ImVec2(
+            static_cast<float>(sceneArea.offset.x + static_cast<int32_t>(sceneArea.extent.width)) - NAV_GIZMO_RADIUS - 20.f,
+            static_cast<float>(sceneArea.offset.y) + NAV_GIZMO_RADIUS + 20.f
+        );
+    }
 
     void LveEditor::beginFrame() {
         ImGuizmo::BeginFrame();
@@ -16,16 +27,22 @@ namespace lve {
 
     void LveEditor::updateCamera(LveWindow &window, LveCamera &camera) {
         cameraController.update(window, camera);
-    };
+    }
 
     glm::vec3 LveEditor::getFocusPoint() const {
         return cameraController.target;
-    };
+    }
 
     void LveEditor::updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea) {
         //clique em janela do ImGui ou na seta do gizmo não seleciona
         if (ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsOver()) return;
         if (!input.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) return;
+        //clique no gizmo de navegação é dele
+        glm::vec2 mouse = input.getMousePosition();
+        ImVec2 nav = navGizmoCenter(sceneArea);
+        float dx = mouse.x - nav.x;
+        float dy = mouse.y - nav.y;
+        if (dx * dx + dy * dy <= NAV_GIZMO_RADIUS * NAV_GIZMO_RADIUS) return;
 
         //o raio é calculado dentro do retângulo da cena
         glm::vec2 areaOffset(static_cast<float>(sceneArea.offset.x), static_cast<float>(sceneArea.offset.y));
@@ -67,7 +84,7 @@ namespace lve {
             drawOutLiner(scene);
         }
 
-        //propriedades do celecionado
+        //propriedades do selecionado
         if (ImGui::CollapsingHeader("Propriedades", ImGuiTreeNodeFlags_DefaultOpen)) {
             LveGameObject* selected = getSelected(scene);
             if (selected) {
@@ -189,7 +206,7 @@ namespace lve {
 
         const char *label = obj->name.empty() ? "(sem nome)" : obj->name.c_str();
         bool open = ImGui::TreeNodeEx(reinterpret_cast<void *>(static_cast<intptr_t>(id)), flags, "%s", label);
-        
+
         //clicar no nome/setinha
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
             selectedId = id;
@@ -200,6 +217,68 @@ namespace lve {
                 drawOutLinerNode(scene, childId, children);
             }
             ImGui::TreePop();
+        }
+    }
+
+    void LveEditor::drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
+        drawSidePanel(scene);
+        drawTransformGizmo(scene, camera, sceneArea);
+        drawNavigationGizmo(camera, sceneArea);
+    }
+
+    void LveEditor::drawNavigationGizmo(const LveCamera &camera, VkRect2D sceneArea) {
+        //os 6 eixos do mundo e a cor de cada um (X vermelho, Y verde, Z azul, como no Blender);
+        //positivo = bolinha cheia com a letra, negativo = só o contorno
+        struct Axis { glm::vec3 direction; ImU32 color; const char *label; };
+        static const Axis axes[6] = {
+            {{1.f, 0.f, 0.f}, IM_COL32(230, 70, 80, 255), "X"},
+            {{-1.f, 0.f, 0.f}, IM_COL32(230, 70, 80, 255), nullptr},
+            {{0.f, 1.f, 0.f}, IM_COL32(120, 200, 60, 255), "Y"},
+            {{0.f, -1.f, 0.f}, IM_COL32(120, 200, 60, 255), nullptr},
+            {{0.f, 0.f, 1.f}, IM_COL32(60, 140, 240, 255), "Z"},
+            {{0.f, 0.f, -1.f}, IM_COL32(60, 140, 240, 255), nullptr},
+        };
+
+        //só a rotação da câmera: leva cada eixo pro espaço da tela do Vulkan
+        //(x pra direita, y pra baixo, z pra dentro da tela) — sem conversão nenhuma
+        glm::mat3 viewRotation{camera.getView()};
+        ImVec2 center = navGizmoCenter(sceneArea);
+        const float reach = NAV_GIZMO_RADIUS * 0.75f;
+        const float bubble = 9.f;
+
+        struct Projected { const Axis *axis; ImVec2 position; float depth; };
+        Projected projected[6];
+        for (int i = 0; i < 6; i++) {
+            glm::vec3 v = viewRotation * axes[i].direction;
+            projected[i] = {&axes[i], ImVec2(center.x + v.x * reach, center.y + v.y * reach), v.z};
+        }
+        //do mais longe pro mais perto: o que está na frente é desenhado por cima
+        std::sort(std::begin(projected), std::end(projected),
+            [](const Projected &a, const Projected &b) { return a.depth > b.depth; });
+
+        ImDrawList *draw = ImGui::GetForegroundDrawList();
+        draw->AddCircleFilled(center, NAV_GIZMO_RADIUS, IM_COL32(40, 40, 40, 90));
+        for (const Projected &p : projected) {
+            if (p.axis->label) {
+                draw->AddLine(center, p.position, p.axis->color, 2.f);
+                draw->AddCircleFilled(p.position, bubble, p.axis->color);
+                draw->AddText(ImVec2(p.position.x - 4.f, p.position.y - 7.f), IM_COL32(20, 20, 20, 255), p.axis->label);
+            } else {
+                draw->AddCircle(p.position, bubble, p.axis->color, 0, 2.f);
+            }
+        }
+
+        //clique numa bolinha: a câmera vai pra aquele lado, olhando pro alvo (a mais perto ganha)
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            ImVec2 mouse = ImGui::GetIO().MousePos;
+            for (int i = 5; i >= 0; i--) {
+                float dx = mouse.x - projected[i].position.x;
+                float dy = mouse.y - projected[i].position.y;
+                if (dx * dx + dy * dy <= bubble * bubble) {
+                    cameraController.setOrbitDirection(projected[i].axis->direction);
+                    break;
+                }
+            }
         }
     }
 }

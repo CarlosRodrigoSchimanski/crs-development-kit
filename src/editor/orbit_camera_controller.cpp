@@ -73,4 +73,11 @@ namespace lve {
         };
     }
 
+    void OrbitCameraController::setOrbitDirection(glm::vec3 direction) {
+        direction = glm::normalize(direction);
+        //o inverso do orbitDirection: o pitch sai do y, o yaw do x e do z
+        pitch = glm::clamp(glm::asin(glm::clamp(-direction.y, -1.f, 1.f)), -maxPitch, maxPitch);
+        yaw = glm::atan(direction.x, direction.z);
+    }
+
 }
