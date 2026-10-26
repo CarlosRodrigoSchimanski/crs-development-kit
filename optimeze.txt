@@ -464,6 +464,13 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    de um problema da física do UPBGE (Bullet); a nossa não escorrega assim, não precisa.
    Diferença de projeto: lá a direção é relativa à ROTAÇÃO do personagem (primeira pessoa);
    aqui é relativa à CÂMERA (terceira pessoa) — os dois modos podem existir, o script escolhe.
+   Esclarecido pelo usuário (2026-10-25): os templates são só referência de COMO o sistema
+   funciona (um script preso a cada objeto que precisa, todos rodando durante o Play), não do
+   comportamento final da câmera/personagem do jogo, e não é pra copiar o UPBGE — é seguir a
+   mesma lógica. Junto vem uma API Python documentada pra consulta (como a referência do bge):
+   documentação das funções/classes expostas + arquivo .pyi pro VS Code autocompletar e mostrar
+   a ajuda de cada função enquanto o script é escrito. Bom ter também: tempo gasto por script
+   no editor (ms por frame), pra achar script pesado.
 
 4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
