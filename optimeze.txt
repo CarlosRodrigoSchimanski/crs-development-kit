@@ -434,6 +434,27 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    girar a câmera); no GLFW são os modos GLFW_CURSOR_NORMAL / HIDDEN / DISABLED, atrás de um
    método do LveWindow (o resto da engine não fala com o GLFW).
 
+3.3. Câmera seguindo o personagem e o movimento do personagem (anotado 2026-10-25) — a câmera
+   de jogo acompanha o player (terceira pessoa estilo Infinity Nikki: atrás e acima, girando com
+   o mouse, com limite de ângulo pra não virar de cabeça pra baixo), e o personagem passa a
+   virar pra direção em que anda. Base pronta: parentesco (a câmera pode ser filha do player,
+   como no UPBGE), CharacterControllerSystem, LveInput com mouse, cursor capturado (3.2).
+
+3.4. Scripts Python como componentes de objeto (anotado 2026-10-25, pedido do usuário) — o
+   mesmo modelo do KX_PythonComponent do UPBGE: uma classe Python presa a um objeto, com
+   start(args) e update(), e os "args" (sensibilidade do mouse, inverter eixo, limitar
+   rotação...) aparecendo editáveis no painel de propriedades do editor. Exemplo-alvo: o
+   template de câmera em primeira pessoa do UnidayStudio (mouselook + limite de rotação),
+   que deveria poder ser escrito quase igual. Divisão de trabalho: a engine (C++) faz o que
+   roda pesado todo frame — física, colisão, render, o CharacterControllerSystem —, e o script
+   Python decide o comportamento (pra onde a câmera vai, o que cada tecla faz, regras do jogo),
+   como os logic bricks/componentes do UPBGE. A API exposta pro Python precisa de: transform
+   (posição, rotação, applyRotation local/global), pai/filhos, input (teclas, mouse e o
+   DELTA do mouse — com o cursor capturado não precisa recolocar o mouse no centro como o
+   template faz), tamanho da janela, e a intenção de movimento do personagem (CharacterInput).
+   Jeito comum de embutir: CPython + pybind11. Antes disso: o cursor capturado (3.2) e a câmera
+   seguindo o player (3.3) em C++, que viram o primeiro script a ser portado pra Python.
+
 4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
    com o item 3: sobrevoar/inspecionar em modo editor, andar de verdade em modo jogo.
