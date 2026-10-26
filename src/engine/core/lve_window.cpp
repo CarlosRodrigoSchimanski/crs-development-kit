@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 namespace lve {
+
     LveWindow::LveWindow(int w, int h, std::string name) : width{w}, height{h}, windowName{name} {
         if (!glfwInit()) {
             throw std::runtime_error("failed to initialize GLFW!");
@@ -88,6 +89,17 @@ namespace lve {
         auto lveWindow = static_cast<LveWindow*>(glfwGetWindowUserPointer(window));
         if (lveWindow->onRefresh) {
             lveWindow->onRefresh();
+        }
+    }
+
+    void LveWindow::setCursorMode(CursorMode mode) {
+        int glfwMode = GLFW_CURSOR_NORMAL;
+        if (mode == CursorMode::Hidden) glfwMode = GLFW_CURSOR_HIDDEN;
+        if (mode == CursorMode::Captured) glfwMode = GLFW_CURSOR_DISABLED;
+        glfwSetInputMode(window, GLFW_CURSOR, glfwMode);
+
+        if (glfwRawMouseMotionSupported()) {
+            glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, mode == CursorMode::Captured ? GLFW_TRUE : GLFW_FALSE);
         }
     }
 }

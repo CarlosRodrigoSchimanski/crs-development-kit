@@ -7,6 +7,7 @@
 #include <string>
 
 namespace lve {
+    enum class CursorMode {Visible, Hidden, Captured};
 
     class LveWindow {
         public:
@@ -29,6 +30,8 @@ namespace lve {
             void waitWhileMinimized();
             void resetWindowResizedFlag();
             GLFWwindow * getGLFWwindow() const;
+
+            void setCursorMode(CursorMode mode);
 
             //devolve o deslocamento acumulado da roda do mouse desde a última chamada, e zera o acumulador
             float consumeScrollDelta();

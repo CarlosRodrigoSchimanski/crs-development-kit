@@ -20,6 +20,8 @@ namespace lve {
     constexpr float MAX_FRAME_TIME = 0.05f;
     //limite de FPS do programa (<= 0 = sem limite)
     constexpr float TARGET_FPS{144.f};
+    //cursor do mouse durante o Play (configuração do jogo; este usa câmera girando com o mouse)
+    constexpr CursorMode PLAY_CURSOR = CursorMode::Captured;
     //meia largura da caixa de sombra do sol
     constexpr float SHADOW_HALF_SIZE = 10.f;
     //distância da câmera do sol até o centro da caixa
@@ -212,10 +214,14 @@ namespace lve {
     void FirstApp::startPlay() {
         //a cena do editor fica intacta
         playScene = lveScene;
+        lveWindow.setCursorMode(PLAY_CURSOR);
+        lveInput.skipNextMouseDelta();
     }
 
     void FirstApp::stopPlay() {
         playScene.reset();
+        lveWindow.setCursorMode(CursorMode::Visible);
+        lveInput.skipNextMouseDelta();
     }
 
     void FirstApp::updatePlayMode() {
@@ -255,6 +261,8 @@ namespace lve {
         } else {
             ImGui::Text("Selecionado: nenhum");
         }
+
+        ImGui::Text("Mouse delta: %.1f, %.1f", lveInput.getMouseDelta().x, lveInput.getMouseDelta().y);
 
         ImGui::End();
     }

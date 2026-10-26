@@ -26,6 +26,10 @@ namespace lve {
             bool wasMousePressed(int button) const;
             //posição do cursor na janela, em pixels (origem no canto de cima, à esquerda)
             glm::vec2 getMousePosition() const;
+            //quanto o mouse andou
+            glm::vec2 getMouseDelta() const;
+            //o proximo delta vale 0
+            void skipNextMouseDelta();
 
         private:
             std::array<bool, GLFW_KEY_LAST + 1> current{};
@@ -33,5 +37,7 @@ namespace lve {
             std::array<bool, GLFW_MOUSE_BUTTON_LAST + 1> currentMouse{};
             std::array<bool, GLFW_MOUSE_BUTTON_LAST + 1> previousMouse{};
             glm::vec2 mousePosition{0.f};
+            glm::vec2 mouseDelta{0.f};
+            bool skipMouseDelta = true;
     };
 }

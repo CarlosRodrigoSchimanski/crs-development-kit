@@ -17,7 +17,11 @@ namespace lve {
         double x = 0.0;
         double y = 0.0;
         glfwGetCursorPos(window.getGLFWwindow(), &x, &y);
-        mousePosition = {static_cast<float>(x), static_cast<float>(y)};
+
+        glm::vec2 newPosition{static_cast<float>(x), static_cast<float>(y)};
+        mouseDelta = skipMouseDelta ? glm::vec2{0.f} : newPosition - mousePosition;
+        skipMouseDelta = false;
+        mousePosition = newPosition;
     }
 
     bool LveInput::isDown(int key) const {
@@ -42,5 +46,13 @@ namespace lve {
 
     glm::vec2 LveInput::getMousePosition() const {
         return mousePosition;
+    }
+
+    glm::vec2 LveInput::getMouseDelta() const {
+        return mouseDelta;
+    }
+
+    void LveInput::skipNextMouseDelta() {
+        skipMouseDelta = true;
     }
 }
