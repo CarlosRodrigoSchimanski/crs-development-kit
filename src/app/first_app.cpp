@@ -177,6 +177,26 @@ namespace lve {
         playerVisual.model = lveModel;
         playerVisual.parentId = player.getId();
 
+        //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
+        lveModel = LveModel::createModelFromFile(lveDevice, "models/empty.glb");
+        auto& cameraPivot = lveScene.createGameObject();
+        cameraPivot.name = "CameraPivot";
+        cameraPivot.model = lveModel;
+        cameraPivot.editorOnly = true;  //gizmo só no editor (provisório: a engine vai gerar a cruz de eixos)
+        cameraPivot.parentId = player.getId();
+        cameraPivot.transform.translation = {0.f, -1.6f, 0.f};  //1,6 acima dos pés (o Y aponta pra baixo)
+
+        //câmera de jogo
+        lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
+        auto& gameCamera = lveScene.createGameObject();
+        gameCamera.name = "Camera";
+        gameCamera.model = lveModel;
+        gameCamera.editorOnly = true;  //gizmo só no editor
+        gameCamera.parentId = cameraPivot.getId();
+        gameCamera.transform.translation = {0.f, 0.f, -4.f};
+        gameCamera.camera.emplace();
+        lveScene.setActiveCamera(gameCamera.getId());
+
         //chão (estático)
         lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
         auto& floor = lveScene.createGameObject();
@@ -187,16 +207,6 @@ namespace lve {
         floor.rigidBody.emplace();
         floor.rigidBody->type = BodyType::Static;
         floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
-
-        //câmera de jogo
-        lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
-        auto& gameCamera = lveScene.createGameObject();
-        gameCamera.name = "Camera";
-        gameCamera.model = lveModel;
-        gameCamera.editorOnly = true;  //gizmo só no editor
-        gameCamera.transform.translation = {0.f, -1.f, -5.f};
-        gameCamera.camera.emplace();
-        lveScene.setActiveCamera(gameCamera.getId());
     }
 
     void FirstApp::startPlay() {
@@ -271,7 +281,7 @@ namespace lve {
         glm::vec3 forward{0.f, 0.f, 1.f};
         glm::vec3 right{1.f, 0.f, 0.f};
         if (gameCamera) {
-            glm::mat3 rotation = gameCamera->transform.rotationMatrix();
+            glm::mat3 rotation{playScene->worldMatrix(*gameCamera)};
             glm::vec3 flatForward{rotation[2].x, 0.f, rotation[2].z};
             glm::vec3 flatRight{rotation[0].x, 0.f, rotation[0].z};
             //câmera olhando reto pra baixo: a frente achatada some, mantém a do mundo
@@ -289,9 +299,10 @@ namespace lve {
 
     void FirstApp::updateCamera(LveGameObject* gameCamera, float aspect) {
         if (gameCamera) {
-            //Play: vista e lente do objeto câmera
-            glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
-            camera.setViewDirection(gameCamera->transform.translation, forward);
+            //Posição e frente no mundo
+            glm::mat4 world = playScene->worldMatrix(*gameCamera);
+            glm::vec3 forward = glm::normalize(glm::vec3{world[2]});
+            camera.setViewDirection(glm::vec3{world[3]}, forward);
             const CameraComponent& lens = *gameCamera->camera;
             camera.setPerspectiveProjection(lens.fovY, aspect, lens.nearPlane, lens.farPlane);
             return;
@@ -307,8 +318,9 @@ namespace lve {
         //centro: alvo da orbital, ou à frente da câmera de jogo
         glm::vec3 shadowCenter = editor.getFocusPoint();
         if (gameCamera) {
-            glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
-            shadowCenter = gameCamera->transform.translation + forward * SHADOW_HALF_SIZE;
+            glm::mat4 world = playScene->worldMatrix(*gameCamera);
+            glm::vec3 forward = glm::normalize(glm::vec3{world[2]});
+            shadowCenter = glm::vec3{world[3]} + forward * SHADOW_HALF_SIZE;
         }
         updateShadowCamera(shadowCamera, shadowCenter, lightDirection, shadowMapSize);
         return shadowCamera.getProjection() * shadowCamera.getView();
