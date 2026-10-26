@@ -18,6 +18,8 @@ namespace lve {
             void drawSidePanel(LveScene &scene);
             //pedaço da tela que sobra para cena ao lado do painel
             VkRect2D sceneArea(VkExtent2D screen) const;
+            //setas de mover objetos
+            void drawTransformGizmo(LveScene & scene, const LveCamera &camera, VkRect2D sceneArea);
         
         private:
             //objeto selecionado (vazio = nenhum)

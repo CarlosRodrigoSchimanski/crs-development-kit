@@ -56,8 +56,6 @@ namespace lve {
             void drawStatsWindow(float fps);
             //pedaço da tela onde a cena é desenhada
             VkRect2D computeSceneArea() const;
-            //setas de mover o objeto
-            void drawTransformGizmo();
             //câmera ativa da cena do Play
             LveGameObject* findGameCamera();
             //WASD vira intenção de movimento, relativa à câmera de jogo

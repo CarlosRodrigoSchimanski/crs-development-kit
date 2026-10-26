@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 #include <ImGuizmo.h>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace lve {
     //largura do painel lateral
@@ -67,5 +68,42 @@ namespace lve {
         //janela mais estreita
         uint32_t width = screen.width > panel ? screen.width - panel : 1;
         return VkRect2D{{0,0}, {width, screen.height}};
+    }
+
+    void LveEditor::drawTransformGizmo(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
+        LveGameObject* selected = getSelected(scene);
+        if (!selected) return;
+
+        //desenha por cima da cena
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist(ImGui::GetBackgroundDrawList());
+        ImGuizmo::SetRect(
+            static_cast<float>(sceneArea.offset.x),
+            static_cast<float>(sceneArea.offset.y),
+            static_cast<float>(sceneArea.extent.width),
+            static_cast<float>(sceneArea.extent.height)
+        );
+
+        glm::mat4 view = camera.getView();
+        glm::mat4 projection = camera.getProjection();
+        projection[1][1] *= -1.f;
+
+        glm::mat4 world = scene.worldMatrix(*selected);
+        if (ImGuizmo::Manipulate(
+            glm::value_ptr(view),
+            glm::value_ptr(projection),
+            ImGuizmo::TRANSLATE,
+            ImGuizmo::WORLD,
+            glm::value_ptr(world)
+        )) {
+            glm::mat4 parentWorld{1.f};
+            if (selected->parentId) {
+                if (LveGameObject* parent = scene.findGameObjectById(*selected->parentId)) {
+                    parentWorld = scene.worldMatrix(*parent);
+                }
+            }
+            glm::mat4 local = glm::inverse(parentWorld) * world;
+            selected->transform.translation = glm::vec3{local[3]};
+        }
     }
 }

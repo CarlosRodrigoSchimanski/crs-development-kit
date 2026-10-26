@@ -255,42 +255,6 @@ namespace lve {
         return editor.sceneArea(extent);
     }
 
-    void FirstApp::drawTransformGizmo() {
-        if (playScene) return;
-        LveGameObject* selected = editor.getSelected(lveScene);
-        if (!selected) return;
-
-        //desenha por cima da cena
-        ImGuizmo::SetOrthographic(false);
-        ImGuizmo::SetDrawlist(ImGui::GetBackgroundDrawList());
-        ImGuizmo::SetRect(
-            static_cast<float>(sceneArea.offset.x), static_cast<float>(sceneArea.offset.y),
-            static_cast<float>(sceneArea.extent.width), static_cast<float>(sceneArea.extent.height)
-        );
-        glm::mat4 view = camera.getView();
-        //inverte o y do imguizmo
-        glm::mat4 projection = camera.getProjection();
-        projection[1][1] *= -1.f;
-
-        glm::mat4 world = lveScene.worldMatrix(*selected);
-        if (ImGuizmo::Manipulate(
-            glm::value_ptr(view),
-            glm::value_ptr(projection),
-            ImGuizmo::TRANSLATE,
-            ImGuizmo::WORLD,
-            glm::value_ptr(world))) {
-                //se tiver pai a posição pasa por ele antes do transfom
-                glm::mat4 parentWorld{1.f};
-                if (selected->parentId) {
-                    if (LveGameObject* parent = lveScene.findGameObjectById(*selected->parentId)) {
-                        parentWorld = lveScene.worldMatrix(*parent);
-                    }
-                }
-                glm::mat4 local = glm::inverse(parentWorld) * world;
-                selected->transform.translation = glm::vec3{local[3]};
-        }
-    }
-
     LveGameObject* FirstApp::findGameCamera() {
         if (!playScene) return nullptr;
         auto id = playScene->getActiveCamera();
@@ -463,7 +427,9 @@ namespace lve {
             }
 
             //gizmo
-            drawTransformGizmo();
+            if (!playScene) {
+                editor.drawTransformGizmo(lveScene, camera, sceneArea);
+            }
 
             //render
             renderFrame(frameInfo);
