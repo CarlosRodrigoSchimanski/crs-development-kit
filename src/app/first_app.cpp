@@ -385,8 +385,8 @@ namespace lve {
         //clique seleciona (só no editor)
         if (!playScene) {
             editor.updateSelection(lveScene, lveInput, camera, sceneArea);
+            editor.updateGizmoMode(lveInput);
         }
-
 
         //câmera de jogo
         LveGameObject* gameCamera = findGameCamera();

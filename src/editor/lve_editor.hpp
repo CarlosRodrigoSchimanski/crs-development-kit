@@ -10,6 +10,9 @@
 #include <map>
 
 namespace lve {
+    //oq as setas do gizmo fazem
+    enum class GizmoMode {Move, Rotate, Scale};
+
     //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
     class LveEditor {
         public:
@@ -19,6 +22,8 @@ namespace lve {
             void updateCamera(LveWindow &window, LveCamera &camera);
             //ponto de vista da camera do editor
             glm::vec3 getFocusPoint() const;
+            //G move, R gira, S escalona
+            void updateGizmoMode(const LveInput &input);
             //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
@@ -33,6 +38,8 @@ namespace lve {
         private:
             //objeto selecionado (vazio = nenhum)
             std::optional<LveGameObject::id_t> selectedId;
+            //modo atual das setas do gizmo
+            GizmoMode gizmoMode = GizmoMode::Move;
             //filhos de cada objeto
             using ChildrenMap = std::map<LveGameObject::id_t, std::vector<LveGameObject::id_t>>;
             //lista de objetos da cena em árvore

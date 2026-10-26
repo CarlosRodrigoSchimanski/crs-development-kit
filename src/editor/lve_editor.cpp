@@ -36,6 +36,14 @@ namespace lve {
         selectedId = scene.pickObject(ray);
     }
 
+    void LveEditor::updateGizmoMode(const LveInput &input) {
+        //digitando num campo do imgui
+        if (ImGui::GetIO().WantCaptureKeyboard) return;
+        if (input.wasPressed(GLFW_KEY_G)) gizmoMode = GizmoMode::Move;
+        if (input.wasPressed(GLFW_KEY_R)) gizmoMode = GizmoMode::Rotate;
+        if (input.wasPressed(GLFW_KEY_S)) gizmoMode = GizmoMode::Scale;
+    }
+
     LveGameObject* LveEditor::getSelected(LveScene &scene) const {
         return selectedId ? scene.findGameObjectById(*selectedId) : nullptr;
     }
@@ -117,12 +125,19 @@ namespace lve {
         glm::mat4 projection = camera.getProjection();
         projection[1][1] *= -1.f;
 
+        //o modo editor vira a operação da imguizmo
+        ImGuizmo::OPERATION operation = ImGuizmo::TRANSLATE;
+        if (gizmoMode == GizmoMode::Rotate) operation = ImGuizmo::ROTATE;
+        if (gizmoMode == GizmoMode::Scale) operation = ImGuizmo::SCALE;
+        //escalar é sempre nos eixos do proprio objeto
+        ImGuizmo::MODE space = gizmoMode == GizmoMode::Scale ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+
         glm::mat4 world = scene.worldMatrix(*selected);
         if (ImGuizmo::Manipulate(
             glm::value_ptr(view),
             glm::value_ptr(projection),
-            ImGuizmo::TRANSLATE,
-            ImGuizmo::WORLD,
+            operation,
+            space,
             glm::value_ptr(world)
         )) {
             glm::mat4 parentWorld{1.f};
@@ -132,7 +147,7 @@ namespace lve {
                 }
             }
             glm::mat4 local = glm::inverse(parentWorld) * world;
-            selected->transform.translation = glm::vec3{local[3]};
+            selected->transform.setFromMatrix(local);
         }
     }
 
