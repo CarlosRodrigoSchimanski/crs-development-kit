@@ -42,6 +42,9 @@ namespace lve {
         glm::mat3 rotationMatrix() const;
         glm::mat4 mat4() const;
         glm::mat3 normalMatrix() const;
+
+        //preenche posição, rotação e escala a partir de uma matriz (o caminho inverso do mat4)
+        void setFromMatrix(const glm::mat4 &matrix);
     };
 
     struct PointLightComponent {

@@ -35,6 +35,26 @@ namespace lve {
         return glm::mat3{r[0] / scale.x, r[1] / scale.y, r[2] / scale.z};
     }
 
+    void TransformComponent::setFromMatrix(const glm::mat4 &matrix) {
+        translation = glm::vec3{matrix[3]};
+
+        //cada coluna é um eixo do objeto
+        glm::vec3 axisX{matrix[0]};
+        glm::vec3 axisY{matrix[1]};
+        glm::vec3 axisZ{matrix[2]};
+        scale = {glm::length(axisX), glm::length(axisY), glm::length(axisZ)};
+
+        //tirando a escala, sobra a rotação pura
+        axisX /= scale.x;
+        axisY /= scale.y;
+        axisZ /= scale.z;
+
+        //o inverso do rotationMatrix (ordem Y, X, Z): cada ângulo sai de dois números da matriz
+        rotation.x = glm::asin(glm::clamp(-axisZ.y, -1.f, 1.f));
+        rotation.y = glm::atan(axisZ.x, axisZ.z);
+        rotation.z = glm::atan(axisX.y, axisY.y);
+    }
+
     LveGameObject LveGameObject::makePointLight(float intensity, float radius, glm::vec3 color) {
         LveGameObject gameObject = LveGameObject::createGameObject();
         gameObject.color = color;
