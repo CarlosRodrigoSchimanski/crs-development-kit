@@ -24,9 +24,6 @@ namespace lve {
             float minDistance{0.5f};
             float maxPitch{1.5f};
 
-            //alvo de FPS desta câmera (editor); <= 0 significa "sem limite"
-            float targetFps{144.f};
-
         private:
             glm::vec3 orbitDirection() const;
 

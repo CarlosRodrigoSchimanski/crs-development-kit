@@ -21,6 +21,8 @@
 namespace lve {
     //limite do tempo de um frame (evita saltos grandes na física)
     constexpr float MAX_FRAME_TIME = 0.05f;
+    //limite de FPS do programa (<= 0 = sem limite)
+    constexpr float TARGET_FPS{144.f};
     //meia largura da caixa de sombra do sol
     constexpr float SHADOW_HALF_SIZE = 10.f;
     //distância da câmera do sol até o centro da caixa
@@ -133,8 +135,9 @@ namespace lve {
             drawFrame();
 
             //limitador de FPS (<= 0 = sem limite)
-            if (cameraController.targetFps > 0.f) {
-                float targetFrameDuration = 1.f / cameraController.targetFps;
+            //if constexpr: o limite é constante, o compilador decide na compilação
+            if constexpr (TARGET_FPS > 0.f) {
+                float targetFrameDuration = 1.f / TARGET_FPS;
                 //dorme 1ms por vez e termina em espera ativa (precisão)
                 float elapsed = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - currentTime).count();
                 while (elapsed < targetFrameDuration) {
