@@ -426,6 +426,13 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    o objeto entra num ponto da cena e é posicionado depois (clicar + mover). Juntos, tiram a
    montagem da cena do loadGameObjects (que hoje é código) e levam pro arquivo de cena.
 
+3.1.1. Gizmos gerados pela engine (anotado 2026-10-26, decisão do usuário) — tudo que é objeto
+   de editor (Empty, trigger, colisor, luz, ponto de spawn e, se der, a própria câmera) tem a
+   forma GERADA pela engine (caixa, esfera, cápsula, cruz de eixos, pirâmide de visão da câmera
+   a partir do FOV), sem arquivo; só os modelos 3D do jogo são importados. Vantagem extra: o
+   gizmo do colisor/trigger sai do próprio halfExtents e nunca fica diferente da física. Os
+   .glb de gizmo feitos no Blender (camera.glb, character.glb, empty.glb) são provisórios.
+
 3.2. Cursor do mouse no Play configurável por jogo (anotado 2026-10-22) — uma configuração do
    jogo (com controle na interface do editor) diz como o cursor fica no Play: visível, escondido,
    ou capturado (escondido e preso na janela, dando o movimento "infinito" que a câmera em
