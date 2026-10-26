@@ -4,15 +4,12 @@
 #include "engine/rendering/systems/point_light_system.hpp"
 #include "engine/rendering/systems/shadow_render_system.hpp"
 #include "engine/physics/lve_physics_system.hpp"
-#include "editor/orbit_camera_controller.hpp"
 #include "engine/rendering/lve_buffer.hpp"
 #include "editor/lve_imgui.hpp"
 #include "engine/rendering/lve_shadow_map.hpp"
 #include "engine/platform/lve_platform.hpp"
 
 #include <imgui.h>
-#include <ImGuizmo.h>
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 
 #include <chrono>
@@ -301,14 +298,14 @@ namespace lve {
         }
         //editor: orbital
         if (!playScene) {
-            cameraController.update(lveWindow, camera);
+            editor.updateCamera(lveWindow, camera);
         }
         camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
     }
 
     glm::mat4 FirstApp::computeLightSpaceMatrix(LveGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize) {
         //centro: alvo da orbital, ou à frente da câmera de jogo
-        glm::vec3 shadowCenter = cameraController.target;
+        glm::vec3 shadowCenter = editor.getFocusPoint();
         if (gameCamera) {
             glm::vec3 forward = gameCamera->transform.rotationMatrix()[2];
             shadowCenter = gameCamera->transform.translation + forward * SHADOW_HALF_SIZE;
@@ -421,7 +418,7 @@ namespace lve {
 
             //UI
             lveImgui->newFrame();
-            ImGuizmo::BeginFrame();
+            editor.beginFrame();
             drawStatsWindow(displayFps);
 
             //painel lateral

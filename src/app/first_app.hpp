@@ -15,7 +15,6 @@
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/gameplay/character_controller_system.hpp"
 #include "engine/physics/lve_physics_system.hpp"
-#include "editor/orbit_camera_controller.hpp"
 #include "editor/lve_editor.hpp"
 #include "editor/lve_imgui.hpp"
 
@@ -118,8 +117,6 @@ namespace lve {
             LveCamera camera{};
             //câmera do sol
             LveCamera shadowCamera{};
-            //câmera orbital do editor
-            OrbitCameraController cameraController{};
             //física do Play
             PhysicsSystem physicsSystem{};
             //personagens do Play

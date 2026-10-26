@@ -3,6 +3,7 @@
 #include "engine/core/lve_input.hpp"
 #include "engine/rendering/lve_camera.hpp"
 #include "engine/scene/lve_scene.hpp"
+#include "editor/orbit_camera_controller.hpp"
 
 #include <optional>
 
@@ -10,6 +11,12 @@ namespace lve {
     //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
     class LveEditor {
         public:
+            //comesa o frame das feramentas
+            void beginFrame();
+            //camera do editor 
+            void updateCamera(LveWindow &window, LveCamera &camera);
+            //ponto de vista da camera do editor
+            glm::vec3 getFocusPoint() const;
             //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
@@ -24,5 +31,7 @@ namespace lve {
         private:
             //objeto selecionado (vazio = nenhum)
             std::optional<LveGameObject::id_t> selectedId;
+            //camera orbital
+            OrbitCameraController cameraController{};
     };
 }

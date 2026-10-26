@@ -8,6 +8,18 @@ namespace lve {
     //largura do painel lateral
     constexpr float SIDE_PANEL_WIDTH = 320.f;
 
+    void LveEditor::beginFrame() {
+        ImGuizmo::BeginFrame();
+    }
+
+    void LveEditor::updateCamera(LveWindow &window, LveCamera &camera) {
+        cameraController.update(window, camera);
+    };
+
+    glm::vec3 LveEditor::getFocusPoint() const {
+        return cameraController.target;
+    };
+
     void LveEditor::updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea) {
         //clique em janela do ImGui ou na seta do gizmo não seleciona
         if (ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsOver()) return;
