@@ -6,6 +6,8 @@
 #include "editor/orbit_camera_controller.hpp"
 
 #include <optional>
+#include <vector>
+#include <map>
 
 namespace lve {
     //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
@@ -31,6 +33,12 @@ namespace lve {
         private:
             //objeto selecionado (vazio = nenhum)
             std::optional<LveGameObject::id_t> selectedId;
+            //filhos de cada objeto
+            using ChildrenMap = std::map<LveGameObject::id_t, std::vector<LveGameObject::id_t>>;
+            //lista de objetos da cena em árvore
+            void drawOutLiner(LveScene &scene);
+            //uma linha do outliner e, se aberta, os filhos dela
+            void drawOutLinerNode(LveScene &scene, LveGameObject::id_t id, const ChildrenMap &children);
             //camera orbital
             OrbitCameraController cameraController{};
             //janela de demonstração do ImGui (todos os componentes), aberta pelo painel

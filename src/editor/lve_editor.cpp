@@ -1,6 +1,8 @@
 #include "editor/lve_editor.hpp"
 
 #include <imgui.h>
+#include <cstdint>
+#include <algorithm>
 #include <ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -51,6 +53,11 @@ namespace lve {
             ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoCollapse
         );
+
+        //lista de objetos da cena
+        if (ImGui::CollapsingHeader("Outliner", ImGuiTreeNodeFlags_DefaultOpen)) {
+            drawOutLiner(scene);
+        }
 
         //propriedades do celecionado
         if (ImGui::CollapsingHeader("Propriedades", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -126,6 +133,58 @@ namespace lve {
             }
             glm::mat4 local = glm::inverse(parentWorld) * world;
             selected->transform.translation = glm::vec3{local[3]};
+        }
+    }
+
+    void LveEditor::drawOutLiner(LveScene &scene) {
+        ChildrenMap children;
+        std::vector<LveGameObject::id_t> roots;
+
+        for (auto &kv : scene.getGameObjects()) {
+            const LveGameObject &obj = kv.second;
+            if (obj.parentId && scene.findGameObjectById(*obj.parentId)) {
+                children[*obj.parentId].push_back(obj.getId());
+            } else {
+                roots.push_back(obj.getId());
+            }
+        }
+
+        //orden pelo id
+        std::sort(roots.begin(), roots.end());
+
+        for (auto &kv : children) {
+            std::sort(kv.second.begin(), kv.second.end());
+        }
+
+        for (LveGameObject::id_t id : roots) {
+            drawOutLinerNode(scene, id, children);
+        }
+    }
+
+    void LveEditor::drawOutLinerNode(LveScene &scene, LveGameObject::id_t id, const ChildrenMap &children) {
+        LveGameObject *obj = scene.findGameObjectById(id);
+        if (!obj) return;
+        auto found = children.find(id);
+        bool hasChildren = found != children.end();
+
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
+        //linha simples para objeto sem filhos
+        if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        if (selectedId && *selectedId == id) flags |= ImGuiTreeNodeFlags_Selected;
+
+        const char *label = obj->name.empty() ? "(sem nome)" : obj->name.c_str();
+        bool open = ImGui::TreeNodeEx(reinterpret_cast<void *>(static_cast<intptr_t>(id)), flags, "%s", label);
+        
+        //clicar no nome/setinha
+        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+            selectedId = id;
+        }
+
+        if (hasChildren && open) {
+            for (LveGameObject::id_t childId : found->second) {
+                drawOutLinerNode(scene, childId, children);
+            }
+            ImGui::TreePop();
         }
     }
 }
