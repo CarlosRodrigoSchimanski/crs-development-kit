@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <cstdint>
 #include <algorithm>
+#include <cmath>
 #include <iterator>
 #include <ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -19,6 +20,16 @@ namespace lve {
             static_cast<float>(sceneArea.offset.x + static_cast<int32_t>(sceneArea.extent.width)) - NAV_GIZMO_RADIUS - 20.f,
             static_cast<float>(sceneArea.offset.y) + NAV_GIZMO_RADIUS + 20.f
         );
+    }
+
+    //ponto do mundo -> pixel na tela, dentro do retângulo da cena; vazio = atrás da câmera
+    static std::optional<ImVec2> worldToScreen(glm::vec3 point, const glm::mat4 &viewProjection, VkRect2D sceneArea) {
+        glm::vec4 clip = viewProjection * glm::vec4{point, 1.f};
+        if (clip.w <= 0.0001f) return std::nullopt;
+        glm::vec2 ndc = glm::vec2{clip} / clip.w;
+        return ImVec2(
+            static_cast<float>(sceneArea.offset.x) + (ndc.x * 0.5f + 0.5f) * static_cast<float>(sceneArea.extent.width),
+            static_cast<float>(sceneArea.offset.y) + (ndc.y * 0.5f + 0.5f) * static_cast<float>(sceneArea.extent.height));
     }
 
     void LveEditor::beginFrame() {
@@ -222,6 +233,7 @@ namespace lve {
 
     void LveEditor::drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
         drawSidePanel(scene);
+        drawRelationshipLines(scene, camera, sceneArea);
         drawTransformGizmo(scene, camera, sceneArea);
         drawNavigationGizmo(camera, sceneArea);
     }
@@ -278,6 +290,38 @@ namespace lve {
                     cameraController.setOrbitDirection(projected[i].axis->direction);
                     break;
                 }
+            }
+        }
+    }
+
+    void LveEditor::drawRelationshipLines(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
+        glm::mat4 viewProjection = camera.getProjection() * camera.getView();
+        ImDrawList *draw = ImGui::GetBackgroundDrawList();
+        const float dash = 6.f;  //tamanho de cada traço e de cada espaço (pixels)
+        const ImU32 color = IM_COL32(0, 0, 0, 220);
+
+        for (auto &kv : scene.getGameObjects()) {
+            LveGameObject &child = kv.second;
+            if (!child.parentId) continue;
+            LveGameObject *parent = scene.findGameObjectById(*child.parentId);
+            if (!parent) continue;
+
+            //origens no mundo (coluna 3) projetadas na tela
+            auto from = worldToScreen(glm::vec3{scene.worldMatrix(child)[3]}, viewProjection, sceneArea);
+            auto to = worldToScreen(glm::vec3{scene.worldMatrix(*parent)[3]}, viewProjection, sceneArea);
+            if (!from || !to) continue;  //alguma ponta atrás da câmera
+
+            //tracejado: o ImGui só desenha linha cheia, então são pedaços com buracos entre eles
+            float dx = to->x - from->x;
+            float dy = to->y - from->y;
+            float length = std::sqrt(dx * dx + dy * dy);
+            if (length < 1.f) continue;
+            float ux = dx / length;
+            float uy = dy / length;
+            for (float t = 0.f; t < length; t += dash * 2.f) {
+                float end = std::min(t + dash, length);
+                draw->AddLine(ImVec2(from->x + ux * t, from->y + uy * t),
+                              ImVec2(from->x + ux * end, from->y + uy * end), color, 1.f);
             }
         }
     }

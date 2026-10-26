@@ -40,6 +40,8 @@ namespace lve {
             void drawTransformGizmo(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
             //bolinhas dos eixos no canto da cena, como no Blender: clicar põe a câmera daquele lado
             void drawNavigationGizmo(const LveCamera &camera, VkRect2D sceneArea);
+            //linha tracejada fina de cada filho até o pai (as "relationship lines" do Blender)
+            void drawRelationshipLines(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
 
             //objeto selecionado (vazio = nenhum)
             std::optional<LveGameObject::id_t> selectedId;
