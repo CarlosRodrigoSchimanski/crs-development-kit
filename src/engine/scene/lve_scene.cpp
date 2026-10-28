@@ -58,5 +58,22 @@ namespace lve {
         return closestId;
     }
 
+    std::optional<RayCastHit> LveScene::raycast(const Ray &ray, float maxDistance, std::optional<LveGameObject::id_t> ignoreId) {
+        std::optional<RayCastHit> closest{};
+        for (auto &kv : gameObjects) {
+            auto &obj = kv.second;
+            if (!obj.rigidBody) continue;
+            if (ignoreId && obj.getId() == *ignoreId) continue;
+
+            glm::vec3 boxMin = obj.rigidBody->center - obj.rigidBody->halfExtents;
+            glm::vec3 boxMax = obj.rigidBody->center + obj.rigidBody->halfExtents;
+            auto t = intersectRayObject(ray, worldMatrix(obj), boxMin, boxMax);
+
+            if (t && *t <= maxDistance && (!closest || *t < closest->distance)) {
+                closest = RayCastHit{obj.getId(), *t};
+            }
+        }
+        return closest;
+    }
 
 }

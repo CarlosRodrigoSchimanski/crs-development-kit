@@ -67,3 +67,67 @@ TEST_CASE("neto soma pai e avô") {
     CHECK(p.y == doctest::Approx(2.f));
     CHECK(p.z == doctest::Approx(3.f));
 }
+
+//uma parede: caixa de colisão estática de lado 2 (ou do tamanho pedido) numa posição
+static LveGameObject &addWall(LveScene &scene, glm::vec3 position, glm::vec3 scale = glm::vec3{1.f}) {
+    LveGameObject &wall = scene.createGameObject();
+    wall.transform.translation = position;
+    wall.transform.scale = scale;
+    wall.rigidBody.emplace();
+    wall.rigidBody->type = BodyType::Static;
+    return wall;
+}
+
+TEST_CASE("raycast: acerta o colisor mais perto e diz a distância") {
+    LveScene scene;
+    LveGameObject &near = addWall(scene, {0.f, 0.f, 5.f});
+    addWall(scene, {0.f, 0.f, 10.f});
+    Ray ray{{0.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
+
+    auto hit = scene.raycast(ray, 100.f);
+
+    REQUIRE(hit.has_value());
+    CHECK(hit->id == near.getId());
+    CHECK(hit->distance == doctest::Approx(4.f));  //face da frente em z = 5 - 1
+}
+
+TEST_CASE("raycast: o que está depois da distância máxima não conta") {
+    LveScene scene;
+    addWall(scene, {0.f, 0.f, 5.f});
+    Ray ray{{0.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
+
+    CHECK_FALSE(scene.raycast(ray, 3.f).has_value());
+}
+
+TEST_CASE("raycast: o objeto ignorado fica de fora (o raio sai de dentro dele)") {
+    LveScene scene;
+    //o raio começa DENTRO desta caixa, como o pivô da câmera dentro da cápsula do personagem
+    LveGameObject &capsule = addWall(scene, {0.f, 0.f, 0.f});
+    LveGameObject &wall = addWall(scene, {0.f, 0.f, 5.f});
+    Ray ray{{0.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
+
+    auto withoutIgnore = scene.raycast(ray, 100.f);
+    REQUIRE(withoutIgnore.has_value());
+    CHECK(withoutIgnore->id == capsule.getId());  //sem ignorar, bate na própria cápsula logo no começo
+
+    auto withIgnore = scene.raycast(ray, 100.f, capsule.getId());
+    REQUIRE(withIgnore.has_value());
+    CHECK(withIgnore->id == wall.getId());
+}
+
+TEST_CASE("raycast: usa o centro e a escala do colisor") {
+    LveScene scene;
+    //caixa com a origem nos pés (centro 1 acima, o Y aponta pra baixo) e o dobro de largura em X
+    LveGameObject &body = addWall(scene, {0.f, 0.f, 0.f}, {2.f, 1.f, 1.f});
+    body.rigidBody->center = {0.f, -1.f, 0.f};
+
+    //raio de lado, na altura do centro da caixa (y = -1): acerta a face em x = -2
+    Ray ray{{-10.f, -1.f, 0.f}, {1.f, 0.f, 0.f}};
+    auto hit = scene.raycast(ray, 100.f);
+    REQUIRE(hit.has_value());
+    CHECK(hit->distance == doctest::Approx(8.f));
+
+    //um pouco abaixo dos pés (y = 0.5) o raio passa por baixo da caixa
+    Ray below{{-10.f, 0.5f, 0.f}, {1.f, 0.f, 0.f}};
+    CHECK_FALSE(scene.raycast(below, 100.f).has_value());
+}
