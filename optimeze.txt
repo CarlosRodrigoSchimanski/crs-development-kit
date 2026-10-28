@@ -446,6 +446,17 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    o mouse, com limite de ângulo pra não virar de cabeça pra baixo), e o personagem passa a
    virar pra direção em que anda. Base pronta: parentesco (a câmera pode ser filha do player,
    como no UPBGE), CharacterControllerSystem, LveInput com mouse, cursor capturado (3.2).
+   Andamento (2026-10-27): rig personagem -> pivô (Empty) -> câmera feito, cursor capturado e
+   mouse girando o pivô (CameraRigSystem). Falta, nesta ordem:
+   (a) a câmera atravessa objetos e vai pra baixo do chão: raio do pivô até a câmera contra os
+       colisores (raycast da cena, em C++) e a câmera para antes do que bater — o chão também é
+       colisor, então resolve os dois casos;
+   (b) o personagem virar pra direção do movimento: do jeito que o usuário fazia no UPBGE — quando
+       o vetor de movimento não é zero, o VISUAL (o filho com o modelo/armature) gira em Y pra
+       alinhar com ele; quando volta a zero, mantém a última direção. Gira só o visual, não a
+       cápsula: o pivô da câmera também é filho da cápsula, e girar ela faria a câmera girar
+       junto. Com um giro suave (velocidade de virada) em vez de instantâneo;
+   (c) animação (idle/andar/correr) = item 5 (animação esquelética), depois do (b).
 
 3.4. Scripts Python como componentes de objeto (anotado 2026-10-25, pedido do usuário) — o
    mesmo modelo do KX_PythonComponent do UPBGE: uma classe Python presa a um objeto, com
