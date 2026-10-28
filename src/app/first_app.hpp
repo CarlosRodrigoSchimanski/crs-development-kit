@@ -16,6 +16,7 @@
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/gameplay/character_controller_system.hpp"
 #include "engine/gameplay/camera_rig_system.hpp"
+#include "engine/animation/lve_animator_system.hpp"
 #include "engine/physics/lve_physics_system.hpp"
 #include "editor/lve_editor.hpp"
 #include "editor/lve_imgui.hpp"
@@ -127,5 +128,7 @@ namespace lve {
             CharacterControllerSystem characterController{};
             //pivos de camera
             CameraRigSystem cameraRigSystem{};
+            //relógio das animações do Play
+            AnimatorSystem animatorSystem{};
     };
 }

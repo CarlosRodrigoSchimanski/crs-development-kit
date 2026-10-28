@@ -170,6 +170,7 @@ set(ENGINE_SOURCES
     src/engine/gameplay/character_controller_system.cpp
     src/engine/gameplay/camera_rig_system.cpp
     src/engine/animation/lve_animation.cpp
+    src/engine/animation/lve_animator_system.cpp
 )
 
 #camada de plataforma: uma implementação por sistema operacional, escolhida AQUI (o código não

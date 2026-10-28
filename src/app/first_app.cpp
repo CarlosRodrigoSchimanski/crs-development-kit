@@ -437,6 +437,7 @@ namespace lve {
             physicsSystem.update(*playScene, frameTime);
             characterController.faceMovement(*playScene, frameTime);
             cameraRigSystem.placeCamera(*playScene);
+            animatorSystem.update(*playScene, frameTime);
         }
 
         if (auto commandBuffer = lveRenderer.beginFrame()) {
