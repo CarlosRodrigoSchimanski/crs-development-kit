@@ -119,6 +119,7 @@ set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/gizmo.vert
     ${CMAKE_SOURCE_DIR}/shaders/gizmo.frag
     ${CMAKE_SOURCE_DIR}/shaders/skinned.vert
+    ${CMAKE_SOURCE_DIR}/shaders/shadow_skinned.vert
 )
 #loop para compilar cada shader
 foreach(SHADER ${SHADER_SOURCES})

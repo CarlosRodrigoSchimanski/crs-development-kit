@@ -90,6 +90,8 @@ namespace lve {
         LveGameObject &operator=(LveGameObject &&) = default;
 
         id_t getId() const;
+        //tem pesos de osso e está tocando animação: desenhado pelas pipelines de skinning
+        bool isAnimated() const;
 
         //nome mostrado no editor (como no outliner do Blender)
         std::string name{};

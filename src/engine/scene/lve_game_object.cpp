@@ -71,5 +71,9 @@ namespace lve {
 
     LveGameObject::id_t LveGameObject::getId() const { return id; }
 
+    bool LveGameObject::isAnimated() const {
+        return model != nullptr && model->hasSkin() && animator.has_value();
+    }
+
     LveGameObject::LveGameObject(id_t objId) : id{objId} {}
 }

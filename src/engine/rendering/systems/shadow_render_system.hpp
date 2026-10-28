@@ -27,5 +27,8 @@ namespace lve {
             LveShadowMap& shadowMap;
             std::unique_ptr<LvePipeline> lvePipeline;
             LvePipelineLayout pipelineLayout;
+            //objetos animados: a sombra também segue a pose (ossos do binding 3)
+            std::unique_ptr<LvePipeline> skinnedPipeline;
+            LvePipelineLayout skinnedPipelineLayout;
     };
 }

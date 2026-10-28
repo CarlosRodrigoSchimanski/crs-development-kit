@@ -11,6 +11,12 @@ namespace lve {
         glm::mat4 modelMatrix{1.f};
     };
 
+    //tem que bater com o bloco Push do shadow_skinned.vert
+    struct SkinnedShadowPushConstantData {
+        glm::mat4 modelMatrix{1.f};
+        uint32_t boneOffset = 0;
+    };
+
     ShadowRenderSystem::ShadowRenderSystem(LveDevice& device, LveShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout)
         : lveDevice{device}, shadowMap{shadowMap} {
         //mesmo set global dos outros sistemas: é dele que sai a lightSpaceMatrix
@@ -19,6 +25,11 @@ namespace lve {
             {globalSetLayout},
             VK_SHADER_STAGE_VERTEX_BIT,
             sizeof(ShadowPushConstantData));
+        skinnedPipelineLayout = LvePipeline::createPipelineLayout(
+            lveDevice,
+            {globalSetLayout},
+            VK_SHADER_STAGE_VERTEX_BIT,
+            sizeof(SkinnedShadowPushConstantData));
         createPipeline();
     }
 
@@ -47,6 +58,23 @@ namespace lve {
         lvePipeline = std::make_unique<LvePipeline>(
             lveDevice,
             "shaders/shadow.vert.spv",
+            "shaders/shadow.frag.spv",
+            pipelineConfig);
+
+        //objetos animados: mesma configuração, mas lê também os pesos dos ossos (binding 1)
+        pipelineConfig.bindingDescriptions = LveModel::getSkinnedBindingDescriptions();
+        std::vector<VkVertexInputAttributeDescription> positionAndBones{};
+        for (auto& attribute : LveModel::getSkinnedAttributeDescriptions()) {
+            //o shadow_skinned.vert lê a posição (0), os ossos (4) e os pesos (5)
+            if (attribute.location == 0 || attribute.location == 4 || attribute.location == 5) {
+                positionAndBones.push_back(attribute);
+            }
+        }
+        pipelineConfig.attributeDescriptions = positionAndBones;
+        pipelineConfig.pipelineLayout = skinnedPipelineLayout.get();
+        skinnedPipeline = std::make_unique<LvePipeline>(
+            lveDevice,
+            "shaders/shadow_skinned.vert.spv",
             "shaders/shadow.frag.spv",
             pipelineConfig);
     }
@@ -112,6 +140,7 @@ namespace lve {
             auto& obj = kv.second;
             if (obj.model == nullptr) continue;
             if (obj.editorOnly) continue;  //não projeta sombra
+            if (obj.isAnimated()) continue;  //desenhado abaixo, seguindo a pose
             ShadowPushConstantData push{};
             push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
 
@@ -125,6 +154,24 @@ namespace lve {
             );
 
             obj.model->bind(frameInfo.commandBuffer);
+            obj.model->draw(frameInfo.commandBuffer);
+        }
+
+        //objetos animados: outra pipeline (layout diferente, então o set global é ligado de novo)
+        skinnedPipeline->bind(frameInfo.commandBuffer);
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            skinnedPipelineLayout.get(), 0, 1, &frameInfo.globalDescriptorSet, 0, nullptr);
+        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
+            auto& obj = kv.second;
+            if (!obj.isAnimated() || obj.editorOnly) continue;
+
+            SkinnedShadowPushConstantData push{};
+            push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
+            push.boneOffset = obj.animator->boneOffset;
+            vkCmdPushConstants(frameInfo.commandBuffer, skinnedPipelineLayout.get(), VK_SHADER_STAGE_VERTEX_BIT,
+                0, sizeof(SkinnedShadowPushConstantData), &push);
+
+            obj.model->bindSkinned(frameInfo.commandBuffer);
             obj.model->draw(frameInfo.commandBuffer);
         }
 

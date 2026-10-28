@@ -18,11 +18,6 @@ namespace lve {
         uint32_t boneOffset = 0;
     };
 
-    //objeto que é desenhado pela pipeline de skinning: tem pesos de osso e está tocando animação
-    static bool isAnimated(const LveGameObject &obj) {
-        return obj.model != nullptr && obj.model->hasSkin() && obj.animator.has_value();
-    }
-
     //quantas texturas diferentes cabem no pool de materiais
     constexpr uint32_t MAX_MATERIALS = 100;
 
@@ -110,7 +105,7 @@ namespace lve {
             auto& obj = kv.second;
             if (obj.model == nullptr) continue;
             if (obj.editorOnly) continue;  //gizmos são do GizmoRenderSystem
-            if (isAnimated(obj)) continue;  //desenhado depois, pela pipeline de skinning
+            if (obj.isAnimated()) continue;  //desenhado depois, pela pipeline de skinning
 
             bindMaterial(frameInfo, obj, pipelineLayout.get());
 
@@ -140,7 +135,7 @@ namespace lve {
 
         for (auto& kv : frameInfo.lveScene.getGameObjects()) {
             auto& obj = kv.second;
-            if (!isAnimated(obj) || obj.editorOnly) continue;
+            if (!obj.isAnimated() || obj.editorOnly) continue;
 
             bindMaterial(frameInfo, obj, skinnedPipelineLayout.get());
 
