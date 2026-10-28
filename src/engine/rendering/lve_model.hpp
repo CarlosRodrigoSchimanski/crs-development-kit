@@ -12,7 +12,7 @@
 
 #include <glm/glm.hpp>
 
-namespace lve { 
+namespace lve {
 
     class LveModel {
         public:
@@ -29,6 +29,12 @@ namespace lve {
                 bool operator==(const Vertex &other) const = default;
             };
 
+            //ossos que puxam um vértice e com que peso (só modelos com esqueleto: fica num buffer à parte)
+            struct SkinVertex {
+                glm::uvec4 joints{0};    //índices dos até 4 ossos
+                glm::vec4 weights{0.f};  //quanto cada um puxa (somam 1)
+            };
+
             struct Builder {
                 std::vector<Vertex> vertices{};
                 std::vector<uint32_t> indices{};
@@ -40,6 +46,7 @@ namespace lve {
                 //esqueleto e animação
                 std::optional<Skeleton> skeleton{};
                 std::vector<AnimationClip> animations{};
+                std::vector<SkinVertex> skinVertices{};  //um por vértice; vazio = modelo sem esqueleto
 
                 //carrega um .gltf/.glb (formato do jogo: exportado direto do Blender)
                 void loadModel(const std::string &filepath);
@@ -61,6 +68,10 @@ namespace lve {
             //desenha as arestas reais como linhas (precisa de uma pipeline LINE_LIST)
             void drawEdges(VkCommandBuffer commandBuffer);
 
+            bool hasSkin() const;
+            //como o bind, mas também liga os pesos dos ossos (binding 1) pra pipeline de skinning
+            void bindSkinned(VkCommandBuffer commandBuffer);
+
             //nullptr se o modelo não tem textura
             LveTexture *getTexture() const;
             //caixa em volta do modelo, no espaço dele (menor e maior ponto dos vértices)
@@ -70,6 +81,10 @@ namespace lve {
             //esqueleto do modelo
             const Skeleton *getSkeleton() const;
             const std::vector<AnimationClip> &getAnimations() const;
+
+            //pipeline de skinning: binding 0 = Vertex, binding 1 = SkinVertex
+            static std::vector<VkVertexInputBindingDescription> getSkinnedBindingDescriptions();
+            static std::vector<VkVertexInputAttributeDescription> getSkinnedAttributeDescriptions();
 
         private:
             void createVertexBuffers(const std::vector<Vertex> &vertices, LveUploadBatch &upload);
@@ -87,6 +102,8 @@ namespace lve {
 
             std::unique_ptr<LveBuffer> edgeIndexBuffer;  //vazio = modelo sem arestas
             uint32_t edgeIndexCount = 0;
+
+            std::unique_ptr<LveBuffer> skinVertexBuffer;
 
             std::unique_ptr<LveTexture> texture;
 

@@ -27,6 +27,13 @@ namespace lve {
                 builder.edgeIndices.data(), sizeof(uint32_t), edgeIndexCount, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, upload);
         }
 
+        //pesos dos ossos: só modelos com esqueleto
+        if (!builder.skinVertices.empty()) {
+            skinVertexBuffer = createDeviceLocalBuffer(
+                builder.skinVertices.data(), sizeof(SkinVertex), static_cast<uint32_t>(builder.skinVertices.size()),
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, upload);
+        }
+
         if (!builder.baseColorImage.empty()) {
             texture = std::make_unique<LveTexture>(device, builder.baseColorImage, upload);
         }
@@ -125,6 +132,17 @@ namespace lve {
         vkCmdDrawIndexed(commandBuffer, edgeIndexCount, 1, 0, 0, 0);
     }
 
+    bool LveModel::hasSkin() const { return skinVertexBuffer != nullptr; }
+
+    void LveModel::bindSkinned(VkCommandBuffer commandBuffer) {
+        VkBuffer buffers[] = {vertexBuffer->getBuffer(), skinVertexBuffer->getBuffer()};
+        VkDeviceSize offsets[] = {0, 0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 2, buffers, offsets);
+        if (indexBuffer) {
+            vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        }
+    }
+
     std::vector<VkVertexInputBindingDescription> LveModel::Vertex::getBindingDescriptions() {
         std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
         bindingDescriptions[0].binding = 0;
@@ -142,6 +160,19 @@ namespace lve {
         attributeDescriptions.push_back({3, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex,uv)});
 
         return attributeDescriptions;
+    }
+
+    std::vector<VkVertexInputBindingDescription> LveModel::getSkinnedBindingDescriptions() {
+        std::vector<VkVertexInputBindingDescription> bindings = Vertex::getBindingDescriptions();
+        bindings.push_back({1, sizeof(SkinVertex), VK_VERTEX_INPUT_RATE_VERTEX});
+        return bindings;
+    }
+
+    std::vector<VkVertexInputAttributeDescription> LveModel::getSkinnedAttributeDescriptions() {
+        std::vector<VkVertexInputAttributeDescription> attributes = Vertex::getAttributeDescriptions();
+        attributes.push_back({4, 1, VK_FORMAT_R32G32B32A32_UINT, offsetof(SkinVertex, joints)});
+        attributes.push_back({5, 1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(SkinVertex, weights)});
+        return attributes;
     }
 
     //ossos do primeiro skin do arquivo, com o pai antes dos filhos; jointIndex = nó do glTF -> índice do osso
@@ -258,6 +289,7 @@ namespace lve {
         vertices.clear();
         skeleton.reset();
         animations.clear();
+        skinVertices.clear();
         indices.clear();
         baseColorImage.clear();
 
@@ -307,6 +339,9 @@ namespace lve {
                 const cgltf_accessor *normals = nullptr;
                 const cgltf_accessor *texcoords = nullptr;
                 const cgltf_accessor *colors = nullptr;
+                const cgltf_accessor *joints = nullptr;
+                const cgltf_accessor *weights = nullptr;
+
                 for (cgltf_size a = 0; a < primitive.attributes_count; a++) {
                     const cgltf_attribute &attribute = primitive.attributes[a];
                     switch (attribute.type) {
@@ -314,9 +349,12 @@ namespace lve {
                         case cgltf_attribute_type_normal: normals = attribute.data; break;
                         case cgltf_attribute_type_texcoord: if (attribute.index == 0) texcoords = attribute.data; break;
                         case cgltf_attribute_type_color: if (attribute.index == 0) colors = attribute.data; break;
+                        case cgltf_attribute_type_joints: if (attribute.index == 0) joints = attribute.data; break;
+                        case cgltf_attribute_type_weights: if (attribute.index == 0) weights = attribute.data; break;
                         default: break;
                     }
                 }
+
                 if (positions == nullptr) continue;
 
                 //cor base do material (o "Base Color" do Blender) vira a cor do vértice
@@ -364,6 +402,21 @@ namespace lve {
                     }
 
                     vertices.push_back(vertex);
+                    //ossos e pesos do vértice (ainda na numeração do arquivo; renumerados depois do esqueleto)
+                    SkinVertex skin{};
+                    if (joints != nullptr && weights != nullptr) {
+                        cgltf_uint j[4] = {0, 0, 0, 0};
+                        cgltf_accessor_read_uint(joints, i, j, 4);
+                        float w[4] = {0.f, 0.f, 0.f, 0.f};
+                        cgltf_accessor_read_float(weights, i, w, 4);
+                        skin.joints = {j[0], j[1], j[2], j[3]};
+                        skin.weights = {w[0], w[1], w[2], w[3]};
+                        //garante que somam 1 (o glTF pede, mas nem todo exportador capricha)
+                        float total = w[0] + w[1] + w[2] + w[3];
+                        if (total > 0.f) skin.weights /= total;
+                    }
+                    skinVertices.push_back(skin);
+
                 }
 
                 if (primitive.indices != nullptr) {
@@ -383,6 +436,18 @@ namespace lve {
         skeleton = readSkeleton(*data, yUpToYDown, jointIndex);
         animations = readAnimations(*data, jointIndex);
 
+        //os índices dos ossos nos vértices passam pra numeração nova (pai antes de filho)
+        if (skeleton) {
+            const cgltf_skin &skin = data->skins[0];
+            for (SkinVertex &vertex : skinVertices) {
+                for (int k = 0; k < 4; k++) {
+                    uint32_t original = vertex.joints[k];
+                    vertex.joints[k] = original < skin.joints_count ? static_cast<uint32_t>(jointIndex[skin.joints[original]]) : 0;
+                }
+            }
+        } else {
+            skinVertices.clear();  //modelo parado: não precisa de pesos
+        }
 
         buildEdges();
     }
