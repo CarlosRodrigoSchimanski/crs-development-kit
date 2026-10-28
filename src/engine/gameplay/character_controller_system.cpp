@@ -1,5 +1,8 @@
 #include "engine/gameplay/character_controller_system.hpp"
 
+#include <glm/gtc/constants.hpp>
+#include <cmath>
+
 namespace lve {
 
     void CharacterControllerSystem::update(LveScene &scene, const CharacterInput &input) {
@@ -23,5 +26,26 @@ namespace lve {
                 obj.rigidBody->onGround = false;
             }
         }   
+    }
+
+    float turnTowards(float current, float target, float maxStep) {
+        float difference = glm::mod(target - current + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
+        if (std::abs(difference) <= maxStep) return current + difference;
+        return current + (difference >0.f ? maxStep : -maxStep);
+    }
+
+    void CharacterControllerSystem::faceMovement(LveScene &scene, float dt) {
+        for (auto &kv : scene.getGameObjects()) {
+            auto &obj = kv.second;
+            if (!obj.faceMovement || !obj.parentId) continue;
+            LveGameObject *parent = scene.findGameObjectById(*obj.parentId);
+            if (!parent || !parent->rigidBody) continue;
+
+            glm::vec2 velocity{parent->rigidBody->velocity.x, parent->rigidBody->velocity.z};
+            if (glm::length(velocity) < 0.01f) continue;
+
+            float target = std::atan2(velocity.x, velocity.y) + obj.faceMovement->yawOffset;
+            obj.transform.rotation.y = turnTowards(obj.transform.rotation.y, target, obj.faceMovement->turnSpeed * dt);
+        }
     }
 }

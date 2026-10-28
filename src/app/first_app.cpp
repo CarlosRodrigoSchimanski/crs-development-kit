@@ -11,6 +11,7 @@
 
 #include <imgui.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
 #include <chrono>
 #include <thread>
@@ -179,6 +180,7 @@ namespace lve {
         playerVisual.model = lveModel;
         playerVisual.parentId = player.getId();
         playerVisual.transform.rotation.y = glm::radians(180.f);
+        playerVisual.faceMovement.emplace();
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
         lveModel = LveModel::createModelFromFile(lveDevice, "models/empty.glb");
@@ -418,6 +420,7 @@ namespace lve {
             cameraRigSystem.update(*playScene, lveInput.getMouseDelta());
             characterController.update(*playScene, readCharacterInput(gameCamera));
             physicsSystem.update(*playScene, frameTime);
+            characterController.faceMovement(*playScene, frameTime);
             cameraRigSystem.placeCamera(*playScene);
         }
 

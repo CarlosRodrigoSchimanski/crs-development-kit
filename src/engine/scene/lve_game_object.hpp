@@ -7,6 +7,8 @@
 #include <optional>
 #include <string>
 
+#include <glm/gtc/constants.hpp>
+
 
 namespace lve {
     struct CameraComponent{
@@ -39,10 +41,14 @@ namespace lve {
         float distance = 4.f;     //quanto a câmera fica atrás do pivô (o máximo: uma parede no meio aproxima)
         float wallMargin = 0.2f;  //folga entre a câmera e o que o raio acertar
     };
-    
 
-    struct TransformComponent
-    {
+    //vira este objeto (em Y) pra direção em que o pai se move: o visual do personagem
+    struct FaceMovementComponent {
+        float turnSpeed = glm::radians(1200.f);  //velocidade de giro (radianos por segundo)
+        float yawOffset = glm::pi<float>();      //frente do modelo: de frente na vista Front do Blender (-Y) = -Z na engine
+    };
+
+    struct TransformComponent {
         glm::vec3 translation{};
         glm::vec3 scale{1.f,1.f,1.f};
         glm::vec3 rotation{};
@@ -93,6 +99,7 @@ namespace lve {
         std::optional<RigidBodyComponent> rigidBody{};
         std::optional<CharacterComponent> character{};
         std::optional<CameraRigComponent> cameraRig{};
+        std::optional<FaceMovementComponent> faceMovement{};
 
         
         private:

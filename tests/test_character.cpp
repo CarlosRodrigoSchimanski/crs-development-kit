@@ -3,6 +3,8 @@
 
 #include <doctest/doctest.h>
 
+#include <glm/gtc/constants.hpp>
+
 #include <cmath>
 
 using namespace lve;
@@ -132,4 +134,56 @@ TEST_CASE("pulo no ar não faz nada") {
 
     //a velocidade segue só a gravidade: nada de impulso novo pra cima
     CHECK(player.rigidBody->velocity.y > velocityBefore);
+}
+
+TEST_CASE("turnTowards: vira pelo caminho mais curto (de 170 pra -170 graus são 20, não 340)") {
+    float current = glm::radians(170.f);
+    float target = glm::radians(-170.f);
+
+    float turned = turnTowards(current, target, glm::radians(5.f));
+
+    //deu 5 graus pra frente (passando dos 180), e não 5 graus pra trás
+    CHECK(turned == doctest::Approx(glm::radians(175.f)));
+}
+
+TEST_CASE("turnTowards: não passa do alvo") {
+    float turned = turnTowards(0.f, glm::radians(10.f), glm::radians(90.f));
+    CHECK(turned == doctest::Approx(glm::radians(10.f)));
+}
+
+//cápsula se movendo + visual filho que vira pro movimento
+static LveGameObject &addVisual(LveScene &scene, LveGameObject &body) {
+    LveGameObject &visual = scene.createGameObject();
+    visual.parentId = body.getId();
+    visual.faceMovement.emplace();
+    visual.faceMovement->turnSpeed = 1000.f;  //vira na hora, pro teste olhar só a direção final
+    return visual;
+}
+
+TEST_CASE("faceMovement: o visual fica de frente pro movimento (com o desvio do modelo)") {
+    LveScene scene;
+    LveGameObject &body = addCharacter(scene);
+    LveGameObject &visual = addVisual(scene, body);
+    body.rigidBody->velocity = {1.f, 0.f, 0.f};  //andando pro +X
+
+    CharacterControllerSystem controller;
+    controller.faceMovement(scene, DT);
+
+    //a frente do modelo é o -Z dele: depois de virar, esse -Z tem que apontar pro +X
+    glm::vec3 modelFront = -visual.transform.rotationMatrix()[2];
+    CHECK(modelFront.x == doctest::Approx(1.f).epsilon(1e-4));
+    CHECK(std::abs(modelFront.z) < 1e-4f);
+}
+
+TEST_CASE("faceMovement: parado, mantém a última direção") {
+    LveScene scene;
+    LveGameObject &body = addCharacter(scene);
+    LveGameObject &visual = addVisual(scene, body);
+    visual.transform.rotation.y = 1.234f;
+    body.rigidBody->velocity = {0.f, 3.f, 0.f};  //só caindo: nada no chão
+
+    CharacterControllerSystem controller;
+    controller.faceMovement(scene, DT);
+
+    CHECK(visual.transform.rotation.y == doctest::Approx(1.234f));
 }
