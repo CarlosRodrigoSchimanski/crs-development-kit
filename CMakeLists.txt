@@ -166,6 +166,7 @@ set(ENGINE_SOURCES
     src/engine/scene/lve_ray.cpp
     src/engine/physics/lve_physics_system.cpp
     src/engine/gameplay/character_controller_system.cpp
+    src/engine/gameplay/camera_rig_system.cpp
 )
 
 #camada de plataforma: uma implementação por sistema operacional, escolhida AQUI (o código não

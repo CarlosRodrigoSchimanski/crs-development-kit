@@ -184,6 +184,7 @@ namespace lve {
         auto& cameraPivot = lveScene.createGameObject();
         cameraPivot.name = "CameraPivot";
         cameraPivot.model = lveModel;
+        cameraPivot.cameraRig.emplace();
         cameraPivot.editorOnly = true;  //gizmo só no editor (provisório: a engine vai gerar a cruz de eixos)
         cameraPivot.parentId = player.getId();
         cameraPivot.transform.translation = {0.f, -1.6f, 0.f};  //1,6 acima dos pés (o Y aponta pra baixo)
@@ -413,6 +414,7 @@ namespace lve {
 
         //personagens e física (só no Play)
         if (playScene) {
+            cameraRigSystem.update(*playScene, lveInput.getMouseDelta());
             characterController.update(*playScene, readCharacterInput(gameCamera));
             physicsSystem.update(*playScene, frameTime);
         }

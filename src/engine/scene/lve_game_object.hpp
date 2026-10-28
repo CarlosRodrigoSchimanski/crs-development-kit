@@ -32,6 +32,12 @@ namespace lve {
         float jumpSpeed = 5.f; //velocidade inicial do pulo
     };
     
+    struct CameraRigComponent {
+        float sensitivity = 0.003f;
+        float minPitch = glm::radians(-70.f);
+        float maxPitch = glm::radians(40.f);
+    };
+    
 
     struct TransformComponent
     {
@@ -84,6 +90,7 @@ namespace lve {
         std::optional<CameraComponent> camera{};
         std::optional<RigidBodyComponent> rigidBody{};
         std::optional<CharacterComponent> character{};
+        std::optional<CameraRigComponent> cameraRig{};
 
         
         private:
