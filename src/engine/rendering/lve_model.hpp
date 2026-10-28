@@ -1,12 +1,14 @@
 #pragma once
 
-#include <vector>
-#include <memory>
-
+#include "engine/animation/lve_skeleton.hpp"
 #include "engine/core/lve_device.hpp"
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/rendering/lve_texture.hpp"
 #include "engine/rendering/lve_upload_batch.hpp"
+
+#include <vector>
+#include <memory>
+#include <optional>
 
 #include <glm/glm.hpp>
 
@@ -35,6 +37,9 @@ namespace lve {
 
                 //pares de índices: as arestas reais (onde a superfície dobra), pros gizmos
                 std::vector<uint32_t> edgeIndices{};
+                //esqueleto e animação
+                std::optional<Skeleton> skeleton{};
+                std::vector<AnimationClip> animations{};
 
                 //carrega um .gltf/.glb (formato do jogo: exportado direto do Blender)
                 void loadModel(const std::string &filepath);
@@ -62,6 +67,10 @@ namespace lve {
             glm::vec3 getBoundsMin() const;
             glm::vec3 getBoundsMax() const;
 
+            //esqueleto do modelo
+            const Skeleton *getSkeleton() const;
+            const std::vector<AnimationClip> &getAnimations() const;
+
         private:
             void createVertexBuffers(const std::vector<Vertex> &vertices, LveUploadBatch &upload);
             void createIndexBuffers(const std::vector<uint32_t> &indices, LveUploadBatch &upload);
@@ -83,5 +92,8 @@ namespace lve {
 
             glm::vec3 boundsMin{0.f};
             glm::vec3 boundsMax{0.f};
+
+            std::optional<Skeleton> skeleton{};
+            std::vector<AnimationClip> animations{};
     };
 }

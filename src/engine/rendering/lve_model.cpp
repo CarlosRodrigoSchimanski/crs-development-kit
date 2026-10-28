@@ -6,6 +6,8 @@
 
 #include <cassert>
 #include <stdexcept>
+#include <algorithm>
+#include <set>
 #include <map>
 #include <tuple>
 #include <utility>
@@ -39,6 +41,9 @@ namespace lve {
             }
         }
 
+        skeleton = builder.skeleton;
+        animations = builder.animations;
+
         upload.submit();
     }
 
@@ -46,6 +51,9 @@ namespace lve {
     glm::vec3 LveModel::getBoundsMin() const { return boundsMin; }
     glm::vec3 LveModel::getBoundsMax() const { return boundsMax; }
 
+    const Skeleton *LveModel::getSkeleton() const {return skeleton ? &*skeleton : nullptr;}
+
+    const std::vector<AnimationClip> &LveModel::getAnimations() const { return animations; }
 
     std::unique_ptr<LveModel> LveModel::createModelFromFile(LveDevice &device, const std::string &filepath) {
         Builder builder{};
@@ -136,8 +144,120 @@ namespace lve {
         return attributeDescriptions;
     }
 
+    //ossos do primeiro skin do arquivo, com o pai antes dos filhos; jointIndex = nó do glTF -> índice do osso
+    static std::optional<Skeleton> readSkeleton(const cgltf_data &data, const glm::mat4 &yUpToYDown, std::map<const cgltf_node *, int> &jointIndex) {
+        if (data.skins_count == 0) return std::nullopt;
+        const cgltf_skin &skin = data.skins[0];
+
+        //profundidade = quantos ancestrais também são ossos; ordenar por ela põe o pai antes do filho
+        std::set<const cgltf_node *> isJoint(skin.joints, skin.joints + skin.joints_count);
+        auto depth = [&](const cgltf_node *node) {
+            int d = 0;
+            for (const cgltf_node *p = node->parent; p != nullptr; p = p->parent) {
+                if (isJoint.count(p)) d++;
+            }
+            return d;
+        };
+
+        std::vector<cgltf_size> order(skin.joints_count);
+        for (cgltf_size i = 0; i < order.size(); i++) order[i] = i;
+        std::stable_sort(order.begin(), order.end(),
+            [&](cgltf_size a, cgltf_size b) { return depth(skin.joints[a]) < depth(skin.joints[b]); });
+
+        //primeiro numera todos (pra achar o pai), depois preenche
+        for (size_t newIndex = 0; newIndex < order.size(); newIndex++) {
+            jointIndex[skin.joints[order[newIndex]]] = static_cast<int>(newIndex);
+        }
+
+        Skeleton skeleton;
+        skeleton.joints.resize(order.size());
+        for (size_t newIndex = 0; newIndex < order.size(); newIndex++) {
+            cgltf_size original = order[newIndex];
+            const cgltf_node *node = skin.joints[original];
+            Joint &joint = skeleton.joints[newIndex];
+            joint.name = node->name ? node->name : "";
+
+            //pai = o ancestral mais perto que também é osso
+            for (const cgltf_node *p = node->parent; p != nullptr; p = p->parent) {
+                auto found = jointIndex.find(p);
+                if (found != jointIndex.end()) {
+                    joint.parent = found->second;
+                    break;
+                }
+            }
+
+            //pose de descanso (o glTF guarda o quatérnio como x, y, z, w)
+            if (node->has_translation) joint.restTranslation = glm::make_vec3(node->translation);
+            if (node->has_rotation) joint.restRotation = glm::quat(node->rotation[3], node->rotation[0], node->rotation[1], node->rotation[2]);
+            if (node->has_scale) joint.restScale = glm::make_vec3(node->scale);
+
+            if (skin.inverse_bind_matrices != nullptr) {
+                float matrix[16];
+                cgltf_accessor_read_float(skin.inverse_bind_matrices, original, matrix, 16);
+                joint.inverseBind = glm::make_mat4(matrix);
+            }
+        }
+
+        //acima do osso raiz: o nó pai dele (o Armature, com a escala e a rotação do FBX), e o Y pra baixo
+        glm::mat4 aboveRoot{1.f};
+        const cgltf_node *rootNode = skin.joints[order[0]];
+        if (rootNode->parent != nullptr) {
+            float matrix[16];
+            cgltf_node_transform_world(rootNode->parent, matrix);
+            aboveRoot = glm::make_mat4(matrix);
+        }
+
+        skeleton.rootTransform = yUpToYDown * aboveRoot;
+        return skeleton;
+    }
+
+    //as animações do arquivo, só com os canais que mexem em ossos
+    static std::vector<AnimationClip> readAnimations(const cgltf_data &data, const std::map<const cgltf_node *, int> &jointIndex) {
+        std::vector<AnimationClip> clips;
+        for (cgltf_size a = 0; a < data.animations_count; a++) {
+            const cgltf_animation &animation = data.animations[a];
+            AnimationClip clip;
+            clip.name = animation.name ? animation.name : "animation";
+
+            for (cgltf_size c = 0; c < animation.channels_count; c++) {
+                const cgltf_animation_channel &source = animation.channels[c];
+                auto found = jointIndex.find(source.target_node);
+                if (found == jointIndex.end()) continue;  //não é osso
+
+                AnimationChannel channel;
+                channel.joint = found->second;
+                if (source.target_path == cgltf_animation_path_type_translation) channel.path = AnimationPath::Translation;
+                else if (source.target_path == cgltf_animation_path_type_rotation) channel.path = AnimationPath::Rotation;
+                else if (source.target_path == cgltf_animation_path_type_scale) channel.path = AnimationPath::Scale;
+                else continue;  //morph targets (shape keys) ficam de fora
+
+                const cgltf_animation_sampler &sampler = *source.sampler;
+                channel.step = sampler.interpolation == cgltf_interpolation_type_step;
+                //CUBICSPLINE guarda 3 valores por keyframe (tangente, valor, tangente): usa só o do meio
+                bool cubic = sampler.interpolation == cgltf_interpolation_type_cubic_spline;
+                cgltf_size components = channel.path == AnimationPath::Rotation ? 4 : 3;
+
+                cgltf_size keys = sampler.input->count;
+                channel.times.resize(keys);
+                channel.values.resize(keys);
+                for (cgltf_size k = 0; k < keys; k++) {
+                    cgltf_accessor_read_float(sampler.input, k, &channel.times[k], 1);
+                    float v[4] = {0.f, 0.f, 0.f, 0.f};
+                    cgltf_accessor_read_float(sampler.output, cubic ? k * 3 + 1 : k, v, components);
+                    channel.values[k] = glm::vec4{v[0], v[1], v[2], v[3]};
+                }
+                if (!channel.times.empty()) clip.duration = std::max(clip.duration, channel.times.back());
+                clip.channels.push_back(std::move(channel));
+            }
+            clips.push_back(std::move(clip));
+        }
+        return clips;
+    }
+
     void LveModel::Builder::loadModel(const std::string &filepath) {
         vertices.clear();
+        skeleton.reset();
+        animations.clear();
         indices.clear();
         baseColorImage.clear();
 
@@ -258,6 +378,12 @@ namespace lve {
                 }
             }
         }
+        //esqueleto e animações (modelos com armature)
+        std::map<const cgltf_node *, int> jointIndex;
+        skeleton = readSkeleton(*data, yUpToYDown, jointIndex);
+        animations = readAnimations(*data, jointIndex);
+
+
         buildEdges();
     }
 
