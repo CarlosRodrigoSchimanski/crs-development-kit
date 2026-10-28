@@ -16,11 +16,6 @@ layout(set = 0, binding = 1) uniform sampler2D shadowMap;
 //set 1 = material do objeto (troca a cada objeto desenhado)
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 
-layout(push_constant) uniform Push {
-    mat4 modelMatrix;
-    mat4 normalMatrix;
-} push;
-
 //1.0 = totalmente na sombra, 0.0 = iluminado, valores no meio = borda (penumbra)
 float calculateShadow(vec4 posLightSpace) {
     //de coordenadas da câmera do sol pra NDC (xy em -1..1, z em 0..1)

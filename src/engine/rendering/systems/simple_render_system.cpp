@@ -11,9 +11,21 @@ namespace lve {
         glm::mat4 normalMatrix{1.f};
     };
 
+    //tem que bater com o bloco Push do skinned.vert (a matriz das normais é feita no shader:
+    //com ela aqui passaria dos 128 bytes que toda GPU garante pra push constant)
+    struct SkinnedPushConstantData {
+        glm::mat4 modelMatrix{1.f};
+        uint32_t boneOffset = 0;
+    };
+
+    //objeto que é desenhado pela pipeline de skinning: tem pesos de osso e está tocando animação
+    static bool isAnimated(const LveGameObject &obj) {
+        return obj.model != nullptr && obj.model->hasSkin() && obj.animator.has_value();
+    }
+
     //quantas texturas diferentes cabem no pool de materiais
     constexpr uint32_t MAX_MATERIALS = 100;
-    
+
 
     SimpleRenderSystem::SimpleRenderSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
         materialSetLayout = LveDescriptorSetLayout::Builder{lveDevice}
@@ -34,6 +46,12 @@ namespace lve {
             {globalSetLayout, materialSetLayout->getDescriptorSetLayout()},
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             sizeof(SimplePushConstantData));
+        //mesmos sets; push constant só no vertex shader
+        skinnedPipelineLayout = LvePipeline::createPipelineLayout(
+            lveDevice,
+            {globalSetLayout, materialSetLayout->getDescriptorSetLayout()},
+            VK_SHADER_STAGE_VERTEX_BIT,
+            sizeof(SkinnedPushConstantData));
         createPipeline(colorFormat, depthFormat);
     }
 
@@ -51,6 +69,28 @@ namespace lve {
             "shaders/simple_shader.vert.spv",
             "shaders/simple_shader.frag.spv",
             pipelineConfig);
+
+        //skinning: dois buffers de vértice (o normal + os pesos dos ossos), o mesmo fragment shader
+        PipelineConfigInfo skinnedConfig{};
+        LvePipeline::defaultPipelineConfigInfo(skinnedConfig);
+        skinnedConfig.bindingDescriptions = LveModel::getSkinnedBindingDescriptions();
+        skinnedConfig.attributeDescriptions = LveModel::getSkinnedAttributeDescriptions();
+        skinnedConfig.colorAttachmentFormats = {colorFormat};
+        skinnedConfig.depthAttachmentFormat = depthFormat;
+        skinnedConfig.pipelineLayout = skinnedPipelineLayout.get();
+        skinnedPipeline = std::make_unique<LvePipeline>(
+            lveDevice,
+            "shaders/skinned.vert.spv",
+            "shaders/simple_shader.frag.spv",
+            skinnedConfig);
+    }
+
+    void SimpleRenderSystem::bindMaterial(FrameInfo &frameInfo, LveGameObject &obj, VkPipelineLayout layout) {
+        //set 1: textura do modelo; sem textura (ou com useTexture desligado) usa a branca
+        LveTexture *texture = obj.model->getTexture();
+        if (texture == nullptr || !obj.useTexture) texture = whiteTexture.get();
+        VkDescriptorSet materialSet = getMaterialSet(*texture);
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1, 1, &materialSet, 0, nullptr);
     }
 
     void SimpleRenderSystem::renderGameObjects(FrameInfo& frameInfo) {
@@ -70,20 +110,9 @@ namespace lve {
             auto& obj = kv.second;
             if (obj.model == nullptr) continue;
             if (obj.editorOnly) continue;  //gizmos são do GizmoRenderSystem
+            if (isAnimated(obj)) continue;  //desenhado depois, pela pipeline de skinning
 
-            //set 1: textura do modelo; sem textura (ou com useTexture desligado) usa a branca
-            LveTexture *texture = obj.model->getTexture();
-            if (texture == nullptr || !obj.useTexture) texture = whiteTexture.get();
-            VkDescriptorSet materialSet = getMaterialSet(*texture);
-            vkCmdBindDescriptorSets(
-                frameInfo.commandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipelineLayout.get(),
-                1,
-                1,
-                &materialSet,
-                0,
-                nullptr);
+            bindMaterial(frameInfo, obj, pipelineLayout.get());
 
             SimplePushConstantData push{};
             glm::mat4 world = frameInfo.lveScene.worldMatrix(obj);
@@ -101,6 +130,27 @@ namespace lve {
             );
 
             obj.model->bind(frameInfo.commandBuffer);
+            obj.model->draw(frameInfo.commandBuffer);
+        }
+
+        //objetos animados: outra pipeline (o layout é diferente, então o set global é ligado de novo)
+        skinnedPipeline->bind(frameInfo.commandBuffer);
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            skinnedPipelineLayout.get(), 0, 1, &frameInfo.globalDescriptorSet, 0, nullptr);
+
+        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
+            auto& obj = kv.second;
+            if (!isAnimated(obj) || obj.editorOnly) continue;
+
+            bindMaterial(frameInfo, obj, skinnedPipelineLayout.get());
+
+            SkinnedPushConstantData push{};
+            push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
+            push.boneOffset = obj.animator->boneOffset;
+            vkCmdPushConstants(frameInfo.commandBuffer, skinnedPipelineLayout.get(), VK_SHADER_STAGE_VERTEX_BIT,
+                0, sizeof(SkinnedPushConstantData), &push);
+
+            obj.model->bindSkinned(frameInfo.commandBuffer);
             obj.model->draw(frameInfo.commandBuffer);
         }
     }

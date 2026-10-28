@@ -29,10 +29,15 @@ namespace lve {
             void createPipeline(VkFormat colorFormat, VkFormat depthFormat);
             //descriptor set (set 1) da textura; criado na primeira vez que a textura é desenhada e reaproveitado depois
             VkDescriptorSet getMaterialSet(const LveTexture &texture);
+            //liga a textura do objeto (set 1) na pipeline atual
+            void bindMaterial(FrameInfo &frameInfo, LveGameObject &obj, VkPipelineLayout layout);
 
             LveDevice& lveDevice;
             std::unique_ptr<LvePipeline> lvePipeline;
             LvePipelineLayout pipelineLayout;
+            //objetos animados: lê também os pesos dos ossos (binding 1) e o buffer de ossos (binding 3)
+            std::unique_ptr<LvePipeline> skinnedPipeline;
+            LvePipelineLayout skinnedPipelineLayout;
 
             std::unique_ptr<LveDescriptorSetLayout> materialSetLayout;
             std::unique_ptr<LveDescriptorPool> materialPool;
