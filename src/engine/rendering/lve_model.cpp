@@ -225,7 +225,9 @@ namespace lve {
             if (skin.inverse_bind_matrices != nullptr) {
                 float matrix[16];
                 cgltf_accessor_read_float(skin.inverse_bind_matrices, original, matrix, 16);
-                joint.inverseBind = glm::make_mat4(matrix);
+                //o inverseBind do arquivo espera o vértice no espaço do glTF, mas a malha já foi carregada
+                //convertida (Y pra baixo): primeiro desfaz a conversão, senão ela é aplicada duas vezes
+                joint.inverseBind = glm::make_mat4(matrix) * glm::inverse(yUpToYDown);
             }
         }
 
