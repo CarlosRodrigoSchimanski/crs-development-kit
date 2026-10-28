@@ -34,7 +34,7 @@ namespace lve {
             void drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
 
         private:
-            //painel lateral preso à direita (outliner, propriedades, ferramentas)
+            //painel lateral preso à direita (outliner e propriedades)
             void drawSidePanel(LveScene &scene);
             //setas de mover/girar/escalar no objeto selecionado (ImGuizmo)
             void drawTransformGizmo(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
@@ -55,7 +55,5 @@ namespace lve {
             void drawOutLinerNode(LveScene &scene, LveGameObject::id_t id, const ChildrenMap &children);
             //camera orbital
             OrbitCameraController cameraController{};
-            //janela de demonstração do ImGui (todos os componentes), aberta pelo painel
-            bool showImGuiDemo = false;
     };
 }

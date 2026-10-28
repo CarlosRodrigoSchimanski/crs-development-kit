@@ -178,6 +178,7 @@ namespace lve {
         playerVisual.name = "PlayerMesh";
         playerVisual.model = lveModel;
         playerVisual.parentId = player.getId();
+        playerVisual.transform.rotation.y = glm::radians(180.f);
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
         lveModel = LveModel::createModelFromFile(lveDevice, "models/empty.glb");
