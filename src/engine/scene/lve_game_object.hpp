@@ -36,6 +36,8 @@ namespace lve {
         float sensitivity = 0.003f;
         float minPitch = glm::radians(-70.f);
         float maxPitch = glm::radians(40.f);
+        float distance = 4.f;     //quanto a câmera fica atrás do pivô (o máximo: uma parede no meio aproxima)
+        float wallMargin = 0.2f;  //folga entre a câmera e o que o raio acertar
     };
     
 

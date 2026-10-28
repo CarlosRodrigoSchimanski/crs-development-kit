@@ -417,6 +417,7 @@ namespace lve {
             cameraRigSystem.update(*playScene, lveInput.getMouseDelta());
             characterController.update(*playScene, readCharacterInput(gameCamera));
             physicsSystem.update(*playScene, frameTime);
+            cameraRigSystem.placeCamera(*playScene);
         }
 
         if (auto commandBuffer = lveRenderer.beginFrame()) {
