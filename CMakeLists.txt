@@ -161,6 +161,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/systems/point_light_system.cpp
     src/engine/rendering/systems/shadow_render_system.cpp
     src/engine/rendering/systems/gizmo_system.cpp
+    src/engine/rendering/systems/skinning_system.cpp
     src/engine/scene/lve_game_object.cpp
     src/engine/scene/lve_scene.cpp
     src/engine/scene/lve_ray.cpp

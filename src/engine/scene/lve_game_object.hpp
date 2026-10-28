@@ -33,7 +33,7 @@ namespace lve {
         float moveSpeed = 4.f; //unidade por segundo
         float jumpSpeed = 5.f; //velocidade inicial do pulo
     };
-    
+
     struct CameraRigComponent {
         float sensitivity = 0.003f;
         float minPitch = glm::radians(-70.f);
@@ -46,6 +46,15 @@ namespace lve {
     struct FaceMovementComponent {
         float turnSpeed = glm::radians(1200.f);  //velocidade de giro (radianos por segundo)
         float yawOffset = glm::pi<float>();      //frente do modelo: de frente na vista Front do Blender (-Y) = -Z na engine
+    };
+
+    //toca uma animação do modelo (só modelos com esqueleto)
+    struct AnimatorComponent {
+        std::string clip{};       //nome da animação; vazio (ou não achou) = a primeira do modelo
+        float time = 0.f;         //instante atual da animação (segundos)
+        float speed = 1.f;        //1 = velocidade normal
+        bool loop = true;         //recomeça ao chegar no fim
+        uint32_t boneOffset = 0;  //onde as matrizes dos ossos deste objeto começam no buffer do frame (o SkinningSystem preenche)
     };
 
     struct TransformComponent {
@@ -62,9 +71,9 @@ namespace lve {
     };
 
     struct PointLightComponent {
-        float lightIntensity = 1.f;  
+        float lightIntensity = 1.f;
     };
-    
+
 
     class LveGameObject{
 
@@ -92,7 +101,7 @@ namespace lve {
         TransformComponent transform{};
         //pai na cena (o transform passa a ser relativo a ele); vazio = raiz
         std::optional<id_t> parentId{};
-        
+
         std::shared_ptr<LveModel>model{};
         std::optional<PointLightComponent> pointLight{};
         std::optional<CameraComponent> camera{};
@@ -100,8 +109,9 @@ namespace lve {
         std::optional<CharacterComponent> character{};
         std::optional<CameraRigComponent> cameraRig{};
         std::optional<FaceMovementComponent> faceMovement{};
+        std::optional<AnimatorComponent> animator{};
 
-        
+
         private:
         LveGameObject(id_t objId);
 

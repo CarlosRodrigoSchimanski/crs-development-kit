@@ -60,12 +60,14 @@ namespace lve {
             .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
+            //2 storage buffers por set: luzes (binding 2) e ossos (binding 3)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 * LveSwapChain::MAX_FRAMES_IN_FLIGHT)
             .build();
         globalSetLayout = LveDescriptorSetLayout::Builder{lveDevice}
             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
             .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+            .addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
             .build();
 
         //buffers do UBO
@@ -90,13 +92,15 @@ namespace lve {
         pointLightSystem = std::make_unique<PointLightSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(lveDevice, shadowMap, globalLayout);
         gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
+        skinningSystem = std::make_unique<SkinningSystem>(lveDevice);
         lveImgui = std::make_unique<LveImgui>(lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount());
 
-        //descriptor sets globais: ligam UBO, shadow map e luzes aos shaders
+        //descriptor sets globais: ligam UBO, shadow map, luzes e ossos aos shaders
         globalDescriptorSets.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < globalDescriptorSets.size(); i++) {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
             auto lightBufferInfo = pointLightSystem->lightBufferInfo(static_cast<int>(i));
+            auto boneBufferInfo = skinningSystem->boneBufferInfo(static_cast<int>(i));
             VkDescriptorImageInfo shadowMapInfo{};
             shadowMapInfo.sampler = shadowMap.getSampler();
             shadowMapInfo.imageView = shadowMap.getImageView();
@@ -107,6 +111,7 @@ namespace lve {
                 .writeBuffer(0, &bufferInfo)
                 .writeImage(1, &shadowMapInfo)
                 .writeBuffer(2, &lightBufferInfo)
+                .writeBuffer(3, &boneBufferInfo)
                 .build(globalDescriptorSets[i]);
         }
 
@@ -181,6 +186,7 @@ namespace lve {
         playerVisual.parentId = player.getId();
         playerVisual.transform.rotation.y = glm::radians(180.f);
         playerVisual.faceMovement.emplace();
+        playerVisual.animator.emplace();  //toca a primeira animação do arquivo (o idle)
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
         lveModel = LveModel::createModelFromFile(lveDevice, "models/empty.glb");
@@ -373,6 +379,15 @@ namespace lve {
             auto lightBufferInfo = pointLightSystem->lightBufferInfo(frameInfo.frameIndex);
             LveDescriptorWriter(*globalSetLayout, *globalPool)
                 .writeBuffer(2, &lightBufferInfo)
+                .overwrite(globalDescriptorSets[frameInfo.frameIndex]);
+        }
+
+        //ossos dos objetos animados
+        if (skinningSystem->update(frameInfo.lveScene, frameInfo.frameIndex)) {
+            //buffer de ossos cresceu: atualiza o descriptor
+            auto boneBufferInfo = skinningSystem->boneBufferInfo(frameInfo.frameIndex);
+            LveDescriptorWriter(*globalSetLayout, *globalPool)
+                .writeBuffer(3, &boneBufferInfo)
                 .overwrite(globalDescriptorSets[frameInfo.frameIndex]);
         }
 
