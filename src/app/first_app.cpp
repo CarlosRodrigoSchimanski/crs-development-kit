@@ -205,7 +205,7 @@ namespace lve {
         gameCamera.model = lveModel;
         gameCamera.editorOnly = true;  //gizmo só no editor
         gameCamera.parentId = cameraPivot.getId();
-        gameCamera.transform.translation = {0.f, 0.f, -4.f};
+        gameCamera.transform.translation = {0.f, 0.f, 4.f};
         gameCamera.camera.emplace();
         lveScene.setActiveCamera(gameCamera.getId());
 
@@ -296,11 +296,11 @@ namespace lve {
         if (ImGui::GetIO().WantCaptureKeyboard) return input;
 
         //frente e direita da câmera, achatadas no chão
-        glm::vec3 forward{0.f, 0.f, 1.f};
+        glm::vec3 forward{0.f, 0.f, -1.f};
         glm::vec3 right{1.f, 0.f, 0.f};
         if (gameCamera) {
             glm::mat3 rotation{playScene->worldMatrix(*gameCamera)};
-            glm::vec3 flatForward{rotation[2].x, 0.f, rotation[2].z};
+            glm::vec3 flatForward{-rotation[2].x, 0.f, -rotation[2].z};
             glm::vec3 flatRight{rotation[0].x, 0.f, rotation[0].z};
             //câmera olhando reto pra baixo: a frente achatada some, mantém a do mundo
             if (glm::length(flatForward) > 0.001f) forward = glm::normalize(flatForward);
@@ -319,7 +319,7 @@ namespace lve {
         if (gameCamera) {
             //Posição e frente no mundo
             glm::mat4 world = playScene->worldMatrix(*gameCamera);
-            glm::vec3 forward = glm::normalize(glm::vec3{world[2]});
+            glm::vec3 forward = -glm::normalize(glm::vec3{world[2]});  //a câmera olha pro -Z dela
             camera.setViewDirection(glm::vec3{world[3]}, forward);
             const CameraComponent& lens = *gameCamera->camera;
             camera.setPerspectiveProjection(lens.fovY, aspect, lens.nearPlane, lens.farPlane);
@@ -337,7 +337,7 @@ namespace lve {
         glm::vec3 shadowCenter = editor.getFocusPoint();
         if (gameCamera) {
             glm::mat4 world = playScene->worldMatrix(*gameCamera);
-            glm::vec3 forward = glm::normalize(glm::vec3{world[2]});
+            glm::vec3 forward = -glm::normalize(glm::vec3{world[2]});  //a câmera olha pro -Z dela
             shadowCenter = glm::vec3{world[3]} + forward * SHADOW_HALF_SIZE;
         }
         updateShadowCamera(shadowCamera, shadowCenter, lightDirection, shadowMapSize);

@@ -4,8 +4,8 @@
 
 using namespace lve;
 
-//personagem (com colisor) > pivô (rig) > câmera, como no loadGameObjects; o pivô olha pra +Z,
-//então a câmera fica no -Z dele
+//personagem (com colisor) > pivô (rig) > câmera, como no loadGameObjects; o pivô olha pra -Z,
+//então a câmera fica no +Z dele
 struct RigScene {
     LveScene scene;
     LveGameObject *player = nullptr;
@@ -30,14 +30,14 @@ TEST_CASE("rig sem nada no caminho: câmera na distância cheia") {
 
     system.placeCamera(rig.scene);
 
-    CHECK(rig.camera->transform.translation.z == doctest::Approx(-4.f));
+    CHECK(rig.camera->transform.translation.z == doctest::Approx(4.f));
 }
 
 TEST_CASE("rig com parede entre o pivô e a câmera: a câmera fica antes dela") {
     RigScene rig;
-    //parede de lado 2 centrada em z = -3: a face de frente pro pivô fica em z = -2
+    //parede de lado 2 centrada em z = 3: a face de frente pro pivô fica em z = 2
     LveGameObject &wall = rig.scene.createGameObject();
-    wall.transform.translation = {0.f, 0.f, -3.f};
+    wall.transform.translation = {0.f, 0.f, 3.f};
     wall.rigidBody.emplace();
     wall.rigidBody->type = BodyType::Static;
     CameraRigSystem system;
@@ -45,7 +45,7 @@ TEST_CASE("rig com parede entre o pivô e a câmera: a câmera fica antes dela")
     system.placeCamera(rig.scene);
 
     //raio bate a 2 do pivô, menos a folga de 0.2
-    CHECK(rig.camera->transform.translation.z == doctest::Approx(-1.8f));
+    CHECK(rig.camera->transform.translation.z == doctest::Approx(1.8f));
 }
 
 TEST_CASE("rig: a cápsula do próprio personagem não puxa a câmera") {
@@ -56,5 +56,5 @@ TEST_CASE("rig: a cápsula do próprio personagem não puxa a câmera") {
 
     system.placeCamera(rig.scene);
 
-    CHECK(rig.camera->transform.translation.z == doctest::Approx(-4.f));
+    CHECK(rig.camera->transform.translation.z == doctest::Approx(4.f));
 }
