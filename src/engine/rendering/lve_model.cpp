@@ -176,7 +176,7 @@ namespace lve {
     }
 
     //ossos do primeiro skin do arquivo, com o pai antes dos filhos; jointIndex = nó do glTF -> índice do osso
-    static std::optional<Skeleton> readSkeleton(const cgltf_data &data, const glm::mat4 &yUpToYDown, std::map<const cgltf_node *, int> &jointIndex) {
+    static std::optional<Skeleton> readSkeleton(const cgltf_data &data, std::map<const cgltf_node *, int> &jointIndex) {
         if (data.skins_count == 0) return std::nullopt;
         const cgltf_skin &skin = data.skins[0];
 
@@ -225,13 +225,11 @@ namespace lve {
             if (skin.inverse_bind_matrices != nullptr) {
                 float matrix[16];
                 cgltf_accessor_read_float(skin.inverse_bind_matrices, original, matrix, 16);
-                //o inverseBind do arquivo espera o vértice no espaço do glTF, mas a malha já foi carregada
-                //convertida (Y pra baixo): primeiro desfaz a conversão, senão ela é aplicada duas vezes
-                joint.inverseBind = glm::make_mat4(matrix) * glm::inverse(yUpToYDown);
+                joint.inverseBind = glm::make_mat4(matrix);
             }
         }
 
-        //acima do osso raiz: o nó pai dele (o Armature, com a escala e a rotação do FBX), e o Y pra baixo
+        //acima do osso raiz: o nó pai dele (o Armature, com a escala e a rotação do FBX)
         glm::mat4 aboveRoot{1.f};
         const cgltf_node *rootNode = skin.joints[order[0]];
         if (rootNode->parent != nullptr) {
@@ -240,7 +238,7 @@ namespace lve {
             aboveRoot = glm::make_mat4(matrix);
         }
 
-        skeleton.rootTransform = yUpToYDown * aboveRoot;
+        skeleton.rootTransform = aboveRoot;
         return skeleton;
     }
 
@@ -314,11 +312,6 @@ namespace lve {
             throw std::runtime_error("invalid glTF: " + filepath);
         }
 
-        //glTF é Y pra cima, a engine é Y pra baixo: gira 180 graus em X, (x, y, z) -> (x, -y, -z).
-        //só negar o Y espelharia o modelo (troca a "mão" do sistema e inverte a ordem dos triângulos);
-        //negar Y e Z juntos é exatamente essa rotação, sem o erro de float do sin(pi) != 0
-        const glm::mat4 yUpToYDown = glm::scale(glm::mat4{1.f}, glm::vec3{1.f, -1.f, -1.f});
-
         //glTF é uma cena: cada nó tem sua transformação (e pode ser filho de outro).
         //por enquanto achata tudo numa malha só, já com a transformação aplicada nos vértices
         for (cgltf_size n = 0; n < data->nodes_count; n++) {
@@ -329,7 +322,7 @@ namespace lve {
             cgltf_node_transform_world(&node, nodeMatrix);  //já inclui as transformações dos pais
             //malha com esqueleto: pela especificação do glTF, a transformação do nó é ignorada (quem
             //posiciona é o esqueleto); sem animação ainda, ela fica na pose de bind (pose de T)
-            glm::mat4 world = node.skin != nullptr ? yUpToYDown : yUpToYDown * glm::make_mat4(nodeMatrix);
+            glm::mat4 world = node.skin != nullptr ? glm::mat4{1.f} : glm::make_mat4(nodeMatrix);
 
             glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3{world}));
 
@@ -435,7 +428,7 @@ namespace lve {
         }
         //esqueleto e animações (modelos com armature)
         std::map<const cgltf_node *, int> jointIndex;
-        skeleton = readSkeleton(*data, yUpToYDown, jointIndex);
+        skeleton = readSkeleton(*data, jointIndex);
         animations = readAnimations(*data, jointIndex);
 
         //os índices dos ossos nos vértices passam pra numeração nova (pai antes de filho)

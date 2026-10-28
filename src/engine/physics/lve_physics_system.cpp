@@ -32,10 +32,10 @@ namespace lve {
                             && distance.z < half.z + otherHalf.z;
                 if (!touching) continue;
 
-                //estava caindo (+Y é pra baixo): apoia a base em cima do estático e para de cair
-                if (obj.rigidBody->velocity.y > 0.f) {
+                //estava caindo: apoia a base em cima do estático e para de cair
+                if (obj.rigidBody->velocity.y < 0.f) {
                     //centro da caixa apoiado em cima do estático, devolvido pra origem do objeto
-                    float boxCenterY = otherCenter.y - otherHalf.y - half.y;
+                    float boxCenterY = otherCenter.y + otherHalf.y + half.y;
                     obj.transform.translation.y = boxCenterY - obj.rigidBody->center.y * obj.transform.scale.y;
                     boxCenter.y = boxCenterY;
                     obj.rigidBody->velocity.y = 0.f;

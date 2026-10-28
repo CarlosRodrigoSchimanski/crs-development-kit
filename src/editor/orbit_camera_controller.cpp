@@ -33,7 +33,7 @@ namespace lve {
 
         //direção do alvo até a câmera, a partir dos ângulos atuais (antes de atualizar) —
         //usada pra calcular os eixos direita/cima da câmera, pro pan
-        const glm::vec3 worldUp{0.f, -1.f, 0.f}; //"pra cima" nesse motor é -Y, não +Y
+        const glm::vec3 worldUp{0.f, 1.f, 0.f};
         glm::vec3 orbitDir = orbitDirection();
         glm::vec3 right = glm::normalize(glm::cross(worldUp, orbitDir));
         glm::vec3 camUp = glm::cross(orbitDir, right);
@@ -45,7 +45,7 @@ namespace lve {
             target += camUp * static_cast<float>(deltaY) * panSpeed * distance;
         } else if (middleDown) {
             //orbita: arrastar o mouse gira a câmera em torno do alvo
-            yaw += static_cast<float>(deltaX) * orbitSpeed;
+            yaw -= static_cast<float>(deltaX) * orbitSpeed;
             pitch += static_cast<float>(deltaY) * orbitSpeed;
             pitch = glm::clamp(pitch, -maxPitch, maxPitch);
         }
@@ -68,7 +68,7 @@ namespace lve {
     glm::vec3 OrbitCameraController::orbitDirection() const {
         return {
             glm::cos(pitch) * glm::sin(yaw),
-            -glm::sin(pitch),
+            glm::sin(pitch),
             glm::cos(pitch) * glm::cos(yaw)
         };
     }
@@ -76,7 +76,7 @@ namespace lve {
     void OrbitCameraController::setOrbitDirection(glm::vec3 direction) {
         direction = glm::normalize(direction);
         //o inverso do orbitDirection: o pitch sai do y, o yaw do x e do z
-        pitch = glm::clamp(glm::asin(glm::clamp(-direction.y, -1.f, 1.f)), -maxPitch, maxPitch);
+        pitch = glm::clamp(glm::asin(glm::clamp(direction.y, -1.f, 1.f)), -maxPitch, maxPitch);
         yaw = glm::atan(direction.x, direction.z);
     }
 

@@ -18,7 +18,7 @@ namespace lve {
         glm::mat4 view{1.f};
         glm::mat4 inverseView{1.f};
         glm::mat4 lightSpaceMatrix{1.f};
-        glm::vec4 sunDirection = {-1.f, -4.f, -1.f, 1.f};
+        glm::vec4 sunDirection = {-1.f, 4.f, 1.f, 1.f};
 
         glm::vec4 lightAmbientColor = {1.f, 1.f, 1.f, 0.35f};
         int numLights;

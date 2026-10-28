@@ -161,7 +161,7 @@ namespace lve {
         auto& cube = lveScene.createGameObject();
         cube.name = "cube";
         cube.model = lveModel;
-        cube.transform.translation = {0.f, 0.f, 0.f};
+        cube.transform.translation = {0.f, 1.5f, 0.f};
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
         cube.rigidBody.emplace();
 
@@ -171,11 +171,11 @@ namespace lve {
         player.name = "Player";
         player.model = lveModel;
         player.editorOnly = true;  //só a física: gizmo no editor, invisível no Play
-        player.transform.translation = {3.f, -2.f, 0.f};
+        player.transform.translation = {3.f, 2.f, 0.f};
         player.transform.scale = {1.f, 1.f, 1.f};
         player.rigidBody.emplace();
         player.rigidBody->halfExtents = {0.5f, 0.87f, 0.49f};  //meia largura, altura e profundidade da cápsula
-        player.rigidBody->center = {0.f, -0.87f, 0.f};  //caixa acima dos pés (o Y aponta pra baixo)
+        player.rigidBody->center = {0.f, 0.87f, 0.f};  //caixa acima dos pés
         player.character.emplace();
 
         //visual do personagem: filho da cápsula (anda junto com ela)
@@ -196,7 +196,7 @@ namespace lve {
         cameraPivot.cameraRig.emplace();
         cameraPivot.editorOnly = true;  //gizmo só no editor (provisório: a engine vai gerar a cruz de eixos)
         cameraPivot.parentId = player.getId();
-        cameraPivot.transform.translation = {0.f, -1.6f, 0.f};  //1,6 acima dos pés (o Y aponta pra baixo)
+        cameraPivot.transform.translation = {0.f, 1.6f, 0.f};  //1,6 acima dos pés
 
         //câmera de jogo
         lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
@@ -214,7 +214,7 @@ namespace lve {
         auto& floor = lveScene.createGameObject();
         floor.name = "Floor";
         floor.model = lveModel;
-        floor.transform.translation = {0.f, 1.5f, 0.f};
+        floor.transform.translation = {0.f, 0.f, 0.f};
         floor.transform.scale = glm::vec3{10.f, 1.f, 10.f};
         floor.rigidBody.emplace();
         floor.rigidBody->type = BodyType::Static;

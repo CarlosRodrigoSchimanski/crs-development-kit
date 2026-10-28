@@ -23,7 +23,7 @@ namespace lve {
     //os ossos de um modelo, sempre com o pai antes dos filhos no vetor
     struct Skeleton {
         std::vector<Joint> joints;
-        //tudo que fica acima do osso raiz (o nó Armature: escala 0.01 e rotação do FBX) e o Y pra baixo
+        //tudo que fica acima do osso raiz (o nó Armature: escala 0.01 e rotação do FBX)
         glm::mat4 rootTransform{1.f};
     };
 

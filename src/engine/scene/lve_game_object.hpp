@@ -45,7 +45,7 @@ namespace lve {
     //vira este objeto (em Y) pra direção em que o pai se move: o visual do personagem
     struct FaceMovementComponent {
         float turnSpeed = glm::radians(1200.f);  //velocidade de giro (radianos por segundo)
-        float yawOffset = glm::pi<float>();      //frente do modelo: de frente na vista Front do Blender (-Y) = -Z na engine
+        float yawOffset = 0.f;  //frente do modelo: de frente na vista Front do Blender (-Y) = +Z na engine
     };
 
     //toca uma animação do modelo (só modelos com esqueleto)

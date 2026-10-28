@@ -84,7 +84,7 @@ TEST_CASE("objeto sem componente de personagem não é movido pelo controlador")
 //personagem em pé num chão estático grande (mesma montagem do loadGameObjects)
 static LveGameObject &addFloor(LveScene &scene) {
     LveGameObject &floor = scene.createGameObject();
-    floor.transform.translation = {0.f, 1.5f, 0.f};
+    floor.transform.translation = {0.f, -1.5f, 0.f};
     floor.transform.scale = {10.f, 1.f, 10.f};
     floor.rigidBody.emplace();
     floor.rigidBody->type = BodyType::Static;
@@ -102,7 +102,7 @@ TEST_CASE("personagem apoiado no chão fica onGround") {
     CHECK(player.rigidBody->onGround);
 }
 
-TEST_CASE("pulo apoiado no chão sobe (y diminui: o Y aponta pra baixo)") {
+TEST_CASE("pulo apoiado no chão sobe (y aumenta)") {
     LveScene scene;
     addFloor(scene);
     LveGameObject &player = addCharacter(scene);
@@ -114,7 +114,7 @@ TEST_CASE("pulo apoiado no chão sobe (y diminui: o Y aponta pra baixo)") {
     simulate(scene, jump, DT);  //um frame com o pulo
     simulate(scene, CharacterInput{}, 0.2f);
 
-    CHECK(player.transform.translation.y < standingY - 0.5f);
+    CHECK(player.transform.translation.y > standingY + 0.5f);
     CHECK_FALSE(player.rigidBody->onGround);
 }
 
@@ -133,7 +133,7 @@ TEST_CASE("pulo no ar não faz nada") {
     simulate(scene, jump, DT);  //segundo pulo, ainda no ar
 
     //a velocidade segue só a gravidade: nada de impulso novo pra cima
-    CHECK(player.rigidBody->velocity.y > velocityBefore);
+    CHECK(player.rigidBody->velocity.y < velocityBefore);
 }
 
 TEST_CASE("turnTowards: vira pelo caminho mais curto (de 170 pra -170 graus são 20, não 340)") {
@@ -169,8 +169,8 @@ TEST_CASE("faceMovement: o visual fica de frente pro movimento (com o desvio do 
     CharacterControllerSystem controller;
     controller.faceMovement(scene, DT);
 
-    //a frente do modelo é o -Z dele: depois de virar, esse -Z tem que apontar pro +X
-    glm::vec3 modelFront = -visual.transform.rotationMatrix()[2];
+    //a frente do modelo é o +Z dele: depois de virar, esse +Z tem que apontar pro +X
+    glm::vec3 modelFront = visual.transform.rotationMatrix()[2];
     CHECK(modelFront.x == doctest::Approx(1.f).epsilon(1e-4));
     CHECK(std::abs(modelFront.z) < 1e-4f);
 }
@@ -180,7 +180,7 @@ TEST_CASE("faceMovement: parado, mantém a última direção") {
     LveGameObject &body = addCharacter(scene);
     LveGameObject &visual = addVisual(scene, body);
     visual.transform.rotation.y = 1.234f;
-    body.rigidBody->velocity = {0.f, 3.f, 0.f};  //só caindo: nada no chão
+    body.rigidBody->velocity = {0.f, -3.f, 0.f};  //só caindo: nada no chão
 
     CharacterControllerSystem controller;
     controller.faceMovement(scene, DT);

@@ -117,17 +117,17 @@ TEST_CASE("raycast: o objeto ignorado fica de fora (o raio sai de dentro dele)")
 
 TEST_CASE("raycast: usa o centro e a escala do colisor") {
     LveScene scene;
-    //caixa com a origem nos pés (centro 1 acima, o Y aponta pra baixo) e o dobro de largura em X
+    //caixa com a origem nos pés (centro 1 acima) e o dobro de largura em X
     LveGameObject &body = addWall(scene, {0.f, 0.f, 0.f}, {2.f, 1.f, 1.f});
-    body.rigidBody->center = {0.f, -1.f, 0.f};
+    body.rigidBody->center = {0.f, 1.f, 0.f};
 
-    //raio de lado, na altura do centro da caixa (y = -1): acerta a face em x = -2
-    Ray ray{{-10.f, -1.f, 0.f}, {1.f, 0.f, 0.f}};
+    //raio de lado, na altura do centro da caixa (y = 1): acerta a face em x = -2
+    Ray ray{{-10.f, 1.f, 0.f}, {1.f, 0.f, 0.f}};
     auto hit = scene.raycast(ray, 100.f);
     REQUIRE(hit.has_value());
     CHECK(hit->distance == doctest::Approx(8.f));
 
     //um pouco abaixo dos pés (y = 0.5) o raio passa por baixo da caixa
-    Ray below{{-10.f, 0.5f, 0.f}, {1.f, 0.f, 0.f}};
+    Ray below{{-10.f, -0.5f, 0.f}, {1.f, 0.f, 0.f}};
     CHECK_FALSE(scene.raycast(below, 100.f).has_value());
 }
