@@ -167,6 +167,7 @@ set(ENGINE_SOURCES
     src/engine/physics/lve_physics_system.cpp
     src/engine/gameplay/character_controller_system.cpp
     src/engine/gameplay/camera_rig_system.cpp
+    src/engine/animation/lve_animation.cpp
 )
 
 #camada de plataforma: uma implementação por sistema operacional, escolhida AQUI (o código não
@@ -231,6 +232,7 @@ set(TEST_SOURCES
     tests/test_ray.cpp
     tests/test_transform.cpp
     tests/test_camera_rig.cpp
+    tests/test_animation.cpp
 )
 add_executable(G_E_Youtube_tests ${TEST_SOURCES})
 if(MSVC)
