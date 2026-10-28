@@ -498,6 +498,20 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    carregar a cena em arquivo — objetivo claro: o que for mudado no editor (posição de objeto, da
    câmera...) fica salvo e é lido de volta, em vez de só valer o que está no loadGameObjects.
    Junto vêm os ids por cena (adiados desde a LveScene) e a cena saindo do código.
+   Formato: JSON (nlohmann/json), texto pra ler/editar/ver no git; o código de ler/gravar fica
+   isolado num scene_serializer (dá pra trocar por binário no futuro sem mexer no resto).
+   Sequência combinada (2026-10-28), o usuário escreve:
+     1. nlohmann/json no CMake
+     2. o objeto guarda o caminho do modelo (+ cache: mesmo .glb carregado uma vez)
+     3. ids estáveis por cena (o parentId continua valendo depois de carregar)
+     4. salvar e carregar o básico (nome, modelo, transform, pai, editorOnly) num caminho fixo
+        (scenes/....json); teste de ida e volta (salvar -> carregar -> comparar)
+     5. barra de menu no topo (ImGui::BeginMainMenuBar, estilo Blender): Arquivo -> Nova,
+        Abrir, Salvar (Ctrl+S), Salvar como, Sair; o painel e o sceneArea descontam a altura
+     6. componentes no JSON, um por vez (rigidBody, camera, character, cameraRig,
+        faceMovement, animator)
+     7. diálogo nativo de arquivo (nativefiledialog-extended)
+     8. Arquivo -> Importar .glb; depois menu Adicionar (Shift+A) com as formas geradas
 5. ✅ Animação esquelética (ossos + skinning) (concluído 2026-10-28, commits A1..A6) —
    esqueleto e clipes lidos do glTF, matrizes dos ossos num storage buffer por frame
    (set 0, binding 3), pipelines de skinning no passe principal e na sombra, AnimatorComponent
