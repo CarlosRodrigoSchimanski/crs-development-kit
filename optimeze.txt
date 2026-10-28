@@ -494,6 +494,10 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
    com o item 3: sobrevoar/inspecionar em modo editor, andar de verdade em modo jogo.
 
+5.0. Ordem decidida pelo usuário (2026-10-28): animação esquelética agora; LOGO DEPOIS, salvar e
+   carregar a cena em arquivo — objetivo claro: o que for mudado no editor (posição de objeto, da
+   câmera...) fica salvo e é lido de volta, em vez de só valer o que está no loadGameObjects.
+   Junto vêm os ids por cena (adiados desde a LveScene) e a cena saindo do código.
 5. Animação esquelética (ossos + skinning) — peça grande e fundamental; tudo que
    depende de personagem animado (combate, equipamento) espera por essa.
 
