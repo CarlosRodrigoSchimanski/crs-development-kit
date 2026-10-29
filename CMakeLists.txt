@@ -161,6 +161,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/lve_pipeline.cpp
     src/engine/rendering/lve_swap_chain.cpp
     src/engine/rendering/lve_model.cpp
+    src/engine/rendering/lve_model_cache.cpp
     src/engine/rendering/lve_renderer.cpp
     src/engine/rendering/lve_camera.cpp
     src/engine/rendering/lve_buffer.cpp
