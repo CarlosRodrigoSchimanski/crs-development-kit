@@ -80,6 +80,7 @@ namespace lve {
         if (obj.animator) {
             j["animator"] = {
                 {"clip", obj.animator->clip},
+                {"animations", obj.animator->animations},
                 {"speed", rounded(obj.animator->speed)},
                 {"loop", obj.animator->loop},
             };
@@ -138,6 +139,7 @@ namespace lve {
             const json &c = j.at("animator");
             AnimatorComponent animator{};
             animator.clip = c.value("clip", animator.clip);
+            animator.animations = c.value("animations", animator.animations);
             animator.speed = c.value("speed", animator.speed);
             animator.loop = c.value("loop", animator.loop);
             obj.animator = animator;

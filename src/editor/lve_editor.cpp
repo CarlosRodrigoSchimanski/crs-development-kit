@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <nlohmann/json.hpp>
 
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 
@@ -160,12 +161,42 @@ namespace lve {
                     transform.rotation = glm::radians(degrees);
                 }
                 ImGui::DragFloat3("Escala:", &transform.scale.x, 0.01f);
+
+                if (selected->animator) {
+                    ImGui::Separator();
+                    drawAnimatorProperties(*selected);
+                }
             } else {
                 ImGui::TextDisabled("Nada Selecionado");
             }
         }
 
         ImGui::End();
+    }
+
+    void LveEditor::drawAnimatorProperties(LveGameObject &obj) {
+        AnimatorComponent &animator = *obj.animator;
+        //o que dá pra tocar: os arquivos do animator e as animações do próprio modelo
+        std::vector<std::string> names;
+        for (const std::string &file : animator.animations) {
+            names.push_back(std::filesystem::path{file}.stem().string());
+        }
+        if (obj.model) {
+            for (const AnimationClip &clip : obj.model->getAnimations()) names.push_back(clip.name);
+        }
+
+        const char *current = animator.clip.empty() ? "(a primeira)" : animator.clip.c_str();
+        if (ImGui::BeginCombo("Animação:", current)) {
+            for (size_t i = 0; i < names.size(); i++) {
+                ImGui::PushID(static_cast<int>(i));
+                if (ImGui::Selectable(names[i].c_str(), names[i] == animator.clip)) {
+                    animator.clip = names[i];
+                    animator.time = 0.f;
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
     }
 
     VkRect2D LveEditor::sceneArea(VkExtent2D screen) const {

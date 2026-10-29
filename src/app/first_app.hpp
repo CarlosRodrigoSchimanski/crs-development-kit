@@ -18,6 +18,7 @@
 #include "engine/gameplay/character_controller_system.hpp"
 #include "engine/gameplay/camera_rig_system.hpp"
 #include "engine/animation/lve_animator_system.hpp"
+#include "engine/animation/lve_animation_library.hpp"
 #include "engine/physics/lve_physics_system.hpp"
 #include "editor/lve_editor.hpp"
 #include "editor/lve_imgui.hpp"
@@ -95,6 +96,8 @@ namespace lve {
             LveWindow lveWindow{WIDTH, HEIGHT, "Olá Vulkan"};
             LveDevice lveDevice{lveWindow};
             LveRenderer lveRenderer{lveWindow, lveDevice};
+            //animações de arquivo (o SkinningSystem usa: criada antes dele)
+            LveAnimationLibrary animationLibrary{};
             //pool dos descriptor sets globais
             std::unique_ptr<LveDescriptorPool> globalPool{};
             //formato dos dados globais: 0 = UBO, 1 = shadow map, 2 = luzes

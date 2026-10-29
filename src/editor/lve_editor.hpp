@@ -62,6 +62,8 @@ namespace lve {
             void drawAddMenuItems(EditorRequests &requests);
             //painel lateral preso à direita (outliner e propriedades)
             void drawSidePanel(LveScene &scene);
+            //escolha da animação que o objeto toca
+            void drawAnimatorProperties(LveGameObject &obj);
             //setas de mover/girar/escalar no objeto selecionado (ImGuizmo)
             void drawTransformGizmo(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
             //bolinhas dos eixos no canto da cena, como no Blender: clicar põe a câmera daquele lado

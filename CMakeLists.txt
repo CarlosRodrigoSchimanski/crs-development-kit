@@ -193,6 +193,9 @@ set(ENGINE_SOURCES
     src/engine/gameplay/character_controller_system.cpp
     src/engine/gameplay/camera_rig_system.cpp
     src/engine/animation/lve_animation.cpp
+    src/engine/animation/lve_gltf_animation.cpp
+    src/engine/animation/lve_animation_file.cpp
+    src/engine/animation/lve_animation_library.cpp
     src/engine/animation/lve_animator_system.cpp
 )
 
@@ -266,6 +269,7 @@ set(TEST_SOURCES
     tests/test_transform.cpp
     tests/test_camera_rig.cpp
     tests/test_animation.cpp
+    tests/test_animation_file.cpp
 )
 add_executable(G_E_Youtube_tests ${TEST_SOURCES})
 if(MSVC)

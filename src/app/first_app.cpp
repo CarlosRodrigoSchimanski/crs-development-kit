@@ -108,7 +108,7 @@ namespace lve {
         pointLightSystem = std::make_unique<PointLightSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(lveDevice, shadowMap, globalLayout);
         gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
-        skinningSystem = std::make_unique<SkinningSystem>(lveDevice);
+        skinningSystem = std::make_unique<SkinningSystem>(lveDevice, animationLibrary);
         lveImgui = std::make_unique<LveImgui>(lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount());
 
         //descriptor sets globais: ligam UBO, shadow map, luzes e ossos aos shaders
@@ -205,7 +205,14 @@ namespace lve {
         playerVisual.parentId = player.getId();
         playerVisual.transform.rotation.y = glm::radians(180.f);
         playerVisual.faceMovement.emplace();
-        playerVisual.animator.emplace();  //toca a primeira animação do arquivo (o idle)
+        playerVisual.animator.emplace();
+        playerVisual.animator->animations = {
+            "assets/animations/idle_01.glb",
+            "assets/animations/walking_01.glb",
+            "assets/animations/running_01.glb",
+            "assets/animations/jump_01.glb",
+        };
+        playerVisual.animator->clip = "idle_01";
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
         lveModel = modelCache.load("assets/editor/empty.glb");

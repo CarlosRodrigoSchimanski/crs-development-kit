@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <glm/gtc/constants.hpp>
 
@@ -50,7 +51,8 @@ namespace lve {
 
     //toca uma animação do modelo (só modelos com esqueleto)
     struct AnimatorComponent {
-        std::string clip{};       //nome da animação; vazio (ou não achou) = a primeira do modelo
+        std::string clip{};       //animação tocando: o nome de um arquivo da lista ou uma do modelo; vazio = a primeira
+        std::vector<std::string> animations{};  //arquivos de animação (assets/animations/...): o nome é o do arquivo
         float time = 0.f;         //instante atual da animação (segundos)
         float speed = 1.f;        //1 = velocidade normal
         bool loop = true;         //recomeça ao chegar no fim

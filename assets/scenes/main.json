@@ -124,7 +124,13 @@
                 "yawOffset": 0.0
             },
             "animator": {
-                "clip": "",
+                "clip": "idle_01",
+                "animations": [
+                    "assets/animations/idle_01.glb",
+                    "assets/animations/walking_01.glb",
+                    "assets/animations/running_01.glb",
+                    "assets/animations/jump_01.glb"
+                ],
                 "speed": 1.0,
                 "loop": true
             }

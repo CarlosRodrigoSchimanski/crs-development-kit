@@ -123,6 +123,7 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     visual.faceMovement->yawOffset = 0.25f;
     visual.animator.emplace();
     visual.animator->clip = "idle";
+    visual.animator->animations = {"assets/animations/idle_01.glb", "assets/animations/walking_01.glb"};
     visual.animator->speed = 1.5f;
     visual.animator->loop = false;
     visual.animator->time = 2.f;  //estado: não vai pro arquivo
@@ -165,6 +166,8 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     CHECK(v.faceMovement->yawOffset == doctest::Approx(0.25f));
     REQUIRE(v.animator.has_value());
     CHECK(v.animator->clip == "idle");
+    REQUIRE(v.animator->animations.size() == 2);
+    CHECK(v.animator->animations[1] == "assets/animations/walking_01.glb");
     CHECK(v.animator->speed == doctest::Approx(1.5f));
     CHECK_FALSE(v.animator->loop);
     CHECK(v.animator->time == doctest::Approx(0.f));
