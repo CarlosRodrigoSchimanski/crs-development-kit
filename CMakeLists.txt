@@ -246,6 +246,7 @@ set(TEST_SOURCES
     tests/test_physics.cpp
     tests/test_character.cpp
     tests/test_scene.cpp
+    tests/test_scene_serializer.cpp
     tests/test_ray.cpp
     tests/test_transform.cpp
     tests/test_camera_rig.cpp

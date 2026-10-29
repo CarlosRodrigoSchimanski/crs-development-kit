@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace lve {
@@ -21,6 +22,11 @@ namespace lve {
     //vec3 vira a lista [x, y, z]
     static json vec3ToJson(const glm::vec3 &v) {
         return json::array({rounded(v.x), rounded(v.y), rounded(v.z)});
+    }
+
+    //a lista [x, y, z] volta a ser vec3
+    static glm::vec3 vec3FromJson(const json &j) {
+        return {j.at(0).get<float>(), j.at(1).get<float>(), j.at(2).get<float>()};
     }
 
     //um objeto da cena: o básico (os componentes entram depois, um por vez)
@@ -74,5 +80,46 @@ namespace lve {
             throw std::runtime_error("não consegui abrir o arquivo pra gravar: " + filepath);
         }
         out << file.dump(4);  //4 = indentação: fica legível
+    }
+
+    //um objeto do arquivo, criado na cena com o mesmo id
+    static void objectFromJson(LveScene &scene, const json &j, const ModelLoader &loadModel) {
+        LveGameObject &obj = scene.createGameObject(j.at("id").get<LveGameObject::id_t>());
+        obj.name = j.value("name", "");
+        if (j.contains("model")) {
+            obj.model = loadModel(j["model"].get<std::string>());
+        }
+        if (j.contains("parent")) {
+            obj.parentId = j["parent"].get<LveGameObject::id_t>();
+        }
+        obj.editorOnly = j.value("editorOnly", false);
+
+        const json &transform = j.at("transform");
+        obj.transform.translation = vec3FromJson(transform.at("translation"));
+        obj.transform.rotation = vec3FromJson(transform.at("rotation"));
+        obj.transform.scale = vec3FromJson(transform.at("scale"));
+    }
+
+    LveScene loadScene(const std::string &filepath, const ModelLoader &loadModel) {
+        std::ifstream in{filepath};
+        if (!in) {
+            throw std::runtime_error("não consegui abrir a cena: " + filepath);
+        }
+
+        //arquivo quebrado ou campo faltando: o nlohmann lança exceção, quem chamou decide o que fazer
+        json file = json::parse(in);
+        int version = file.value("version", 0);
+        if (version != 1) {
+            throw std::runtime_error("versão de cena desconhecida (" + std::to_string(version) + "): " + filepath);
+        }
+
+        LveScene scene;
+        for (const json &j : file.at("objects")) {
+            objectFromJson(scene, j, loadModel);
+        }
+        if (file.contains("activeCamera")) {
+            scene.setActiveCamera(file["activeCamera"].get<LveGameObject::id_t>());
+        }
+        return scene;
     }
 }
