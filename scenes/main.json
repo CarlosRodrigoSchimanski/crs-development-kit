@@ -1,0 +1,247 @@
+{
+    "version": 2,
+    "activeCamera": 4,
+    "objects": [
+        {
+            "id": 0,
+            "name": "cube",
+            "model": "models/iron_cube.glb",
+            "editorOnly": false,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "useTexture": true,
+            "transform": {
+                "translation": [
+                    -4.078259,
+                    1.5,
+                    0.0
+                ],
+                "rotation": [
+                    -0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "rigidBody": {
+                "type": "dynamic",
+                "halfExtents": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "center": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        },
+        {
+            "id": 1,
+            "name": "Player",
+            "model": "models/character.glb",
+            "editorOnly": true,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "useTexture": true,
+            "transform": {
+                "translation": [
+                    3.0,
+                    2.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "rigidBody": {
+                "type": "dynamic",
+                "halfExtents": [
+                    0.5,
+                    0.87,
+                    0.49
+                ],
+                "center": [
+                    0.0,
+                    0.87,
+                    0.0
+                ]
+            },
+            "character": {
+                "moveSpeed": 4.0,
+                "jumpSpeed": 5.0
+            }
+        },
+        {
+            "id": 2,
+            "name": "PlayerMesh",
+            "model": "models/basicFemaleTest.glb",
+            "parent": 1,
+            "editorOnly": false,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "useTexture": true,
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    3.141593,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "faceMovement": {
+                "turnSpeed": 20.943951,
+                "yawOffset": 0.0
+            },
+            "animator": {
+                "clip": "",
+                "speed": 1.0,
+                "loop": true
+            }
+        },
+        {
+            "id": 3,
+            "name": "CameraPivot",
+            "model": "models/empty.glb",
+            "parent": 1,
+            "editorOnly": true,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "useTexture": true,
+            "transform": {
+                "translation": [
+                    0.0,
+                    1.6,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "cameraRig": {
+                "sensitivity": 0.003,
+                "minPitch": -1.22173,
+                "maxPitch": 0.698132,
+                "distance": 4.0,
+                "wallMargin": 0.2
+            }
+        },
+        {
+            "id": 4,
+            "name": "Camera",
+            "model": "models/camera.glb",
+            "parent": 3,
+            "editorOnly": true,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "useTexture": true,
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    4.0
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            },
+            "camera": {
+                "fovY": 0.872665,
+                "nearPlane": 0.1,
+                "farPlane": 100.0
+            }
+        },
+        {
+            "id": 5,
+            "name": "Floor",
+            "model": "models/plane.glb",
+            "editorOnly": false,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "useTexture": true,
+            "transform": {
+                "translation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    10.0,
+                    1.0,
+                    10.0
+                ]
+            },
+            "rigidBody": {
+                "type": "static",
+                "halfExtents": [
+                    1.0,
+                    0.0,
+                    1.0
+                ],
+                "center": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        }
+    ]
+}
