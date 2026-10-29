@@ -90,7 +90,7 @@ namespace lve {
         std::string idle{};
         std::string walk{};
         std::string run{};
-        std::string jump{};      //no ar (pulando ou caindo): toca uma vez, sem loop
+        std::string fall{};      //no ar (pulando ou caindo): em loop até pousar
         float fadeTime = 0.2f;   //duração da transição (segundos)
     };
 

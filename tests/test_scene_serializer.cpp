@@ -132,7 +132,7 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     visual.characterAnimation->idle = "idle_01";
     visual.characterAnimation->walk = "walking_01";
     visual.characterAnimation->run = "running_01";
-    visual.characterAnimation->jump = "jump_01";
+    visual.characterAnimation->fall = "fall_01";
     visual.characterAnimation->fadeTime = 0.35f;
 
     std::string path = tempScenePath("ge_test_componentes.json");
@@ -183,7 +183,7 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     CHECK(v.characterAnimation->idle == "idle_01");
     CHECK(v.characterAnimation->walk == "walking_01");
     CHECK(v.characterAnimation->run == "running_01");
-    CHECK(v.characterAnimation->jump == "jump_01");
+    CHECK(v.characterAnimation->fall == "fall_01");
     CHECK(v.characterAnimation->fadeTime == doctest::Approx(0.35f));
 }
 

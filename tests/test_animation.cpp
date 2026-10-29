@@ -183,7 +183,7 @@ static LveGameObject &addAnimatedCharacter(LveScene &scene, LveGameObject *&body
     visual.characterAnimation->idle = "idle";
     visual.characterAnimation->walk = "walk";
     visual.characterAnimation->run = "run";
-    visual.characterAnimation->jump = "jump";
+    visual.characterAnimation->fall = "fall";
     return visual;
 }
 
@@ -207,11 +207,11 @@ TEST_CASE("CharacterAnimationSystem: parado, andando, correndo e no ar") {
     system.update(scene);
     CHECK(visual.animator->clip == "run");
 
-    //no ar: o pulo toca uma vez só
+    //no ar: a queda, em loop até pousar
     body->rigidBody->onGround = false;
     system.update(scene);
-    CHECK(visual.animator->clip == "jump");
-    CHECK_FALSE(visual.animator->loop);
+    CHECK(visual.animator->clip == "fall");
+    CHECK(visual.animator->loop);
 }
 
 TEST_CASE("animator: progress, frame e isFinished") {

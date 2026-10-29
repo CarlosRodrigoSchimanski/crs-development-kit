@@ -211,13 +211,14 @@ namespace lve {
             "assets/animations/walking_01.glb",
             "assets/animations/running_01.glb",
             "assets/animations/jump_01.glb",
+            "assets/animations/fall_01.glb",
         };
         playerVisual.animator->clip = "idle_01";
         playerVisual.characterAnimation.emplace();
         playerVisual.characterAnimation->idle = "idle_01";
         playerVisual.characterAnimation->walk = "walking_01";
         playerVisual.characterAnimation->run = "running_01";
-        playerVisual.characterAnimation->jump = "jump_01";
+        playerVisual.characterAnimation->fall = "fall_01";
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
         lveModel = modelCache.load("assets/editor/empty.glb");

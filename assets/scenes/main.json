@@ -128,7 +128,7 @@
                 "idle": "idle_01",
                 "walk": "walking_01",
                 "run": "running_01",
-                "jump": "jump_01",
+                "fall": "fall_01",
                 "fadeTime": 0.2
             },
             "animator": {
@@ -137,7 +137,8 @@
                     "assets/animations/idle_01.glb",
                     "assets/animations/walking_01.glb",
                     "assets/animations/running_01.glb",
-                    "assets/animations/jump_01.glb"
+                    "assets/animations/jump_01.glb",
+                    "assets/animations/fall_01.glb"
                 ],
                 "speed": 1.0,
                 "loop": true

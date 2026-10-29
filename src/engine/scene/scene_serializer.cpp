@@ -83,7 +83,7 @@ namespace lve {
                 {"idle", obj.characterAnimation->idle},
                 {"walk", obj.characterAnimation->walk},
                 {"run", obj.characterAnimation->run},
-                {"jump", obj.characterAnimation->jump},
+                {"fall", obj.characterAnimation->fall},
                 {"fadeTime", rounded(obj.characterAnimation->fadeTime)},
             };
         }
@@ -152,7 +152,7 @@ namespace lve {
             anims.idle = c.value("idle", anims.idle);
             anims.walk = c.value("walk", anims.walk);
             anims.run = c.value("run", anims.run);
-            anims.jump = c.value("jump", anims.jump);
+            anims.fall = c.value("fall", anims.fall);
             anims.fadeTime = c.value("fadeTime", anims.fadeTime);
             obj.characterAnimation = anims;
         }
