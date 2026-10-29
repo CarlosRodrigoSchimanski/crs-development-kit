@@ -8,6 +8,7 @@
 #include "editor/lve_imgui.hpp"
 #include "engine/rendering/lve_shadow_map.hpp"
 #include "engine/platform/lve_platform.hpp"
+#include "engine/scene/scene_serializer.hpp"
 
 #include <imgui.h>
 #include <glm/glm.hpp>
@@ -27,6 +28,8 @@ namespace lve {
     constexpr float SHADOW_HALF_SIZE = 10.f;
     //distância da câmera do sol até o centro da caixa
     constexpr float SHADOW_SUN_DISTANCE = 30.f;
+    //arquivo da cena do editor
+    constexpr const char *SCENE_FILE = "scenes/main.json";
 
     //posiciona a câmera do sol em volta do centro
     static void updateShadowCamera(LveCamera &shadowCamera, glm::vec3 center, glm::vec3 lightDirection, uint32_t shadowMapSize) {
@@ -246,6 +249,20 @@ namespace lve {
         }
     }
 
+    void FirstApp::updateSceneFile() {
+        //só no editor, e não enquanto digita no ImGui
+        if (playScene || ImGui::GetIO().WantCaptureKeyboard) return;
+        bool ctrl = lveInput.isDown(GLFW_KEY_LEFT_CONTROL) || lveInput.isDown(GLFW_KEY_RIGHT_CONTROL);
+        if (!ctrl || !lveInput.wasPressed(GLFW_KEY_S)) return;
+
+        try {
+            saveScene(lveScene, SCENE_FILE);
+            sceneFileStatus = std::string{"Cena salva em "} + SCENE_FILE;
+        } catch (const std::exception &e) {
+            sceneFileStatus = std::string{"Erro ao salvar: "} + e.what();
+        }
+    }
+
     LveScene& FirstApp::activeScene() {
         return playScene.has_value() ? *playScene : lveScene;
     }
@@ -273,6 +290,9 @@ namespace lve {
         }
 
         ImGui::Text("Mouse delta: %.1f, %.1f", lveInput.getMouseDelta().x, lveInput.getMouseDelta().y);
+        if (!sceneFileStatus.empty()) {
+            ImGui::Text("%s", sceneFileStatus.c_str());
+        }
 
         ImGui::End();
     }
@@ -421,6 +441,8 @@ namespace lve {
         lveInput.update(lveWindow);
         //P / ' alternam editor e Play
         updatePlayMode();
+        //Ctrl+S salva a cena
+        updateSceneFile();
         //clique seleciona (só no editor)
         if (!playScene) {
             editor.updateSelection(lveScene, lveInput, camera, sceneArea);

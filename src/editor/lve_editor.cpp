@@ -67,6 +67,8 @@ namespace lve {
     void LveEditor::updateGizmoMode(const LveInput &input) {
         //digitando num campo do imgui
         if (ImGui::GetIO().WantCaptureKeyboard) return;
+        //Ctrl + tecla é atalho (Ctrl+S salva), não troca o modo
+        if (input.isDown(GLFW_KEY_LEFT_CONTROL) || input.isDown(GLFW_KEY_RIGHT_CONTROL)) return;
         if (input.wasPressed(GLFW_KEY_G)) gizmoMode = GizmoMode::Move;
         if (input.wasPressed(GLFW_KEY_R)) gizmoMode = GizmoMode::Rotate;
         if (input.wasPressed(GLFW_KEY_S)) gizmoMode = GizmoMode::Scale;

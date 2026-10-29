@@ -26,6 +26,7 @@
 #include <vector>
 #include <optional>
 #include <chrono>
+#include <string>
 
 namespace lve {
     //aplicação: cria a engine, monta a cena e roda o loop
@@ -53,6 +54,8 @@ namespace lve {
             void stopPlay();
             //P entra no Play, ' sai
             void updatePlayMode();
+            //Ctrl+S grava a cena do editor (provisório, até a barra de menu)
+            void updateSceneFile();
             //cena que está valendo (Play ou editor)
             LveScene& activeScene();
             //janela de Stats (FPS e modo)
@@ -114,6 +117,8 @@ namespace lve {
 
             //cena do editor
             LveScene lveScene;
+            //resultado do último salvar (mostrado na janela de stats)
+            std::string sceneFileStatus{};
             //cópia da cena durante o Play (vazio = editor)
             std::optional<LveScene> playScene;
             //ferramentas do editor
