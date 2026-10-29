@@ -157,7 +157,7 @@ namespace lve {
 
     void FirstApp::loadGameObjects() {
         //cubo de teste (dinâmico)
-        std::shared_ptr<LveModel> lveModel = LveModel::createModelFromFile(lveDevice, "models/iron_cube.glb");
+        std::shared_ptr<LveModel> lveModel = modelCache.load("models/iron_cube.glb");
         auto& cube = lveScene.createGameObject();
         cube.name = "cube";
         cube.model = lveModel;
@@ -166,7 +166,7 @@ namespace lve {
         cube.rigidBody.emplace();
 
         //personagem: cápsula com a física (visível no Play até o visual entrar como filho)
-        lveModel = LveModel::createModelFromFile(lveDevice, "models/character.glb");
+        lveModel = modelCache.load("models/character.glb");
         auto& player = lveScene.createGameObject();
         player.name = "Player";
         player.model = lveModel;
@@ -179,7 +179,7 @@ namespace lve {
         player.character.emplace();
 
         //visual do personagem: filho da cápsula (anda junto com ela)
-        lveModel = LveModel::createModelFromFile(lveDevice, "models/basicFemaleTest.glb");
+        lveModel = modelCache.load("models/basicFemaleTest.glb");
         auto& playerVisual = lveScene.createGameObject();
         playerVisual.name = "PlayerMesh";
         playerVisual.model = lveModel;
@@ -189,7 +189,7 @@ namespace lve {
         playerVisual.animator.emplace();  //toca a primeira animação do arquivo (o idle)
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
-        lveModel = LveModel::createModelFromFile(lveDevice, "models/empty.glb");
+        lveModel = modelCache.load("models/empty.glb");
         auto& cameraPivot = lveScene.createGameObject();
         cameraPivot.name = "CameraPivot";
         cameraPivot.model = lveModel;
@@ -199,7 +199,7 @@ namespace lve {
         cameraPivot.transform.translation = {0.f, 1.6f, 0.f};  //1,6 acima dos pés
 
         //câmera de jogo
-        lveModel = LveModel::createModelFromFile(lveDevice, "models/camera.glb");
+        lveModel = modelCache.load("models/camera.glb");
         auto& gameCamera = lveScene.createGameObject();
         gameCamera.name = "Camera";
         gameCamera.model = lveModel;
@@ -210,7 +210,7 @@ namespace lve {
         lveScene.setActiveCamera(gameCamera.getId());
 
         //chão (estático)
-        lveModel = LveModel::createModelFromFile(lveDevice, "models/plane.glb");
+        lveModel = modelCache.load("models/plane.glb");
         auto& floor = lveScene.createGameObject();
         floor.name = "Floor";
         floor.model = lveModel;

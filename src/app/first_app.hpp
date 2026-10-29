@@ -9,6 +9,7 @@
 #include "engine/rendering/systems/shadow_render_system.hpp"
 #include "engine/rendering/systems/gizmo_system.hpp"
 #include "engine/rendering/systems/skinning_system.hpp"
+#include "engine/rendering/lve_model_cache.hpp"
 #include "engine/rendering/lve_descriptors.hpp"
 #include "engine/rendering/lve_shadow_map.hpp"
 #include "engine/rendering/lve_renderer.hpp"
@@ -107,6 +108,9 @@ namespace lve {
 
             //trava contra reentrada do drawFrame
             bool drawingFrame = false;
+
+            //modelos carregados, um por arquivo
+            LveModelCache modelCache{lveDevice};
 
             //cena do editor
             LveScene lveScene;
