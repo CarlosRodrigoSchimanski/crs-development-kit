@@ -14,6 +14,9 @@ namespace lve {
     //ordered_json: as chaves ficam na ordem em que foram escritas (id e nome primeiro)
     using json = nlohmann::ordered_json;
 
+    //versão do formato: muda quando o arquivo muda de jeito (2 = com os componentes)
+    constexpr int SCENE_VERSION = 2;
+
     //número do arquivo: 6 casas (1.6 em vez de 1.600000023841858, que é o float visto como double)
     static double rounded(float value) {
         return std::round(static_cast<double>(value) * 1e6) / 1e6;
@@ -29,7 +32,119 @@ namespace lve {
         return {j.at(0).get<float>(), j.at(1).get<float>(), j.at(2).get<float>()};
     }
 
-    //um objeto da cena: o básico (os componentes entram depois, um por vez)
+    //vec3 de um campo; campo que falta fica com o padrão
+    static glm::vec3 vec3Or(const json &j, const char *key, const glm::vec3 &fallback) {
+        return j.contains(key) ? vec3FromJson(j.at(key)) : fallback;
+    }
+
+    //os componentes do objeto: só as configurações (velocidade, tempo da animação... recomeçam ao carregar)
+    static void componentsToJson(json &j, const LveGameObject &obj) {
+        if (obj.pointLight) {
+            j["pointLight"] = {{"intensity", rounded(obj.pointLight->lightIntensity)}};
+        }
+        if (obj.camera) {
+            j["camera"] = {
+                {"fovY", rounded(obj.camera->fovY)},
+                {"nearPlane", rounded(obj.camera->nearPlane)},
+                {"farPlane", rounded(obj.camera->farPlane)},
+            };
+        }
+        if (obj.rigidBody) {
+            j["rigidBody"] = {
+                {"type", obj.rigidBody->type == BodyType::Static ? "static" : "dynamic"},
+                {"halfExtents", vec3ToJson(obj.rigidBody->halfExtents)},
+                {"center", vec3ToJson(obj.rigidBody->center)},
+            };
+        }
+        if (obj.character) {
+            j["character"] = {
+                {"moveSpeed", rounded(obj.character->moveSpeed)},
+                {"jumpSpeed", rounded(obj.character->jumpSpeed)},
+            };
+        }
+        if (obj.cameraRig) {
+            j["cameraRig"] = {
+                {"sensitivity", rounded(obj.cameraRig->sensitivity)},
+                {"minPitch", rounded(obj.cameraRig->minPitch)},
+                {"maxPitch", rounded(obj.cameraRig->maxPitch)},
+                {"distance", rounded(obj.cameraRig->distance)},
+                {"wallMargin", rounded(obj.cameraRig->wallMargin)},
+            };
+        }
+        if (obj.faceMovement) {
+            j["faceMovement"] = {
+                {"turnSpeed", rounded(obj.faceMovement->turnSpeed)},
+                {"yawOffset", rounded(obj.faceMovement->yawOffset)},
+            };
+        }
+        if (obj.animator) {
+            j["animator"] = {
+                {"clip", obj.animator->clip},
+                {"speed", rounded(obj.animator->speed)},
+                {"loop", obj.animator->loop},
+            };
+        }
+    }
+
+    //o caminho inverso; campo que falta fica com o valor padrão do componente
+    static void componentsFromJson(const json &j, LveGameObject &obj) {
+        if (j.contains("pointLight")) {
+            const json &c = j.at("pointLight");
+            PointLightComponent light{};
+            light.lightIntensity = c.value("intensity", light.lightIntensity);
+            obj.pointLight = light;
+        }
+        if (j.contains("camera")) {
+            const json &c = j.at("camera");
+            CameraComponent camera{};
+            camera.fovY = c.value("fovY", camera.fovY);
+            camera.nearPlane = c.value("nearPlane", camera.nearPlane);
+            camera.farPlane = c.value("farPlane", camera.farPlane);
+            obj.camera = camera;
+        }
+        if (j.contains("rigidBody")) {
+            const json &c = j.at("rigidBody");
+            RigidBodyComponent body{};
+            body.type = c.value("type", std::string{"dynamic"}) == "static" ? BodyType::Static : BodyType::Dynamic;
+            body.halfExtents = vec3Or(c, "halfExtents", body.halfExtents);
+            body.center = vec3Or(c, "center", body.center);
+            obj.rigidBody = body;
+        }
+        if (j.contains("character")) {
+            const json &c = j.at("character");
+            CharacterComponent character{};
+            character.moveSpeed = c.value("moveSpeed", character.moveSpeed);
+            character.jumpSpeed = c.value("jumpSpeed", character.jumpSpeed);
+            obj.character = character;
+        }
+        if (j.contains("cameraRig")) {
+            const json &c = j.at("cameraRig");
+            CameraRigComponent rig{};
+            rig.sensitivity = c.value("sensitivity", rig.sensitivity);
+            rig.minPitch = c.value("minPitch", rig.minPitch);
+            rig.maxPitch = c.value("maxPitch", rig.maxPitch);
+            rig.distance = c.value("distance", rig.distance);
+            rig.wallMargin = c.value("wallMargin", rig.wallMargin);
+            obj.cameraRig = rig;
+        }
+        if (j.contains("faceMovement")) {
+            const json &c = j.at("faceMovement");
+            FaceMovementComponent face{};
+            face.turnSpeed = c.value("turnSpeed", face.turnSpeed);
+            face.yawOffset = c.value("yawOffset", face.yawOffset);
+            obj.faceMovement = face;
+        }
+        if (j.contains("animator")) {
+            const json &c = j.at("animator");
+            AnimatorComponent animator{};
+            animator.clip = c.value("clip", animator.clip);
+            animator.speed = c.value("speed", animator.speed);
+            animator.loop = c.value("loop", animator.loop);
+            obj.animator = animator;
+        }
+    }
+
+    //um objeto da cena: o básico e os componentes
     static json objectToJson(const LveGameObject &obj) {
         json j;
         j["id"] = obj.getId();
@@ -41,11 +156,14 @@ namespace lve {
             j["parent"] = *obj.parentId;
         }
         j["editorOnly"] = obj.editorOnly;
+        j["color"] = vec3ToJson(obj.color);
+        j["useTexture"] = obj.useTexture;
         j["transform"] = {
             {"translation", vec3ToJson(obj.transform.translation)},
             {"rotation", vec3ToJson(obj.transform.rotation)},
             {"scale", vec3ToJson(obj.transform.scale)},
         };
+        componentsToJson(j, obj);
         return j;
     }
 
@@ -64,7 +182,7 @@ namespace lve {
         }
 
         json file;
-        file["version"] = 1;
+        file["version"] = SCENE_VERSION;
         if (auto camera = scene.getActiveCamera()) {
             file["activeCamera"] = *camera;
         }
@@ -93,11 +211,15 @@ namespace lve {
             obj.parentId = j["parent"].get<LveGameObject::id_t>();
         }
         obj.editorOnly = j.value("editorOnly", false);
+        obj.color = vec3Or(j, "color", obj.color);
+        obj.useTexture = j.value("useTexture", obj.useTexture);
 
         const json &transform = j.at("transform");
         obj.transform.translation = vec3FromJson(transform.at("translation"));
         obj.transform.rotation = vec3FromJson(transform.at("rotation"));
         obj.transform.scale = vec3FromJson(transform.at("scale"));
+
+        componentsFromJson(j, obj);
     }
 
     LveScene loadScene(const std::string &filepath, const ModelLoader &loadModel) {
@@ -109,7 +231,7 @@ namespace lve {
         //arquivo quebrado ou campo faltando: o nlohmann lança exceção, quem chamou decide o que fazer
         json file = json::parse(in);
         int version = file.value("version", 0);
-        if (version != 1) {
+        if (version != SCENE_VERSION) {
             throw std::runtime_error("versão de cena desconhecida (" + std::to_string(version) + "): " + filepath);
         }
 
