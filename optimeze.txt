@@ -458,6 +458,13 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
        junto. Com um giro suave (velocidade de virada) em vez de instantâneo;
    (c) animação (idle/andar/correr) = item 5 (animação esquelética), depois do (b).
 
+3.4.0. API candidata (anotada desde 2026-10-29; vira a API de consulta + .pyi quando o Python
+   entrar): funções do C++ já pensadas pra serem chamadas por script.
+   - animator: play(nome, fade=0.2, loop=True), isBlending(), blendWeight(), clip, time, speed,
+     loop, duration, clipTime(), progress(), isFinished(), frame(fps=30)
+   - personagem: CharacterInput (moveDirection, jump, run) = a intenção que o script/IA manda
+   - cena: createGameObject(), findGameObjectById(), raycast(raio, distância, ignorar), worldMatrix()
+   - objeto: name, transform (translation, rotation, scale), parentId, componentes opcionais
 3.4. Scripts Python como componentes de objeto (anotado 2026-10-25, pedido do usuário) — o
    mesmo modelo do KX_PythonComponent do UPBGE: uma classe Python presa a um objeto, com
    start(args) e update(), e os "args" (sensibilidade do mouse, inverter eixo, limitar
