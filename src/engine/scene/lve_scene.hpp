@@ -17,6 +17,9 @@ namespace lve {
             //cria um objeto ja dentro da sena e devolve ele para configurar
             LveGameObject& createGameObject();
 
+            //cria com um id escolido
+            LveGameObject& createGameObject(LveGameObject::id_t id);
+
             LveGameObject::Map& getGameObjects();
             const LveGameObject::Map& getGameObjects() const;
 

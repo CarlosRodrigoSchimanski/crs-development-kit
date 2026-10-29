@@ -1,9 +1,21 @@
 #include "engine/scene/lve_scene.hpp"
 
+#include <algorithm>
+#include <stdexcept>
+#include <string>
+
 namespace lve {
     LveGameObject& LveScene::createGameObject() {
-        LveGameObject obj{nextId++};
-        auto [it, success] = gameObjects.emplace(obj.getId(), std::move(obj));
+        return createGameObject(nextId);
+    }
+
+    LveGameObject& LveScene::createGameObject(LveGameObject::id_t id) {
+        if (gameObjects.count(id) > 0) {
+            throw std::runtime_error("id de objeto repetido na cena: " + std::to_string(id));
+        }
+        //os próximos ids automáticos começam depois deste
+        nextId = std::max(nextId, id + 1);
+        auto [it, success] = gameObjects.emplace(id, LveGameObject{id});
         return it->second;
     }
 

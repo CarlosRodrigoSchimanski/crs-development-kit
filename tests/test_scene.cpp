@@ -131,3 +131,27 @@ TEST_CASE("raycast: usa o centro e a escala do colisor") {
     Ray below{{-10.f, -0.5f, 0.f}, {1.f, 0.f, 0.f}};
     CHECK_FALSE(scene.raycast(below, 100.f).has_value());
 }
+
+TEST_CASE("ids: cada cena começa do zero") {
+    LveScene first;
+    first.createGameObject();
+    first.createGameObject();
+
+    LveScene second;
+    CHECK(second.createGameObject().getId() == 0);
+}
+
+TEST_CASE("ids: criar com id escolhido, os automáticos continuam depois dele") {
+    LveScene scene;
+    scene.createGameObject(10);
+
+    CHECK(scene.createGameObject().getId() == 11);
+}
+
+TEST_CASE("ids: id repetido é erro") {
+    LveScene scene;
+    scene.createGameObject(3);
+
+    CHECK_THROWS(scene.createGameObject(3));
+}
+
