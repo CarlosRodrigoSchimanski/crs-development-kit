@@ -100,11 +100,15 @@ namespace lve {
         selectedId = scene.pickObject(ray);
     }
 
-    void LveEditor::updateGizmoMode(const LveInput &input) {
+    void LveEditor::updateShortcuts(const LveInput &input) {
         //digitando num campo do imgui
         if (ImGui::GetIO().WantCaptureKeyboard) return;
-        //Ctrl + tecla é atalho (Ctrl+S salva), não troca o modo
+        //Ctrl + tecla é atalho do FirstApp (Ctrl+S salva)
         if (input.isDown(GLFW_KEY_LEFT_CONTROL) || input.isDown(GLFW_KEY_RIGHT_CONTROL)) return;
+        if (input.isDown(GLFW_KEY_LEFT_SHIFT) || input.isDown(GLFW_KEY_RIGHT_SHIFT)) {
+            if (input.wasPressed(GLFW_KEY_A)) addMenuRequested = true;
+            return;
+        }
         if (input.wasPressed(GLFW_KEY_G)) gizmoMode = GizmoMode::Move;
         if (input.wasPressed(GLFW_KEY_R)) gizmoMode = GizmoMode::Rotate;
         if (input.wasPressed(GLFW_KEY_S)) gizmoMode = GizmoMode::Scale;
@@ -112,6 +116,10 @@ namespace lve {
 
     void LveEditor::clearSelection() {
         selectedId.reset();
+    }
+
+    void LveEditor::select(LveGameObject::id_t id) {
+        selectedId = id;
     }
 
     LveGameObject* LveEditor::getSelected(LveScene &scene) const {
@@ -275,7 +283,13 @@ namespace lve {
             if (ImGui::MenuItem("Salvar", "Ctrl+S")) requests.saveScene = true;
             if (ImGui::MenuItem("Salvar como...", "Ctrl+Shift+S")) requests.saveSceneAs = true;
             ImGui::Separator();
+            if (ImGui::MenuItem("Importar .glb...")) requests.importModel = true;
+            ImGui::Separator();
             if (ImGui::MenuItem("Sair")) requests.quit = true;
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Adicionar")) {
+            drawAddMenuItems(requests);
             ImGui::EndMenu();
         }
 
@@ -283,9 +297,25 @@ namespace lve {
         return requests;
     }
 
+    void LveEditor::drawAddMenuItems(EditorRequests &requests) {
+        if (ImGui::MenuItem("Empty")) requests.add = AddKind::Empty;
+        if (ImGui::MenuItem("Câmera")) requests.add = AddKind::Camera;
+        if (ImGui::MenuItem("Luz pontual")) requests.add = AddKind::PointLight;
+    }
+
     EditorRequests LveEditor::drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
         //menu primeiro: o painel lateral começa embaixo dele
         EditorRequests requests = drawMenuBar();
+        //Shift+A: o mesmo menu Adicionar, aberto onde está o mouse
+        if (addMenuRequested) {
+            ImGui::OpenPopup("AddMenu");
+            addMenuRequested = false;
+        }
+        if (ImGui::BeginPopup("AddMenu")) {
+            ImGui::SeparatorText("Adicionar");
+            drawAddMenuItems(requests);
+            ImGui::EndPopup();
+        }
         drawSidePanel(scene);
         drawRelationshipLines(scene, camera, sceneArea);
         drawTransformGizmo(scene, camera, sceneArea);

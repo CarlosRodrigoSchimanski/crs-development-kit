@@ -64,6 +64,10 @@ namespace lve {
             void openSceneDialog();
             //escolhe onde gravar na janela do sistema; a cena passa a ser esse arquivo
             void saveSceneAsDialog();
+            //escolhe um .glb na janela do sistema e põe na cena, no ponto que a câmera do editor olha
+            void importModelDialog();
+            //cria um objeto do menu Adicionar no ponto que a câmera do editor olha
+            void addObject(AddKind kind);
             //cena que está valendo (Play ou editor)
             LveScene& activeScene();
             //janela de Stats (FPS e modo)

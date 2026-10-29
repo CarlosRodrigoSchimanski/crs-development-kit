@@ -34,6 +34,8 @@ namespace lve {
     constexpr const char *SCENE_FILE = "scenes/main.json";
     //pasta onde as janelas de arquivo começam
     constexpr const char *SCENE_FOLDER = "scenes";
+    //pasta onde a janela de importar começa
+    constexpr const char *MODEL_FOLDER = "models";
 
     //vista da câmera do editor de uma cena (pessoal: fora do git): main.json -> main.editor.json
     static std::string editorViewFile(const std::string &sceneFile) {
@@ -313,6 +315,58 @@ namespace lve {
         }
     }
 
+    void FirstApp::importModelDialog() {
+        try {
+            auto chosen = openFileDialog("Modelo glTF", "glb", MODEL_FOLDER);
+            if (!chosen) return;
+            //carrega antes de criar: se o arquivo der erro, a cena não ganha um objeto vazio
+            std::shared_ptr<LveModel> model = modelCache.load(*chosen);
+            auto& obj = lveScene.createGameObject();
+            obj.name = std::filesystem::path{*chosen}.stem().string();
+            obj.model = model;
+            obj.transform.translation = editor.getFocusPoint();
+            editor.select(obj.getId());
+            sceneFileStatus = "Importado: " + *chosen;
+        } catch (const std::exception &e) {
+            sceneFileStatus = std::string{"Erro ao importar: "} + e.what();
+        }
+    }
+
+    void FirstApp::addObject(AddKind kind) {
+        try {
+            //gizmo de editor de cada tipo (provisório: a engine vai gerar essas formas)
+            std::shared_ptr<LveModel> model{};
+            if (kind == AddKind::Empty) model = modelCache.load("models/empty.glb");
+            if (kind == AddKind::Camera) model = modelCache.load("models/camera.glb");
+
+            auto& obj = lveScene.createGameObject();
+            obj.model = model;
+            obj.transform.translation = editor.getFocusPoint();
+            switch (kind) {
+                case AddKind::Empty:
+                    obj.name = "Empty";
+                    obj.editorOnly = true;
+                    break;
+                case AddKind::Camera:
+                    obj.name = "Camera";
+                    obj.editorOnly = true;
+                    obj.camera.emplace();
+                    break;
+                case AddKind::PointLight:
+                    obj.name = "Luz";
+                    obj.color = glm::vec3{1.f};
+                    obj.transform.scale.x = 0.1f;  //raio da bolinha desenhada
+                    obj.pointLight.emplace();
+                    break;
+                case AddKind::None:
+                    break;
+            }
+            editor.select(obj.getId());
+        } catch (const std::exception &e) {
+            sceneFileStatus = std::string{"Erro ao adicionar: "} + e.what();
+        }
+    }
+
     void FirstApp::saveSceneAsDialog() {
         try {
             std::string name = std::filesystem::path{sceneFile}.filename().string();
@@ -510,7 +564,7 @@ namespace lve {
         //clique seleciona (só no editor)
         if (!playScene) {
             editor.updateSelection(lveScene, lveInput, camera, sceneArea);
-            editor.updateGizmoMode(lveInput);
+            editor.updateShortcuts(lveInput);
         }
 
         //câmera de jogo
@@ -556,6 +610,8 @@ namespace lve {
                 if (requests.openScene) openSceneDialog();
                 if (requests.saveScene) saveSceneFile();
                 if (requests.saveSceneAs) saveSceneAsDialog();
+                if (requests.importModel) importModelDialog();
+                if (requests.add != AddKind::None) addObject(requests.add);
                 if (requests.quit) glfwSetWindowShouldClose(lveWindow.getGLFWwindow(), GLFW_TRUE);
             }
 

@@ -14,11 +14,16 @@ namespace lve {
     //oq as setas do gizmo fazem
     enum class GizmoMode {Move, Rotate, Scale};
 
+    //o que dá pra criar pelo menu Adicionar
+    enum class AddKind {None, Empty, Camera, PointLight};
+
     //o que foi pedido pelo menu neste frame (quem executa é o FirstApp)
     struct EditorRequests {
         bool openScene = false;
         bool saveScene = false;
         bool saveSceneAs = false;
+        bool importModel = false;
+        AddKind add = AddKind::None;
         bool quit = false;
     };
 
@@ -35,14 +40,16 @@ namespace lve {
             void saveView(const std::string &filepath) const;
             //false = sem arquivo ou inválido: a vista fica como está
             bool loadView(const std::string &filepath);
-            //G move, R gira, S escala (como no Blender), fora dos campos de texto
-            void updateGizmoMode(const LveInput &input);
+            //atalhos do editor, como no Blender: G move, R gira, S escala, Shift+A menu Adicionar
+            void updateShortcuts(const LveInput &input);
             //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             LveGameObject* getSelected(LveScene &scene) const;
             //nada selecionado (ao trocar de cena)
             void clearSelection();
+            //seleciona um objeto (o que acabou de ser criado)
+            void select(LveGameObject::id_t id);
             //pedaço da tela que sobra pra cena, abaixo do menu e ao lado do painel
             VkRect2D sceneArea(VkExtent2D screen) const;
             //toda a interface do editor do frame: menu, painel, setas e gizmo de navegação
@@ -51,6 +58,8 @@ namespace lve {
         private:
             //barra de menu no topo da janela (Arquivo...), como no Blender
             EditorRequests drawMenuBar();
+            //itens do Adicionar: os mesmos na barra de menu e no Shift+A
+            void drawAddMenuItems(EditorRequests &requests);
             //painel lateral preso à direita (outliner e propriedades)
             void drawSidePanel(LveScene &scene);
             //setas de mover/girar/escalar no objeto selecionado (ImGuizmo)
@@ -64,6 +73,8 @@ namespace lve {
             std::optional<LveGameObject::id_t> selectedId;
             //modo atual das setas do gizmo
             GizmoMode gizmoMode = GizmoMode::Move;
+            //Shift+A apertado: o menu abre no próximo drawUi (só dá pra abrir dentro do frame do ImGui)
+            bool addMenuRequested = false;
             //filhos de cada objeto
             using ChildrenMap = std::map<LveGameObject::id_t, std::vector<LveGameObject::id_t>>;
             //lista de objetos da cena em árvore
