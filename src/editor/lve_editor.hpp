@@ -18,6 +18,7 @@ namespace lve {
     struct EditorRequests {
         bool openScene = false;
         bool saveScene = false;
+        bool saveSceneAs = false;
         bool quit = false;
     };
 
@@ -40,6 +41,8 @@ namespace lve {
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             LveGameObject* getSelected(LveScene &scene) const;
+            //nada selecionado (ao trocar de cena)
+            void clearSelection();
             //pedaço da tela que sobra pra cena, abaixo do menu e ao lado do painel
             VkRect2D sceneArea(VkExtent2D screen) const;
             //toda a interface do editor do frame: menu, painel, setas e gizmo de navegação

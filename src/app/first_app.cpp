@@ -9,6 +9,7 @@
 #include "engine/rendering/lve_shadow_map.hpp"
 #include "engine/platform/lve_platform.hpp"
 #include "engine/scene/scene_serializer.hpp"
+#include "editor/file_dialog.hpp"
 
 #include <imgui.h>
 #include <glm/glm.hpp>
@@ -31,8 +32,15 @@ namespace lve {
     constexpr float SHADOW_SUN_DISTANCE = 30.f;
     //arquivo da cena do editor
     constexpr const char *SCENE_FILE = "scenes/main.json";
-    //vista da câmera do editor dessa cena (pessoal: fora do git)
-    constexpr const char *EDITOR_VIEW_FILE = "scenes/main.editor.json";
+    //pasta onde as janelas de arquivo começam
+    constexpr const char *SCENE_FOLDER = "scenes";
+
+    //vista da câmera do editor de uma cena (pessoal: fora do git): main.json -> main.editor.json
+    static std::string editorViewFile(const std::string &sceneFile) {
+        std::filesystem::path path{sceneFile};
+        path.replace_extension(".editor.json");
+        return path.string();
+    }
 
     //posiciona a câmera do sol em volta do centro
     static void updateShadowCamera(LveCamera &shadowCamera, glm::vec3 center, glm::vec3 lightDirection, uint32_t shadowMapSize) {
@@ -125,10 +133,10 @@ namespace lve {
         shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
 
         //cena inicial: a do arquivo; sem arquivo (ou com erro) monta a de exemplo do código
-        if (!std::filesystem::exists(SCENE_FILE) || !openSceneFile()) {
+        if (!std::filesystem::exists(SCENE_FILE) || !openSceneFile(SCENE_FILE)) {
             loadGameObjects();
+            sceneFile = SCENE_FILE;
         }
-        editor.loadView(EDITOR_VIEW_FILE);
     }
 
     void FirstApp::run() {
@@ -259,20 +267,25 @@ namespace lve {
         //só no editor, e não enquanto digita no ImGui
         if (playScene || ImGui::GetIO().WantCaptureKeyboard) return;
         bool ctrl = lveInput.isDown(GLFW_KEY_LEFT_CONTROL) || lveInput.isDown(GLFW_KEY_RIGHT_CONTROL);
-        if (ctrl && lveInput.wasPressed(GLFW_KEY_S)) {
-            saveSceneFile();
+        bool shift = lveInput.isDown(GLFW_KEY_LEFT_SHIFT) || lveInput.isDown(GLFW_KEY_RIGHT_SHIFT);
+        if (!ctrl) return;
+        if (lveInput.wasPressed(GLFW_KEY_S)) {
+            if (shift) saveSceneAsDialog();
+            else saveSceneFile();
         }
-        if (ctrl && lveInput.wasPressed(GLFW_KEY_O)) {
-            openSceneFile();
+        if (lveInput.wasPressed(GLFW_KEY_O)) {
+            openSceneDialog();
         }
     }
 
-    bool FirstApp::openSceneFile() {
+    bool FirstApp::openSceneFile(const std::string &filepath) {
         try {
             //lê numa cena nova: se der erro no meio, a do editor não é tocada
-            lveScene = loadScene(SCENE_FILE, [this](const std::string &path) { return modelCache.load(path); });
-            sceneFileStatus = std::string{"Cena aberta de "} + SCENE_FILE;
-            editor.loadView(EDITOR_VIEW_FILE);
+            lveScene = loadScene(filepath, [this](const std::string &path) { return modelCache.load(path); });
+            sceneFile = filepath;
+            sceneFileStatus = "Cena aberta de " + filepath;
+            editor.clearSelection();
+            editor.loadView(editorViewFile(filepath));
             return true;
         } catch (const std::exception &e) {
             sceneFileStatus = std::string{"Erro ao abrir: "} + e.what();
@@ -282,11 +295,33 @@ namespace lve {
 
     void FirstApp::saveSceneFile() {
         try {
-            saveScene(lveScene, SCENE_FILE);
-            editor.saveView(EDITOR_VIEW_FILE);
-            sceneFileStatus = std::string{"Cena salva em "} + SCENE_FILE;
+            saveScene(lveScene, sceneFile);
+            editor.saveView(editorViewFile(sceneFile));
+            sceneFileStatus = "Cena salva em " + sceneFile;
         } catch (const std::exception &e) {
             sceneFileStatus = std::string{"Erro ao salvar: "} + e.what();
+        }
+    }
+
+    void FirstApp::openSceneDialog() {
+        try {
+            if (auto chosen = openFileDialog("Cena", "json", SCENE_FOLDER)) {
+                openSceneFile(*chosen);
+            }
+        } catch (const std::exception &e) {
+            sceneFileStatus = e.what();
+        }
+    }
+
+    void FirstApp::saveSceneAsDialog() {
+        try {
+            std::string name = std::filesystem::path{sceneFile}.filename().string();
+            if (auto chosen = saveFileDialog("Cena", "json", SCENE_FOLDER, name)) {
+                sceneFile = *chosen;
+                saveSceneFile();
+            }
+        } catch (const std::exception &e) {
+            sceneFileStatus = e.what();
         }
     }
 
@@ -518,8 +553,9 @@ namespace lve {
             //interface do editor (só fora do Play)
             if (!playScene) {
                 EditorRequests requests = editor.drawUi(lveScene, camera, sceneArea);
-                if (requests.openScene) openSceneFile();
+                if (requests.openScene) openSceneDialog();
                 if (requests.saveScene) saveSceneFile();
+                if (requests.saveSceneAs) saveSceneAsDialog();
                 if (requests.quit) glfwSetWindowShouldClose(lveWindow.getGLFWwindow(), GLFW_TRUE);
             }
 

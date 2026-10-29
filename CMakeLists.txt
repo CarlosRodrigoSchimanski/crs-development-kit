@@ -62,6 +62,16 @@ FetchContent_MakeAvailable(json)
 #----------------------------------------------------------#
 
 
+#incluir nativefiledialog-extended (janelas de abrir/salvar arquivo do sistema;
+#o código de cada sistema operacional fica dentro dela)
+FetchContent_Declare(
+    nfd
+    GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended.git
+    GIT_TAG v1.2.1
+)
+FetchContent_MakeAvailable(nfd)
+#----------------------------------------------------------#
+
 #incluir stb_image (carregamento de arquivos de imagem pra textura)
 FetchContent_Declare(
     stb
@@ -201,6 +211,7 @@ set(APP_SOURCES
     src/editor/orbit_camera_controller.cpp
     src/editor/lve_imgui.cpp
     src/editor/lve_editor.cpp
+    src/editor/file_dialog.cpp
 )
 
 #avisos extras do compilador só no nosso código: /W4 no MSVC, -Wall -Wextra no GCC/Clang.
@@ -232,6 +243,8 @@ target_include_directories(G_E_Youtube PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURC
 target_link_libraries(G_E_Youtube PRIVATE ge_engine)
 #o editor grava a vista da câmera dele em .json
 target_link_libraries(G_E_Youtube PRIVATE nlohmann_json::nlohmann_json)
+#janelas de abrir/salvar arquivo do editor
+target_link_libraries(G_E_Youtube PRIVATE nfd)
 
 #chamada de verificação de compilação dos shaders
 add_custom_target(Shaders DEPENDS ${SPIRV_BINARY_FILES})

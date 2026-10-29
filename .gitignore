@@ -9,7 +9,7 @@ main.obj
 # estado de janela do ImGui (muda toda vez que roda)
 imgui.ini
 # vista da câmera do editor de cada cena (pessoal, muda toda vez que salva)
-scenes/*.editor.json
+*.editor.json
 
 # assets grandes (80-177 MB cada): ficam fora até configurar Git LFS
 models/*.glb

@@ -54,12 +54,16 @@ namespace lve {
             void stopPlay();
             //P entra no Play, ' sai
             void updatePlayMode();
-            //Ctrl+S grava a cena do editor, Ctrl+O abre de novo a do arquivo
+            //Ctrl+O abre, Ctrl+S grava, Ctrl+Shift+S grava em outro arquivo
             void updateSceneFile();
-            //troca a cena do editor pela do SCENE_FILE (false = deu erro e a cena ficou como estava)
-            bool openSceneFile();
-            //grava a cena do editor no SCENE_FILE e anota o resultado (Ctrl+S e menu)
+            //troca a cena do editor pela do arquivo (false = deu erro e a cena ficou como estava)
+            bool openSceneFile(const std::string &filepath);
+            //grava a cena do editor no sceneFile e anota o resultado
             void saveSceneFile();
+            //escolhe um .json na janela do sistema e abre
+            void openSceneDialog();
+            //escolhe onde gravar na janela do sistema; a cena passa a ser esse arquivo
+            void saveSceneAsDialog();
             //cena que está valendo (Play ou editor)
             LveScene& activeScene();
             //janela de Stats (FPS e modo)
@@ -123,6 +127,8 @@ namespace lve {
             LveScene lveScene;
             //resultado do último salvar (mostrado na janela de stats)
             std::string sceneFileStatus{};
+            //arquivo da cena aberta no editor (Salvar grava nele)
+            std::string sceneFile{};
             //cópia da cena durante o Play (vazio = editor)
             std::optional<LveScene> playScene;
             //ferramentas do editor

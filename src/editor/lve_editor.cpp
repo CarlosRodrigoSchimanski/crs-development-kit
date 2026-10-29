@@ -110,6 +110,10 @@ namespace lve {
         if (input.wasPressed(GLFW_KEY_S)) gizmoMode = GizmoMode::Scale;
     }
 
+    void LveEditor::clearSelection() {
+        selectedId.reset();
+    }
+
     LveGameObject* LveEditor::getSelected(LveScene &scene) const {
         return selectedId ? scene.findGameObjectById(*selectedId) : nullptr;
     }
@@ -267,8 +271,9 @@ namespace lve {
         if (!ImGui::BeginMainMenuBar()) return requests;
 
         if (ImGui::BeginMenu("Arquivo")) {
-            if (ImGui::MenuItem("Abrir", "Ctrl+O")) requests.openScene = true;
+            if (ImGui::MenuItem("Abrir...", "Ctrl+O")) requests.openScene = true;
             if (ImGui::MenuItem("Salvar", "Ctrl+S")) requests.saveScene = true;
+            if (ImGui::MenuItem("Salvar como...", "Ctrl+Shift+S")) requests.saveSceneAs = true;
             ImGui::Separator();
             if (ImGui::MenuItem("Sair")) requests.quit = true;
             ImGui::EndMenu();
