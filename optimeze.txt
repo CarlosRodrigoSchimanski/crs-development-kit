@@ -500,7 +500,9 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    Junto vêm os ids por cena (adiados desde a LveScene) e a cena saindo do código.
    Formato: JSON (nlohmann/json), texto pra ler/editar/ver no git; o código de ler/gravar fica
    isolado num scene_serializer (dá pra trocar por binário no futuro sem mexer no resto).
-   Sequência combinada (2026-10-28), o usuário escreve:
+   Sequência combinada (2026-10-28). ✅ 1 a 6 feitos em 2026-10-29 (até o commit 8069c0a):
+   formato versão 2, o programa abre scenes/main.json ao iniciar (sem arquivo ou com erro:
+   cena de exemplo do loadGameObjects), Arquivo > Abrir/Salvar/Sair, Ctrl+O/Ctrl+S.
      1. nlohmann/json no CMake
      2. o objeto guarda o caminho do modelo (+ cache: mesmo .glb carregado uma vez)
      3. ids estáveis por cena (o parentId continua valendo depois de carregar)
