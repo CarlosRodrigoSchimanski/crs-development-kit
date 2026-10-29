@@ -1,14 +1,15 @@
 #pragma once
 
-#include "engine/animation/lve_skeleton.hpp"
-#include "engine/core/lve_device.hpp"
-#include "engine/rendering/lve_buffer.hpp"
-#include "engine/rendering/lve_texture.hpp"
 #include "engine/rendering/lve_upload_batch.hpp"
+#include "engine/animation/lve_skeleton.hpp"
+#include "engine/rendering/lve_texture.hpp"
+#include "engine/rendering/lve_buffer.hpp"
+#include "engine/core/lve_device.hpp"
 
+#include <optional>
 #include <vector>
 #include <memory>
-#include <optional>
+#include <string>
 
 #include <glm/glm.hpp>
 
@@ -82,6 +83,9 @@ namespace lve {
             const Skeleton *getSkeleton() const;
             const std::vector<AnimationClip> &getAnimations() const;
 
+            //arquivo de onde o modelo foi carregado
+            const std::string &getFilePath() const;
+
             //pipeline de skinning: binding 0 = Vertex, binding 1 = SkinVertex
             static std::vector<VkVertexInputBindingDescription> getSkinnedBindingDescriptions();
             static std::vector<VkVertexInputAttributeDescription> getSkinnedAttributeDescriptions();
@@ -112,5 +116,7 @@ namespace lve {
 
             std::optional<Skeleton> skeleton{};
             std::vector<AnimationClip> animations{};
+
+            std::string filePath{};
     };
 }

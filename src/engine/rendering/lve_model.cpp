@@ -1,16 +1,16 @@
 #include "engine/rendering/lve_model.hpp"
 
-#include <cgltf.h>
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <cgltf.h>
 
-#include <cassert>
 #include <stdexcept>
 #include <algorithm>
+#include <cassert>
+#include <utility>
+#include <tuple>
 #include <set>
 #include <map>
-#include <tuple>
-#include <utility>
 
 
 namespace lve {
@@ -62,10 +62,14 @@ namespace lve {
 
     const std::vector<AnimationClip> &LveModel::getAnimations() const { return animations; }
 
+    const std::string &LveModel::getFilePath() const {return filePath; }
+
     std::unique_ptr<LveModel> LveModel::createModelFromFile(LveDevice &device, const std::string &filepath) {
         Builder builder{};
         builder.loadModel(filepath);
-        return std::make_unique<LveModel>(device, builder);
+        auto model = std::make_unique<LveModel>(device, builder);
+        model->filePath = filepath;
+        return model;
     }
 
     void LveModel::createVertexBuffers(const std::vector<Vertex>& vertices, LveUploadBatch &upload) {
