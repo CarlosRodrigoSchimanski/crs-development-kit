@@ -52,6 +52,16 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(vma)
 #----------------------------------------------------------#
 
+#incluir nlohmann/json (ler e gravar a cena em arquivo .json)
+#baixa só o pacote com o header, não o repositório inteiro (que é grande)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
+#----------------------------------------------------------#
+
+
 #incluir stb_image (carregamento de arquivos de imagem pra textura)
 FetchContent_Declare(
     stb
@@ -205,6 +215,7 @@ add_library(ge_engine STATIC ${ENGINE_SOURCES} src/engine/third_party_impl.cpp)
 #Todo #include do projeto é escrito a partir de src/ (ex: "engine/rendering/lve_model.hpp")
 target_include_directories(ge_engine PUBLIC src PRIVATE ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
 target_link_libraries(ge_engine PUBLIC glfw Vulkan::Vulkan glm::glm GPUOpen::VulkanMemoryAllocator)
+target_link_libraries(ge_engine PRIVATE nlohmann_json::nlohmann_json)
 #configuração do glm definida UMA vez: profundidade 0..1 como o Vulkan espera (o padrão do glm é
 #-1..1, do OpenGL). PUBLIC: quem usa a engine tem que enxergar o glm do mesmo jeito
 target_compile_definitions(ge_engine PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
