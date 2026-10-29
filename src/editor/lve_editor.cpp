@@ -7,6 +7,10 @@
 #include <iterator>
 #include <ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <nlohmann/json.hpp>
+
+#include <fstream>
+#include <stdexcept>
 
 namespace lve {
     //largura do painel lateral (pixels)
@@ -42,6 +46,38 @@ namespace lve {
 
     glm::vec3 LveEditor::getFocusPoint() const {
         return cameraController.target;
+    }
+
+    void LveEditor::saveView(const std::string &filepath) const {
+        const OrbitCameraController &view = cameraController;
+        nlohmann::ordered_json j = {
+            {"target", {view.target.x, view.target.y, view.target.z}},
+            {"distance", view.distance},
+            {"yaw", view.yaw},
+            {"pitch", view.pitch},
+        };
+        std::ofstream out{filepath};
+        if (!out) {
+            throw std::runtime_error("não consegui gravar a vista do editor: " + filepath);
+        }
+        out << j.dump(4);
+    }
+
+    bool LveEditor::loadView(const std::string &filepath) {
+        std::ifstream in{filepath};
+        if (!in) return false;
+        try {
+            nlohmann::json j = nlohmann::json::parse(in);
+            const nlohmann::json &target = j.at("target");
+            OrbitCameraController &view = cameraController;
+            view.target = {target.at(0).get<float>(), target.at(1).get<float>(), target.at(2).get<float>()};
+            view.distance = j.value("distance", view.distance);
+            view.yaw = j.value("yaw", view.yaw);
+            view.pitch = j.value("pitch", view.pitch);
+        } catch (const nlohmann::json::exception &) {
+            return false;
+        }
+        return true;
     }
 
     void LveEditor::updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea) {

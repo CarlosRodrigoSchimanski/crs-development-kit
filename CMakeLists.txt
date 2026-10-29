@@ -230,6 +230,8 @@ endif()
 add_executable(G_E_Youtube ${APP_SOURCES} ${IMGUI_SOURCES} ${imguizmo_SOURCE_DIR}/src/ImGuizmo.cpp)
 target_include_directories(G_E_Youtube PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${imguizmo_SOURCE_DIR}/src)
 target_link_libraries(G_E_Youtube PRIVATE ge_engine)
+#o editor grava a vista da câmera dele em .json
+target_link_libraries(G_E_Youtube PRIVATE nlohmann_json::nlohmann_json)
 
 #chamada de verificação de compilação dos shaders
 add_custom_target(Shaders DEPENDS ${SPIRV_BINARY_FILES})

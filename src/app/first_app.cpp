@@ -31,6 +31,8 @@ namespace lve {
     constexpr float SHADOW_SUN_DISTANCE = 30.f;
     //arquivo da cena do editor
     constexpr const char *SCENE_FILE = "scenes/main.json";
+    //vista da câmera do editor dessa cena (pessoal: fora do git)
+    constexpr const char *EDITOR_VIEW_FILE = "scenes/main.editor.json";
 
     //posiciona a câmera do sol em volta do centro
     static void updateShadowCamera(LveCamera &shadowCamera, glm::vec3 center, glm::vec3 lightDirection, uint32_t shadowMapSize) {
@@ -126,6 +128,7 @@ namespace lve {
         if (!std::filesystem::exists(SCENE_FILE) || !openSceneFile()) {
             loadGameObjects();
         }
+        editor.loadView(EDITOR_VIEW_FILE);
     }
 
     void FirstApp::run() {
@@ -269,6 +272,7 @@ namespace lve {
             //lê numa cena nova: se der erro no meio, a do editor não é tocada
             lveScene = loadScene(SCENE_FILE, [this](const std::string &path) { return modelCache.load(path); });
             sceneFileStatus = std::string{"Cena aberta de "} + SCENE_FILE;
+            editor.loadView(EDITOR_VIEW_FILE);
             return true;
         } catch (const std::exception &e) {
             sceneFileStatus = std::string{"Erro ao abrir: "} + e.what();
@@ -279,6 +283,7 @@ namespace lve {
     void FirstApp::saveSceneFile() {
         try {
             saveScene(lveScene, SCENE_FILE);
+            editor.saveView(EDITOR_VIEW_FILE);
             sceneFileStatus = std::string{"Cena salva em "} + SCENE_FILE;
         } catch (const std::exception &e) {
             sceneFileStatus = std::string{"Erro ao salvar: "} + e.what();

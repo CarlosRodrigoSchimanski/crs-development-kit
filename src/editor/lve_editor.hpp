@@ -6,6 +6,7 @@
 #include "editor/orbit_camera_controller.hpp"
 
 #include <optional>
+#include <string>
 #include <vector>
 #include <map>
 
@@ -29,6 +30,10 @@ namespace lve {
             void updateCamera(LveWindow &window, LveCamera &camera);
             //ponto que a câmera do editor olha (a caixa do sol fica em volta dele)
             glm::vec3 getFocusPoint() const;
+            //vista da câmera do editor num arquivo à parte (não é parte do jogo, como o imgui.ini)
+            void saveView(const std::string &filepath) const;
+            //false = sem arquivo ou inválido: a vista fica como está
+            bool loadView(const std::string &filepath);
             //G move, R gira, S escala (como no Blender), fora dos campos de texto
             void updateGizmoMode(const LveInput &input);
             //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)
