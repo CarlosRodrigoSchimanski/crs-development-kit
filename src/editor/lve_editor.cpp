@@ -231,8 +231,7 @@ namespace lve {
         if (!ImGui::BeginMainMenuBar()) return requests;
 
         if (ImGui::BeginMenu("Arquivo")) {
-            //desligado até os componentes irem pro arquivo (abrir agora perderia física, câmera e animação)
-            ImGui::MenuItem("Abrir...", "Ctrl+O", false, false);
+            if (ImGui::MenuItem("Abrir", "Ctrl+O")) requests.openScene = true;
             if (ImGui::MenuItem("Salvar", "Ctrl+S")) requests.saveScene = true;
             ImGui::Separator();
             if (ImGui::MenuItem("Sair")) requests.quit = true;

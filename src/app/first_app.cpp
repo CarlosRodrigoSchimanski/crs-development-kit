@@ -15,6 +15,7 @@
 #include <glm/gtc/constants.hpp>
 
 #include <chrono>
+#include <filesystem>
 #include <thread>
 
 namespace lve {
@@ -121,8 +122,10 @@ namespace lve {
         //projeção da câmera do sol (fixa)
         shadowCamera.setOrthographicProjection(-SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, -SHADOW_HALF_SIZE, SHADOW_HALF_SIZE, 0.1f, 2.f * SHADOW_SUN_DISTANCE);
 
-        //cena inicial
-        loadGameObjects();
+        //cena inicial: a do arquivo; sem arquivo (ou com erro) monta a de exemplo do código
+        if (!std::filesystem::exists(SCENE_FILE) || !openSceneFile()) {
+            loadGameObjects();
+        }
     }
 
     void FirstApp::run() {
@@ -255,6 +258,21 @@ namespace lve {
         bool ctrl = lveInput.isDown(GLFW_KEY_LEFT_CONTROL) || lveInput.isDown(GLFW_KEY_RIGHT_CONTROL);
         if (ctrl && lveInput.wasPressed(GLFW_KEY_S)) {
             saveSceneFile();
+        }
+        if (ctrl && lveInput.wasPressed(GLFW_KEY_O)) {
+            openSceneFile();
+        }
+    }
+
+    bool FirstApp::openSceneFile() {
+        try {
+            //lê numa cena nova: se der erro no meio, a do editor não é tocada
+            lveScene = loadScene(SCENE_FILE, [this](const std::string &path) { return modelCache.load(path); });
+            sceneFileStatus = std::string{"Cena aberta de "} + SCENE_FILE;
+            return true;
+        } catch (const std::exception &e) {
+            sceneFileStatus = std::string{"Erro ao abrir: "} + e.what();
+            return false;
         }
     }
 
@@ -495,6 +513,7 @@ namespace lve {
             //interface do editor (só fora do Play)
             if (!playScene) {
                 EditorRequests requests = editor.drawUi(lveScene, camera, sceneArea);
+                if (requests.openScene) openSceneFile();
                 if (requests.saveScene) saveSceneFile();
                 if (requests.quit) glfwSetWindowShouldClose(lveWindow.getGLFWwindow(), GLFW_TRUE);
             }

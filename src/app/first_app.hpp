@@ -54,8 +54,10 @@ namespace lve {
             void stopPlay();
             //P entra no Play, ' sai
             void updatePlayMode();
-            //Ctrl+S grava a cena do editor
+            //Ctrl+S grava a cena do editor, Ctrl+O abre de novo a do arquivo
             void updateSceneFile();
+            //troca a cena do editor pela do SCENE_FILE (false = deu erro e a cena ficou como estava)
+            bool openSceneFile();
             //grava a cena do editor no SCENE_FILE e anota o resultado (Ctrl+S e menu)
             void saveSceneFile();
             //cena que está valendo (Play ou editor)

@@ -15,6 +15,7 @@ namespace lve {
 
     //o que foi pedido pelo menu neste frame (quem executa é o FirstApp)
     struct EditorRequests {
+        bool openScene = false;
         bool saveScene = false;
         bool quit = false;
     };
