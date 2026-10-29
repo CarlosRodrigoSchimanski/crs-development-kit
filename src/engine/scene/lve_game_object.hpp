@@ -78,45 +78,42 @@ namespace lve {
     class LveGameObject{
 
         public:
-        using id_t = unsigned int;
-        using Map = std::unordered_map<id_t, LveGameObject>;
+            using id_t = unsigned int;
+            using Map = std::unordered_map<id_t, LveGameObject>;
 
-        static LveGameObject createGameObject();
-        static LveGameObject makePointLight(float intensity = 10.f, float radius = 0.1f, glm::vec3 color = glm::vec3{1.f});
+            LveGameObject(const LveGameObject &) = default;
+            LveGameObject &operator=(const LveGameObject &) = default;
+            LveGameObject(LveGameObject &&) = default;
+            LveGameObject &operator=(LveGameObject &&) = default;
 
-        LveGameObject(const LveGameObject &) = default;
-        LveGameObject &operator=(const LveGameObject &) = default;
-        LveGameObject(LveGameObject &&) = default;
-        LveGameObject &operator=(LveGameObject &&) = default;
+            id_t getId() const;
+            //tem pesos de osso e está tocando animação: desenhado pelas pipelines de skinning
+            bool isAnimated() const;
 
-        id_t getId() const;
-        //tem pesos de osso e está tocando animação: desenhado pelas pipelines de skinning
-        bool isAnimated() const;
+            //nome mostrado no editor (como no outliner do Blender)
+            std::string name{};
 
-        //nome mostrado no editor (como no outliner do Blender)
-        std::string name{};
+            glm::vec3 color{};
+            //false = usa a textura branca em vez da do modelo (fica só a cor do vértice)
+            bool useTexture{true};
+            bool editorOnly{false};
+            TransformComponent transform{};
+            //pai na cena (o transform passa a ser relativo a ele); vazio = raiz
+            std::optional<id_t> parentId{};
 
-        glm::vec3 color{};
-        //false = usa a textura branca em vez da do modelo (fica só a cor do vértice)
-        bool useTexture{true};
-        bool editorOnly{false};
-        TransformComponent transform{};
-        //pai na cena (o transform passa a ser relativo a ele); vazio = raiz
-        std::optional<id_t> parentId{};
-
-        std::shared_ptr<LveModel>model{};
-        std::optional<PointLightComponent> pointLight{};
-        std::optional<CameraComponent> camera{};
-        std::optional<RigidBodyComponent> rigidBody{};
-        std::optional<CharacterComponent> character{};
-        std::optional<CameraRigComponent> cameraRig{};
-        std::optional<FaceMovementComponent> faceMovement{};
-        std::optional<AnimatorComponent> animator{};
+            std::shared_ptr<LveModel>model{};
+            std::optional<PointLightComponent> pointLight{};
+            std::optional<CameraComponent> camera{};
+            std::optional<RigidBodyComponent> rigidBody{};
+            std::optional<CharacterComponent> character{};
+            std::optional<CameraRigComponent> cameraRig{};
+            std::optional<FaceMovementComponent> faceMovement{};
+            std::optional<AnimatorComponent> animator{};
 
 
         private:
-        LveGameObject(id_t objId);
-
-        id_t id;
+            friend class LveScene;
+            LveGameObject(id_t objId);
+            id_t id;
     };
 }

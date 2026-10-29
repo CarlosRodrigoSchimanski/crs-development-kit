@@ -55,20 +55,6 @@ namespace lve {
         rotation.z = glm::atan(axisX.y, axisY.y);
     }
 
-    LveGameObject LveGameObject::makePointLight(float intensity, float radius, glm::vec3 color) {
-        LveGameObject gameObject = LveGameObject::createGameObject();
-        gameObject.color = color;
-        gameObject.transform.scale.x = radius;
-        gameObject.pointLight = PointLightComponent{};
-        gameObject.pointLight->lightIntensity = intensity;
-        return gameObject;
-    }
-
-    LveGameObject LveGameObject::createGameObject() {
-        static id_t currentId = 0;
-        return LveGameObject{currentId++};
-    }
-
     LveGameObject::id_t LveGameObject::getId() const { return id; }
 
     bool LveGameObject::isAnimated() const {

@@ -34,5 +34,7 @@ namespace lve {
         private:
             LveGameObject::Map gameObjects;
             std::optional<LveGameObject::id_t> activeCameraId{};
+            //proximo id livre desta cena
+            LveGameObject::id_t nextId = 0;
     };
 }

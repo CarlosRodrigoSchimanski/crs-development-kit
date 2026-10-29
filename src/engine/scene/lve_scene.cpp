@@ -2,9 +2,8 @@
 
 namespace lve {
     LveGameObject& LveScene::createGameObject() {
-        auto obj = LveGameObject::createGameObject();
-        auto id = obj.getId();
-        auto [it, success] = gameObjects.emplace(id, std::move(obj));
+        LveGameObject obj{nextId++};
+        auto [it, success] = gameObjects.emplace(obj.getId(), std::move(obj));
         return it->second;
     }
 
