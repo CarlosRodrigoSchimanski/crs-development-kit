@@ -66,9 +66,11 @@ namespace lve {
             if (skeleton == nullptr) continue;
 
             //pose do instante atual da animação
-            const AnimatorComponent &animator = *obj.animator;
-            std::vector<JointPose> pose = samplePose(
-                *skeleton, findClip(*obj.model, animator, animator.clip), animator.time, animator.loop);
+            AnimatorComponent &animator = *obj.animator;
+            const AnimationClip *clip = findClip(*obj.model, animator, animator.clip);
+            //a duração fica no animator: progress() e isFinished() usam
+            animator.duration = clip ? clip->duration : 0.f;
+            std::vector<JointPose> pose = samplePose(*skeleton, clip, animator.time, animator.loop);
             //transição: mistura com a anterior, que vai sumindo
             if (animator.isBlending()) {
                 std::vector<JointPose> previous = samplePose(

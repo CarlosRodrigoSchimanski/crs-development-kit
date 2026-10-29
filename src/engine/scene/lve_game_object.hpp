@@ -58,6 +58,7 @@ namespace lve {
         float speed = 1.f;        //1 = velocidade normal
         bool loop = true;         //recomeça ao chegar no fim
         uint32_t boneOffset = 0;  //onde as matrizes dos ossos deste objeto começam no buffer do frame (o SkinningSystem preenche)
+        float duration = 0.f;     //duração da animação atual em segundos (o SkinningSystem preenche; 0 = ainda não achou)
 
         //transição: a animação anterior continua tocando e some aos poucos (estado do momento: não é salvo)
         std::string previousClip{};
@@ -73,6 +74,14 @@ namespace lve {
         bool isBlending() const;
         //quanto vale a animação nova na mistura: 0 = só a anterior, 1 = só a nova
         float blendWeight() const;
+        //o instante dentro da animação atual, em segundos (no loop, volta pro começo a cada volta)
+        float clipTime() const;
+        //quanto da animação já tocou, de 0 a 1 (bom pra janela de golpe: não depende da velocidade)
+        float progress() const;
+        //a animação sem loop chegou ao fim
+        bool isFinished() const;
+        //o quadro atual, contando fps quadros por segundo (o Mixamo usa 30)
+        int frame(float fps = 30.f) const;
     };
 
     //qual animação o visual do personagem toca em cada situação (vazio = a primeira da lista)

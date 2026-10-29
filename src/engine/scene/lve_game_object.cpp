@@ -1,6 +1,7 @@
 #include "engine/scene/lve_game_object.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace lve {
 
@@ -68,6 +69,7 @@ namespace lve {
         previousLoop = loop;
         clip = name;
         time = 0.f;
+        duration = 0.f;  //ainda não se sabe: o SkinningSystem preenche quando achar a nova
         loop = loopClip;
         fadeDuration = fadeSeconds;
         fadeElapsed = 0.f;
@@ -80,6 +82,24 @@ namespace lve {
     float AnimatorComponent::blendWeight() const {
         if (!isBlending()) return 1.f;
         return std::min(fadeElapsed / fadeDuration, 1.f);
+    }
+
+    float AnimatorComponent::clipTime() const {
+        if (duration <= 0.f) return time;
+        return loop ? std::fmod(time, duration) : std::min(time, duration);
+    }
+
+    float AnimatorComponent::progress() const {
+        if (duration <= 0.f) return 0.f;
+        return clipTime() / duration;
+    }
+
+    bool AnimatorComponent::isFinished() const {
+        return !loop && duration > 0.f && time >= duration;
+    }
+
+    int AnimatorComponent::frame(float fps) const {
+        return static_cast<int>(std::floor(clipTime() * fps));
     }
 
     LveGameObject::id_t LveGameObject::getId() const { return id; }

@@ -213,3 +213,31 @@ TEST_CASE("CharacterAnimationSystem: parado, andando, correndo e no ar") {
     CHECK(visual.animator->clip == "jump");
     CHECK_FALSE(visual.animator->loop);
 }
+
+TEST_CASE("animator: progress, frame e isFinished") {
+    AnimatorComponent animator;
+    animator.duration = 2.f;
+
+    //com loop: 2.5 s numa animação de 2 s = 0.5 s da segunda volta
+    animator.loop = true;
+    animator.time = 2.5f;
+    CHECK(animator.clipTime() == doctest::Approx(0.5f));
+    CHECK(animator.progress() == doctest::Approx(0.25f));
+    CHECK(animator.frame() == 15);
+    CHECK(animator.frame(24.f) == 12);
+    CHECK_FALSE(animator.isFinished());
+
+    //sem loop: para no fim
+    animator.loop = false;
+    animator.time = 1.f;
+    CHECK(animator.progress() == doctest::Approx(0.5f));
+    CHECK_FALSE(animator.isFinished());
+    animator.time = 2.5f;
+    CHECK(animator.progress() == doctest::Approx(1.f));
+    CHECK(animator.isFinished());
+
+    //trocar de animação zera: a duração da nova ainda não é conhecida
+    animator.play("outra", 0.2f, false);
+    CHECK(animator.progress() == doctest::Approx(0.f));
+    CHECK_FALSE(animator.isFinished());
+}
