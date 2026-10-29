@@ -253,8 +253,12 @@ namespace lve {
         //só no editor, e não enquanto digita no ImGui
         if (playScene || ImGui::GetIO().WantCaptureKeyboard) return;
         bool ctrl = lveInput.isDown(GLFW_KEY_LEFT_CONTROL) || lveInput.isDown(GLFW_KEY_RIGHT_CONTROL);
-        if (!ctrl || !lveInput.wasPressed(GLFW_KEY_S)) return;
+        if (ctrl && lveInput.wasPressed(GLFW_KEY_S)) {
+            saveSceneFile();
+        }
+    }
 
+    void FirstApp::saveSceneFile() {
         try {
             saveScene(lveScene, SCENE_FILE);
             sceneFileStatus = std::string{"Cena salva em "} + SCENE_FILE;
@@ -268,7 +272,9 @@ namespace lve {
     }
 
     void FirstApp::drawStatsWindow(float fps) {
-        ImGui::SetNextWindowPos(ImVec2(10,10));
+        //abaixo do menu do editor (WorkPos = o que sobra da janela tirando a barra de menu)
+        const ImGuiViewport* screen = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(ImVec2(screen->WorkPos.x + 10.f, screen->WorkPos.y + 10.f));
         ImGui::SetNextWindowBgAlpha(0.35f);
         ImGui::Begin(
             "stats",
@@ -488,7 +494,9 @@ namespace lve {
 
             //interface do editor (só fora do Play)
             if (!playScene) {
-                editor.drawUi(lveScene, camera, sceneArea);
+                EditorRequests requests = editor.drawUi(lveScene, camera, sceneArea);
+                if (requests.saveScene) saveSceneFile();
+                if (requests.quit) glfwSetWindowShouldClose(lveWindow.getGLFWwindow(), GLFW_TRUE);
             }
 
             //render

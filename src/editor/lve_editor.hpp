@@ -13,6 +13,12 @@ namespace lve {
     //oq as setas do gizmo fazem
     enum class GizmoMode {Move, Rotate, Scale};
 
+    //o que foi pedido pelo menu neste frame (quem executa é o FirstApp)
+    struct EditorRequests {
+        bool saveScene = false;
+        bool quit = false;
+    };
+
     //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
     class LveEditor {
         public:
@@ -28,12 +34,14 @@ namespace lve {
             void updateSelection(LveScene &scene, const LveInput &input, const LveCamera &camera, VkRect2D sceneArea);
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             LveGameObject* getSelected(LveScene &scene) const;
-            //pedaço da tela que sobra pra cena ao lado do painel
+            //pedaço da tela que sobra pra cena, abaixo do menu e ao lado do painel
             VkRect2D sceneArea(VkExtent2D screen) const;
-            //toda a interface do editor do frame: painel, setas e gizmo de navegação
-            void drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
+            //toda a interface do editor do frame: menu, painel, setas e gizmo de navegação
+            EditorRequests drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea);
 
         private:
+            //barra de menu no topo da janela (Arquivo...), como no Blender
+            EditorRequests drawMenuBar();
             //painel lateral preso à direita (outliner e propriedades)
             void drawSidePanel(LveScene &scene);
             //setas de mover/girar/escalar no objeto selecionado (ImGuizmo)

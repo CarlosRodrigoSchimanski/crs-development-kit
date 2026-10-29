@@ -54,8 +54,10 @@ namespace lve {
             void stopPlay();
             //P entra no Play, ' sai
             void updatePlayMode();
-            //Ctrl+S grava a cena do editor (provisório, até a barra de menu)
+            //Ctrl+S grava a cena do editor
             void updateSceneFile();
+            //grava a cena do editor no SCENE_FILE e anota o resultado (Ctrl+S e menu)
+            void saveSceneFile();
             //cena que está valendo (Play ou editor)
             LveScene& activeScene();
             //janela de Stats (FPS e modo)

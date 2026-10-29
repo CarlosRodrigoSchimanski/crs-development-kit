@@ -122,9 +122,12 @@ namespace lve {
 
     VkRect2D LveEditor::sceneArea(VkExtent2D screen) const {
         uint32_t panel = static_cast<uint32_t>(SIDE_PANEL_WIDTH);
-        //janela mais estreita
+        //altura da barra de menu (a do ImGui: fonte + margem)
+        uint32_t menu = static_cast<uint32_t>(ImGui::GetFrameHeight());
+        //janela menor que o painel/menu
         uint32_t width = screen.width > panel ? screen.width - panel : 1;
-        return VkRect2D{{0,0}, {width, screen.height}};
+        uint32_t height = screen.height > menu ? screen.height - menu : 1;
+        return VkRect2D{{0, static_cast<int32_t>(menu)}, {width, height}};
     }
 
     void LveEditor::drawTransformGizmo(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
@@ -223,11 +226,31 @@ namespace lve {
         }
     }
 
-    void LveEditor::drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
+    EditorRequests LveEditor::drawMenuBar() {
+        EditorRequests requests{};
+        if (!ImGui::BeginMainMenuBar()) return requests;
+
+        if (ImGui::BeginMenu("Arquivo")) {
+            //desligado até os componentes irem pro arquivo (abrir agora perderia física, câmera e animação)
+            ImGui::MenuItem("Abrir...", "Ctrl+O", false, false);
+            if (ImGui::MenuItem("Salvar", "Ctrl+S")) requests.saveScene = true;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Sair")) requests.quit = true;
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+        return requests;
+    }
+
+    EditorRequests LveEditor::drawUi(LveScene &scene, const LveCamera &camera, VkRect2D sceneArea) {
+        //menu primeiro: o painel lateral começa embaixo dele
+        EditorRequests requests = drawMenuBar();
         drawSidePanel(scene);
         drawRelationshipLines(scene, camera, sceneArea);
         drawTransformGizmo(scene, camera, sceneArea);
         drawNavigationGizmo(camera, sceneArea);
+        return requests;
     }
 
     void LveEditor::drawNavigationGizmo(const LveCamera &camera, VkRect2D sceneArea) {
