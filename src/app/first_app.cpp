@@ -31,11 +31,11 @@ namespace lve {
     //distância da câmera do sol até o centro da caixa
     constexpr float SHADOW_SUN_DISTANCE = 30.f;
     //arquivo da cena do editor
-    constexpr const char *SCENE_FILE = "scenes/main.json";
+    constexpr const char *SCENE_FILE = "assets/scenes/main.json";
     //pasta onde as janelas de arquivo começam
-    constexpr const char *SCENE_FOLDER = "scenes";
+    constexpr const char *SCENE_FOLDER = "assets/scenes";
     //pasta onde a janela de importar começa
-    constexpr const char *MODEL_FOLDER = "models";
+    constexpr const char *MODEL_FOLDER = "assets/models";
 
     //vista da câmera do editor de uma cena (pessoal: fora do git): main.json -> main.editor.json
     static std::string editorViewFile(const std::string &sceneFile) {
@@ -176,7 +176,7 @@ namespace lve {
 
     void FirstApp::loadGameObjects() {
         //cubo de teste (dinâmico)
-        std::shared_ptr<LveModel> lveModel = modelCache.load("models/iron_cube.glb");
+        std::shared_ptr<LveModel> lveModel = modelCache.load("assets/models/iron_cube.glb");
         auto& cube = lveScene.createGameObject();
         cube.name = "cube";
         cube.model = lveModel;
@@ -185,7 +185,7 @@ namespace lve {
         cube.rigidBody.emplace();
 
         //personagem: cápsula com a física (visível no Play até o visual entrar como filho)
-        lveModel = modelCache.load("models/character.glb");
+        lveModel = modelCache.load("assets/editor/character.glb");
         auto& player = lveScene.createGameObject();
         player.name = "Player";
         player.model = lveModel;
@@ -198,7 +198,7 @@ namespace lve {
         player.character.emplace();
 
         //visual do personagem: filho da cápsula (anda junto com ela)
-        lveModel = modelCache.load("models/basicFemaleTest.glb");
+        lveModel = modelCache.load("assets/models/basicFemaleTest.glb");
         auto& playerVisual = lveScene.createGameObject();
         playerVisual.name = "PlayerMesh";
         playerVisual.model = lveModel;
@@ -208,7 +208,7 @@ namespace lve {
         playerVisual.animator.emplace();  //toca a primeira animação do arquivo (o idle)
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
-        lveModel = modelCache.load("models/empty.glb");
+        lveModel = modelCache.load("assets/editor/empty.glb");
         auto& cameraPivot = lveScene.createGameObject();
         cameraPivot.name = "CameraPivot";
         cameraPivot.model = lveModel;
@@ -218,7 +218,7 @@ namespace lve {
         cameraPivot.transform.translation = {0.f, 1.6f, 0.f};  //1,6 acima dos pés
 
         //câmera de jogo
-        lveModel = modelCache.load("models/camera.glb");
+        lveModel = modelCache.load("assets/editor/camera.glb");
         auto& gameCamera = lveScene.createGameObject();
         gameCamera.name = "Camera";
         gameCamera.model = lveModel;
@@ -229,7 +229,7 @@ namespace lve {
         lveScene.setActiveCamera(gameCamera.getId());
 
         //chão (estático)
-        lveModel = modelCache.load("models/plane.glb");
+        lveModel = modelCache.load("assets/models/plane.glb");
         auto& floor = lveScene.createGameObject();
         floor.name = "Floor";
         floor.model = lveModel;
@@ -336,8 +336,8 @@ namespace lve {
         try {
             //gizmo de editor de cada tipo (provisório: a engine vai gerar essas formas)
             std::shared_ptr<LveModel> model{};
-            if (kind == AddKind::Empty) model = modelCache.load("models/empty.glb");
-            if (kind == AddKind::Camera) model = modelCache.load("models/camera.glb");
+            if (kind == AddKind::Empty) model = modelCache.load("assets/editor/empty.glb");
+            if (kind == AddKind::Camera) model = modelCache.load("assets/editor/camera.glb");
 
             auto& obj = lveScene.createGameObject();
             obj.model = model;

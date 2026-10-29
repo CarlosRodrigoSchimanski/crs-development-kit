@@ -71,7 +71,7 @@ TEST_CASE("cena: o carregar pede cada modelo pelo caminho gravado") {
         out << R"({
             "version": 2,
             "objects": [
-                {"id": 0, "name": "cube", "model": "models/iron_cube.glb",
+                {"id": 0, "name": "cube", "model": "assets/models/iron_cube.glb",
                  "transform": {"translation": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]}}
             ]
         })";
@@ -84,7 +84,7 @@ TEST_CASE("cena: o carregar pede cada modelo pelo caminho gravado") {
     });
 
     REQUIRE(requested.size() == 1);
-    CHECK(requested[0] == "models/iron_cube.glb");
+    CHECK(requested[0] == "assets/models/iron_cube.glb");
 
     std::filesystem::remove(path);
 }

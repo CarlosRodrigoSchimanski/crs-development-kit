@@ -5,7 +5,7 @@
         {
             "id": 0,
             "name": "cube",
-            "model": "models/iron_cube.glb",
+            "model": "assets/models/iron_cube.glb",
             "editorOnly": false,
             "color": [
                 0.0,
@@ -47,7 +47,7 @@
         {
             "id": 1,
             "name": "Player",
-            "model": "models/character.glb",
+            "model": "assets/editor/character.glb",
             "editorOnly": true,
             "color": [
                 0.0,
@@ -93,7 +93,7 @@
         {
             "id": 2,
             "name": "PlayerMesh",
-            "model": "models/basicFemaleTest.glb",
+            "model": "assets/models/basicFemaleTest.glb",
             "parent": 1,
             "editorOnly": false,
             "color": [
@@ -132,7 +132,7 @@
         {
             "id": 3,
             "name": "CameraPivot",
-            "model": "models/empty.glb",
+            "model": "assets/editor/empty.glb",
             "parent": 1,
             "editorOnly": true,
             "color": [
@@ -169,7 +169,7 @@
         {
             "id": 4,
             "name": "Camera",
-            "model": "models/camera.glb",
+            "model": "assets/editor/camera.glb",
             "parent": 3,
             "editorOnly": true,
             "color": [
@@ -204,7 +204,7 @@
         {
             "id": 5,
             "name": "Floor",
-            "model": "models/plane.glb",
+            "model": "assets/models/plane.glb",
             "editorOnly": false,
             "color": [
                 0.0,
