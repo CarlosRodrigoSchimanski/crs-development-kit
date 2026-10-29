@@ -177,6 +177,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/systems/skinning_system.cpp
     src/engine/scene/lve_game_object.cpp
     src/engine/scene/lve_scene.cpp
+    src/engine/scene/scene_serializer.cpp
     src/engine/scene/lve_ray.cpp
     src/engine/physics/lve_physics_system.cpp
     src/engine/gameplay/character_controller_system.cpp
