@@ -28,7 +28,7 @@ namespace lve {
         private:
             std::unique_ptr<LveBuffer> createBoneBuffer(size_t capacity);
             //a animação que o animator pede (nullptr = nenhuma)
-            const AnimationClip *findClip(const LveModel &model, const AnimatorComponent &animator);
+            const AnimationClip *findClip(const LveModel &model, const AnimatorComponent &animator, const std::string &name);
 
             LveDevice &lveDevice;
             LveAnimationLibrary &animationLibrary;

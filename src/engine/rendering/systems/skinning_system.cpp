@@ -36,17 +36,24 @@ namespace lve {
 
     //primeiro os arquivos do animator (pelo nome do arquivo), depois as do modelo;
     //vazio ou não achou = o primeiro arquivo, ou a primeira do modelo
-    const AnimationClip *SkinningSystem::findClip(const LveModel &model, const AnimatorComponent &animator) {
+    const AnimationClip *SkinningSystem::findClip(const LveModel &model, const AnimatorComponent &animator, const std::string &name) {
         const Skeleton &skeleton = *model.getSkeleton();
         for (const std::string &file : animator.animations) {
-            if (std::filesystem::path{file}.stem().string() == animator.clip) return animationLibrary.get(file, skeleton);
+            if (std::filesystem::path{file}.stem().string() == name) return animationLibrary.get(file, skeleton);
         }
         const std::vector<AnimationClip> &clips = model.getAnimations();
         for (const AnimationClip &clip : clips) {
-            if (clip.name == animator.clip) return &clip;
+            if (clip.name == name) return &clip;
         }
         if (!animator.animations.empty()) return animationLibrary.get(animator.animations.front(), skeleton);
         return clips.empty() ? nullptr : &clips.front();
+    }
+
+    //pose de uma animação num instante (no loop, o tempo dá a volta pela duração; sem animação: a de descanso)
+    static std::vector<JointPose> samplePose(const Skeleton &skeleton, const AnimationClip *clip, float time, bool loop) {
+        if (clip == nullptr) return sampleClip(skeleton, AnimationClip{}, 0.f);
+        if (loop && clip->duration > 0.f) time = std::fmod(time, clip->duration);
+        return sampleClip(skeleton, *clip, time);
     }
 
     bool SkinningSystem::update(LveScene &scene, int frameIndex) {
@@ -58,14 +65,15 @@ namespace lve {
             const Skeleton *skeleton = obj.model->getSkeleton();
             if (skeleton == nullptr) continue;
 
-            //pose do instante atual da animação (sem animação: a pose de descanso)
-            std::vector<JointPose> pose;
-            if (const AnimationClip *clip = findClip(*obj.model, *obj.animator)) {
-                float time = obj.animator->time;
-                if (obj.animator->loop && clip->duration > 0.f) time = std::fmod(time, clip->duration);
-                pose = sampleClip(*skeleton, *clip, time);
-            } else {
-                pose = sampleClip(*skeleton, AnimationClip{}, 0.f);
+            //pose do instante atual da animação
+            const AnimatorComponent &animator = *obj.animator;
+            std::vector<JointPose> pose = samplePose(
+                *skeleton, findClip(*obj.model, animator, animator.clip), animator.time, animator.loop);
+            //transição: mistura com a anterior, que vai sumindo
+            if (animator.isBlending()) {
+                std::vector<JointPose> previous = samplePose(
+                    *skeleton, findClip(*obj.model, animator, animator.previousClip), animator.previousTime, animator.previousLoop);
+                pose = blendPoses(previous, pose, animator.blendWeight());
             }
 
             obj.animator->boneOffset = static_cast<uint32_t>(bones.size());

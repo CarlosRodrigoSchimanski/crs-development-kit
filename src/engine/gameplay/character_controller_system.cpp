@@ -17,8 +17,9 @@ namespace lve {
             if (!obj.character || !obj.rigidBody) continue;
 
             //so a velocidade horizontal: a vertical é a gravidade
-            obj.rigidBody->velocity.x = direction.x * obj.character->moveSpeed;
-            obj.rigidBody->velocity.z = direction.z * obj.character->moveSpeed;
+            float speed = input.run ? obj.character->runSpeed : obj.character->moveSpeed;
+            obj.rigidBody->velocity.x = direction.x * speed;
+            obj.rigidBody->velocity.z = direction.z * speed;
 
             //pulo: só apoiado no chão
             if (input.jump && obj.rigidBody->onGround) {

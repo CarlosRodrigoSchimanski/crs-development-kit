@@ -1,4 +1,6 @@
 #include "engine/animation/lve_animation.hpp"
+#include "engine/animation/lve_animator_system.hpp"
+#include "engine/gameplay/character_animation_system.hpp"
 
 #include <doctest/doctest.h>
 
@@ -114,4 +116,100 @@ TEST_CASE("computeSkinMatrices: na pose de descanso o skinning não mexe no vér
 
     checkSameMatrix(skin[0], glm::mat4{1.f});
     checkSameMatrix(skin[1], glm::mat4{1.f});
+}
+
+TEST_CASE("blendPoses: no meio da transição fica no meio das duas poses") {
+    JointPose a;
+    a.translation = {0.f, 0.f, 0.f};
+    JointPose b;
+    b.translation = {2.f, 4.f, 0.f};
+    b.rotation = glm::angleAxis(glm::radians(90.f), glm::vec3{0.f, 1.f, 0.f});
+
+    std::vector<JointPose> half = blendPoses({a}, {b}, 0.5f);
+
+    CHECK(half[0].translation.x == doctest::Approx(1.f));
+    CHECK(half[0].translation.y == doctest::Approx(2.f));
+    //metade do giro: 45 graus
+    CHECK(glm::degrees(glm::angle(half[0].rotation)) == doctest::Approx(45.f));
+    //nas pontas, cada uma das poses
+    CHECK(blendPoses({a}, {b}, 0.f)[0].translation.x == doctest::Approx(0.f));
+    CHECK(blendPoses({a}, {b}, 1.f)[0].translation.x == doctest::Approx(2.f));
+}
+
+TEST_CASE("animator.play: a anterior some aos poucos e a transição termina") {
+    LveScene scene;
+    LveGameObject &obj = scene.createGameObject();
+    obj.animator.emplace();
+    obj.animator->clip = "idle";
+    obj.animator->time = 3.f;
+    AnimatorSystem animatorSystem;
+
+    obj.animator->play("walk", 0.2f);
+
+    CHECK(obj.animator->clip == "walk");
+    CHECK(obj.animator->time == doctest::Approx(0.f));
+    CHECK(obj.animator->previousClip == "idle");
+    CHECK(obj.animator->previousTime == doctest::Approx(3.f));
+    CHECK(obj.animator->blendWeight() == doctest::Approx(0.f));
+
+    animatorSystem.update(scene, 0.1f);
+    CHECK(obj.animator->blendWeight() == doctest::Approx(0.5f));
+
+    animatorSystem.update(scene, 0.15f);
+    CHECK_FALSE(obj.animator->isBlending());
+    CHECK(obj.animator->blendWeight() == doctest::Approx(1.f));
+}
+
+TEST_CASE("animator.play: pedir a mesma animação não recomeça nem mistura") {
+    AnimatorComponent animator;
+    animator.clip = "walk";
+    animator.time = 0.7f;
+
+    animator.play("walk", 0.2f);
+
+    CHECK(animator.time == doctest::Approx(0.7f));
+    CHECK_FALSE(animator.isBlending());
+}
+
+//cápsula com física + visual filho com as animações, como no loadGameObjects
+static LveGameObject &addAnimatedCharacter(LveScene &scene, LveGameObject *&body) {
+    body = &scene.createGameObject();
+    body->rigidBody.emplace();
+    body->character.emplace();
+    LveGameObject &visual = scene.createGameObject();
+    visual.parentId = body->getId();
+    visual.animator.emplace();
+    visual.characterAnimation.emplace();
+    visual.characterAnimation->idle = "idle";
+    visual.characterAnimation->walk = "walk";
+    visual.characterAnimation->run = "run";
+    visual.characterAnimation->jump = "jump";
+    return visual;
+}
+
+TEST_CASE("CharacterAnimationSystem: parado, andando, correndo e no ar") {
+    LveScene scene;
+    LveGameObject *body = nullptr;
+    LveGameObject &visual = addAnimatedCharacter(scene, body);
+    CharacterAnimationSystem system;
+    float walkSpeed = body->character->moveSpeed;
+
+    body->rigidBody->onGround = true;
+    system.update(scene);
+    CHECK(visual.animator->clip == "idle");
+
+    body->rigidBody->velocity = {walkSpeed, 0.f, 0.f};
+    system.update(scene);
+    CHECK(visual.animator->clip == "walk");
+    CHECK(visual.animator->loop);
+
+    body->rigidBody->velocity = {0.f, 0.f, body->character->runSpeed};
+    system.update(scene);
+    CHECK(visual.animator->clip == "run");
+
+    //no ar: o pulo toca uma vez só
+    body->rigidBody->onGround = false;
+    system.update(scene);
+    CHECK(visual.animator->clip == "jump");
+    CHECK_FALSE(visual.animator->loop);
 }

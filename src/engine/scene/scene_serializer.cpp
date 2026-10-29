@@ -59,6 +59,7 @@ namespace lve {
         if (obj.character) {
             j["character"] = {
                 {"moveSpeed", rounded(obj.character->moveSpeed)},
+                {"runSpeed", rounded(obj.character->runSpeed)},
                 {"jumpSpeed", rounded(obj.character->jumpSpeed)},
             };
         }
@@ -75,6 +76,15 @@ namespace lve {
             j["faceMovement"] = {
                 {"turnSpeed", rounded(obj.faceMovement->turnSpeed)},
                 {"yawOffset", rounded(obj.faceMovement->yawOffset)},
+            };
+        }
+        if (obj.characterAnimation) {
+            j["characterAnimation"] = {
+                {"idle", obj.characterAnimation->idle},
+                {"walk", obj.characterAnimation->walk},
+                {"run", obj.characterAnimation->run},
+                {"jump", obj.characterAnimation->jump},
+                {"fadeTime", rounded(obj.characterAnimation->fadeTime)},
             };
         }
         if (obj.animator) {
@@ -115,6 +125,7 @@ namespace lve {
             const json &c = j.at("character");
             CharacterComponent character{};
             character.moveSpeed = c.value("moveSpeed", character.moveSpeed);
+            character.runSpeed = c.value("runSpeed", character.runSpeed);
             character.jumpSpeed = c.value("jumpSpeed", character.jumpSpeed);
             obj.character = character;
         }
@@ -134,6 +145,16 @@ namespace lve {
             face.turnSpeed = c.value("turnSpeed", face.turnSpeed);
             face.yawOffset = c.value("yawOffset", face.yawOffset);
             obj.faceMovement = face;
+        }
+        if (j.contains("characterAnimation")) {
+            const json &c = j.at("characterAnimation");
+            CharacterAnimationComponent anims{};
+            anims.idle = c.value("idle", anims.idle);
+            anims.walk = c.value("walk", anims.walk);
+            anims.run = c.value("run", anims.run);
+            anims.jump = c.value("jump", anims.jump);
+            anims.fadeTime = c.value("fadeTime", anims.fadeTime);
+            obj.characterAnimation = anims;
         }
         if (j.contains("animator")) {
             const json &c = j.at("animator");

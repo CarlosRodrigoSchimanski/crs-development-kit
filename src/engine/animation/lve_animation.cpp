@@ -69,4 +69,14 @@ namespace lve {
         }
         return skin;
     }
+
+    std::vector<JointPose> blendPoses(const std::vector<JointPose> &a, const std::vector<JointPose> &b, float weight) {
+        std::vector<JointPose> result(a.size());
+        for (size_t i = 0; i < a.size() && i < b.size(); i++) {
+            result[i].translation = glm::mix(a[i].translation, b[i].translation, weight);
+            result[i].rotation = glm::slerp(a[i].rotation, b[i].rotation, weight);
+            result[i].scale = glm::mix(a[i].scale, b[i].scale, weight);
+        }
+        return result;
+    }
 }

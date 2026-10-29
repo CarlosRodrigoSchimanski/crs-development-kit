@@ -7,6 +7,7 @@ namespace lve {
     struct CharacterInput {
         glm::vec3 moveDirection{0.f}; //no mundo; só x e z contam (o chao)
         bool jump = false;
+        bool run = false;  //corre (runSpeed) em vez de andar (moveSpeed)
     };
 
     float turnTowards(float current, float target, float maxStep);

@@ -1,5 +1,7 @@
 #include "engine/scene/lve_game_object.hpp"
 
+#include <algorithm>
+
 namespace lve {
 
     //rotação de Tait-Bryan na ordem Y, X, Z (yaw, pitch, roll); cada coluna é um eixo local do objeto
@@ -53,6 +55,31 @@ namespace lve {
         rotation.x = glm::asin(glm::clamp(-axisZ.y, -1.f, 1.f));
         rotation.y = glm::atan(axisZ.x, axisZ.z);
         rotation.z = glm::atan(axisX.y, axisY.y);
+    }
+
+    void AnimatorComponent::play(const std::string &name, float fadeSeconds, bool loopClip) {
+        if (name == clip) {
+            loop = loopClip;
+            return;
+        }
+        //a atual vira a anterior e vai sumindo; a nova começa do início
+        previousClip = clip;
+        previousTime = time;
+        previousLoop = loop;
+        clip = name;
+        time = 0.f;
+        loop = loopClip;
+        fadeDuration = fadeSeconds;
+        fadeElapsed = 0.f;
+    }
+
+    bool AnimatorComponent::isBlending() const {
+        return fadeDuration > 0.f;
+    }
+
+    float AnimatorComponent::blendWeight() const {
+        if (!isBlending()) return 1.f;
+        return std::min(fadeElapsed / fadeDuration, 1.f);
     }
 
     LveGameObject::id_t LveGameObject::getId() const { return id; }

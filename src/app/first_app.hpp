@@ -17,6 +17,7 @@
 #include "engine/rendering/lve_buffer.hpp"
 #include "engine/gameplay/character_controller_system.hpp"
 #include "engine/gameplay/camera_rig_system.hpp"
+#include "engine/gameplay/character_animation_system.hpp"
 #include "engine/animation/lve_animator_system.hpp"
 #include "engine/animation/lve_animation_library.hpp"
 #include "engine/physics/lve_physics_system.hpp"
@@ -156,5 +157,7 @@ namespace lve {
             CameraRigSystem cameraRigSystem{};
             //relógio das animações do Play
             AnimatorSystem animatorSystem{};
+            //qual animação o personagem toca (parado, andando, correndo, no ar)
+            CharacterAnimationSystem characterAnimationSystem{};
     };
 }

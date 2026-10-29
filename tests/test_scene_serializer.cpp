@@ -102,6 +102,7 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     player.character.emplace();
     player.character->moveSpeed = 6.f;
     player.character->jumpSpeed = 7.f;
+    player.character->runSpeed = 8.f;
 
     LveGameObject &rig = original.createGameObject();
     rig.cameraRig.emplace();
@@ -127,6 +128,12 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     visual.animator->speed = 1.5f;
     visual.animator->loop = false;
     visual.animator->time = 2.f;  //estado: não vai pro arquivo
+    visual.characterAnimation.emplace();
+    visual.characterAnimation->idle = "idle_01";
+    visual.characterAnimation->walk = "walking_01";
+    visual.characterAnimation->run = "running_01";
+    visual.characterAnimation->jump = "jump_01";
+    visual.characterAnimation->fadeTime = 0.35f;
 
     std::string path = tempScenePath("ge_test_componentes.json");
     saveScene(original, path);
@@ -144,6 +151,7 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     REQUIRE(p.character.has_value());
     CHECK(p.character->moveSpeed == doctest::Approx(6.f));
     CHECK(p.character->jumpSpeed == doctest::Approx(7.f));
+    CHECK(p.character->runSpeed == doctest::Approx(8.f));
     CHECK_FALSE(p.camera.has_value());
 
     LveGameObject &r = *loaded.findGameObjectById(rig.getId());
@@ -171,6 +179,12 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     CHECK(v.animator->speed == doctest::Approx(1.5f));
     CHECK_FALSE(v.animator->loop);
     CHECK(v.animator->time == doctest::Approx(0.f));
+    REQUIRE(v.characterAnimation.has_value());
+    CHECK(v.characterAnimation->idle == "idle_01");
+    CHECK(v.characterAnimation->walk == "walking_01");
+    CHECK(v.characterAnimation->run == "running_01");
+    CHECK(v.characterAnimation->jump == "jump_01");
+    CHECK(v.characterAnimation->fadeTime == doctest::Approx(0.35f));
 }
 
 TEST_CASE("cena: campo que falta no arquivo fica com o padrão do componente") {

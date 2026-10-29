@@ -192,6 +192,7 @@ set(ENGINE_SOURCES
     src/engine/physics/lve_physics_system.cpp
     src/engine/gameplay/character_controller_system.cpp
     src/engine/gameplay/camera_rig_system.cpp
+    src/engine/gameplay/character_animation_system.cpp
     src/engine/animation/lve_animation.cpp
     src/engine/animation/lve_gltf_animation.cpp
     src/engine/animation/lve_animation_file.cpp

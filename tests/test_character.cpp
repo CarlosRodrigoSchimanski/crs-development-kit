@@ -39,9 +39,20 @@ TEST_CASE("personagem anda na direção pedida com a velocidade dele") {
 
     simulate(scene, input, 1.f);
 
-    //moveSpeed padrão = 4 por segundo
-    CHECK(player.transform.translation.z == doctest::Approx(4.f).epsilon(0.01));
+    CHECK(player.transform.translation.z == doctest::Approx(CharacterComponent{}.moveSpeed).epsilon(0.01));
     CHECK(player.transform.translation.x == doctest::Approx(0.f));
+}
+
+TEST_CASE("correndo (Shift) usa a velocidade de corrida") {
+    LveScene scene;
+    LveGameObject &player = addCharacter(scene);
+    CharacterInput input;
+    input.moveDirection = {0.f, 0.f, 1.f};
+    input.run = true;
+
+    simulate(scene, input, 1.f);
+
+    CHECK(player.transform.translation.z == doctest::Approx(CharacterComponent{}.runSpeed).epsilon(0.01));
 }
 
 TEST_CASE("andar na diagonal não fica mais rápido") {
@@ -53,7 +64,7 @@ TEST_CASE("andar na diagonal não fica mais rápido") {
     simulate(scene, input, 1.f);
 
     glm::vec2 walked{player.transform.translation.x, player.transform.translation.z};
-    CHECK(glm::length(walked) == doctest::Approx(4.f).epsilon(0.01));
+    CHECK(glm::length(walked) == doctest::Approx(CharacterComponent{}.moveSpeed).epsilon(0.01));
 }
 
 TEST_CASE("sem intenção de movimento o personagem para") {

@@ -86,7 +86,8 @@
                 ]
             },
             "character": {
-                "moveSpeed": 4.0,
+                "moveSpeed": 1.6,
+                "runSpeed": 5.0,
                 "jumpSpeed": 5.0
             }
         },
@@ -122,6 +123,13 @@
             "faceMovement": {
                 "turnSpeed": 20.943951,
                 "yawOffset": 0.0
+            },
+            "characterAnimation": {
+                "idle": "idle_01",
+                "walk": "walking_01",
+                "run": "running_01",
+                "jump": "jump_01",
+                "fadeTime": 0.2
             },
             "animator": {
                 "clip": "idle_01",

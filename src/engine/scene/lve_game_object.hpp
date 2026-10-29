@@ -31,7 +31,8 @@ namespace lve {
     //personagem controlavel: anda pela intenção de movimento
     struct CharacterComponent
     {
-        float moveSpeed = 4.f; //unidade por segundo
+        float moveSpeed = 1.6f; //andando (unidade por segundo)
+        float runSpeed = 5.f;   //correndo (Shift)
         float jumpSpeed = 5.f; //velocidade inicial do pulo
     };
 
@@ -57,6 +58,31 @@ namespace lve {
         float speed = 1.f;        //1 = velocidade normal
         bool loop = true;         //recomeça ao chegar no fim
         uint32_t boneOffset = 0;  //onde as matrizes dos ossos deste objeto começam no buffer do frame (o SkinningSystem preenche)
+
+        //transição: a animação anterior continua tocando e some aos poucos (estado do momento: não é salvo)
+        std::string previousClip{};
+        float previousTime = 0.f;
+        bool previousLoop = true;
+        float fadeDuration = 0.f;  //0 = sem transição
+        float fadeElapsed = 0.f;
+
+        //troca de animação misturando com a atual por fadeSeconds; a mesma que já toca não recomeça
+        //(é a função que os scripts Python vão chamar)
+        void play(const std::string &name, float fadeSeconds = 0.2f, bool loopClip = true);
+        //está no meio de uma transição
+        bool isBlending() const;
+        //quanto vale a animação nova na mistura: 0 = só a anterior, 1 = só a nova
+        float blendWeight() const;
+    };
+
+    //qual animação o visual do personagem toca em cada situação (vazio = a primeira da lista)
+    //provisório: quando tiver scripts, essa escolha vira Python chamando animator.play()
+    struct CharacterAnimationComponent {
+        std::string idle{};
+        std::string walk{};
+        std::string run{};
+        std::string jump{};      //no ar (pulando ou caindo): toca uma vez, sem loop
+        float fadeTime = 0.2f;   //duração da transição (segundos)
     };
 
     struct TransformComponent {
@@ -111,6 +137,7 @@ namespace lve {
             std::optional<CameraRigComponent> cameraRig{};
             std::optional<FaceMovementComponent> faceMovement{};
             std::optional<AnimatorComponent> animator{};
+        std::optional<CharacterAnimationComponent> characterAnimation{};
 
 
         private:
