@@ -620,6 +620,16 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    carregado; streaming evita até carregar o que está muito longe. As duas
    técnicas são necessárias juntas pra um mundo aberto de verdade (nenhuma
    substitui a outra).
+   LOD de modelos (decidido 2026-10-29): híbrido.
+   - Automático por padrão: ao importar, a engine gera os níveis simplificando a malha
+     (biblioteca meshoptimizer, a mesma que o Godot 4 usa). Bom pra pedras, props, prédios.
+   - Manual quando o automático estragar: níveis feitos no Blender dentro do mesmo .glb
+     (ex: nomes Arvore_LOD0, Arvore_LOD1...) substituem os gerados.
+   - Último nível pra vegetação: impostor (billboard) — a engine fotografa o modelo de vários
+     lados numa textura (o mesmo "desenhar fora da tela" das miniaturas do navegador de assets)
+     e desenha em 2 planos cruzados; versão melhor depois: impostor octaédrico.
+     Árvores precisam disso porque simplificar folhas (planos finos) deixa a copa rala.
+   - Troca de nível pelo tamanho na tela, com mistura (dither) pra não "estalar".
 
 10. Editor de terreno dentro da própria engine (opcional, avançado) — só faz
     sentido depois dos itens 3 (modo editor já existe) e 4 (terreno já existe).
