@@ -480,6 +480,16 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    applyRotation local/global e os outros componentes (rigidBody, camera, luz).
    Próximo (passo 3): script como componente do objeto, classe com start(args)/update() rodando
    no Play, args editáveis no painel do editor, e o tempo gasto por script.
+   Pedido do usuário pro passo 3 (2026-10-30):
+   - pasta própria dos componentes: assets/components/ (um .py pode ter um ou mais componentes);
+   - no painel do objeto selecionado: "Add Component" (lista as classes achadas na pasta) e
+     "Generate Component" (cria um .py novo já com o modelo: classe, args, start, update);
+   - IMPORTS TÊM QUE FUNCIONAR: no UPBGE dividir o código em outro arquivo e importar no
+     componente não funcionava, e era tudo dentro do componente ou nada. Aqui: a pasta dos
+     componentes (e assets/scripts/) entra no sys.path, então "import utils" ou
+     "from comum.matematica import x" funcionam como num projeto Python normal. E ao dar Play,
+     os módulos do projeto são descartados do sys.modules, pra edição num arquivo importado valer
+     sem fechar a engine (o outro motivo clássico de "mudei e não mudou").
 3.4. Scripts Python como componentes de objeto (anotado 2026-10-25, pedido do usuário) — o
    mesmo modelo do KX_PythonComponent do UPBGE: uma classe Python presa a um objeto, com
    start(args) e update(), e os "args" (sensibilidade do mouse, inverter eixo, limitar
@@ -682,3 +692,24 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
     costura visível entre pedaços de terreno editados isoladamente em arquivos
     separados. Alternativa mais barata: esculpir no Blender e importar, aceitando
     a fricção extra — válido se esse editor nunca virar prioridade.
+
+11. Projetos (longo prazo, versão 2.0/3.0 — pedido do usuário 2026-10-30) — a engine abre
+    PROJETOS: cada projeto é uma pasta com o próprio assets/ (modelos, sons, texturas, cenas,
+    scripts e componentes Python) e um arquivo de projeto (nome, cena inicial, configurações).
+    Abrir um projeto = tudo passa a ser lido da pasta dele (o sys.path do Python também).
+    "Novo projeto": escolhe uma pasta e a engine monta a estrutura inteira dentro dela
+    (assets/{models,sounds,textures,scenes,scripts,components}, arquivo de projeto, cena vazia
+    com câmera e luz). O projeto atual (o de exemplo da engine) não precisa disso agora.
+    Projeto de exemplo (pedido do usuário 2026-10-30): o instalador da engine cria
+    automaticamente o projeto de exemplo (o de hoje: personagem, câmera, animações, scripts),
+    pra quem está aprendendo abrir e ver como um projeto deve ser. Ele é instalado como um
+    projeto comum, numa pasta do usuário (ex: Documentos/CRSDK/Exemplo), não dentro da pasta
+    da engine: assim pode ser mexido à vontade, e reinstalar/atualizar a engine não apaga o que
+    a pessoa mudou. Bom ter: "Restaurar projeto de exemplo" no menu, que cria uma cópia nova.
+    Cuidados a tomar desde já, pra não ter que desfazer depois:
+    - caminhos de asset relativos à raiz do projeto, nunca absolutos (a cena salva já usa
+      "assets/..."; hoje os caminhos fixos ficam só no first_app.cpp);
+    - separar o que é da ENGINE (assets/editor: gizmos de câmera/empty, shaders, o crsdk.pyi)
+      do que é do PROJETO: os da engine ficam do lado do .exe e servem pra todo projeto;
+    - quando chegar a hora, os caminhos passam por um lugar só (ex: project.path("models/x.glb"))
+      em vez de cada arquivo montar o próprio "assets/...".
