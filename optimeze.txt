@@ -630,6 +630,22 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      e desenha em 2 planos cruzados; versão melhor depois: impostor octaédrico.
      Árvores precisam disso porque simplificar folhas (planos finos) deixa a copa rala.
    - Troca de nível pelo tamanho na tela, com mistura (dither) pra não "estalar".
+   Paisagem de longe (objetivo do usuário, 2026-10-29): do castelo/vila no alto da cordilheira, olhar
+   o desfiladeiro e ver um cenário bonito e "completo" (como Anor Londo no Dark Souls ou o avião no
+   GTA V), feito de ilusão barata. Técnicas, da mais simples à mais trabalhosa:
+   - Perspectiva aérea (não é névoa de guerra): o longe fica mais claro e azulado pela atmosfera;
+     é o que dá sensação de escala. Um ajuste no shader, barato.
+   - Terreno de longe: pedaços distantes com bem menos pontos; o além-desfiladeiro pode ser só isso.
+   - Grama longe = ruído no shader do terreno (item 4.3); árvores longe = impostores; floresta
+     inteira longe = poucos impostores grandes.
+   - HLOD (LOD hierárquico): muitos objetos longe (uma vila, o castelo visto de baixo) viram UMA
+     malha simplificada só, com uma textura; a Unreal faz assim no World Partition, o GTA tem os
+     "SLOD". Uma chamada de desenho no lugar de centenas.
+   - Cenário de fundo (backdrop): o que NUNCA dá pra alcançar (montanhas além do mapa) é só uma
+     malha de fundo ou o céu pintado — nunca tem versão "de verdade".
+   - À noite: luzes de cidade longe viram pontinhos brilhantes (sprites), sem luz de verdade.
+   Regra: o que dá pra alcançar tem a cadeia de LOD completa e volta a ficar real ao chegar perto
+   (streaming carrega antes de chegar, com folga pra queda rápida); o que não dá, é só fundo.
 
 10. Editor de terreno dentro da própria engine (opcional, avançado) — só faz
     sentido depois dos itens 3 (modo editor já existe) e 4 (terreno já existe).
