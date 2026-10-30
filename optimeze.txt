@@ -518,6 +518,15 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
         LONGE (ideia do usuário): troca as folhas por um ruído/tom de grama no próprio shader do
         terreno, onde a densidade diz que tem grama — mantém a aparência sem o peso dos objetos;
         a passagem perto->longe se mistura aos poucos (sem linha visível).
+        Referência (vídeo sobre florestas da Ubisoft, visto pelo usuário em 2026-10-29): em 4K o
+        "pop" de grama surgindo do nada é muito visível, porque sem névoa densa dá pra ver longe.
+        Por isso o ruído JÁ está lá antes (mesma densidade e cor da grama) e a grama vai entrando
+        no lugar dele aos poucos — o olho vê "a mesma coisa ficando mais detalhada", não algo
+        aparecendo. Detalhes pra fazer a troca sumir:
+        - o ruído usa o MESMO mapa de densidade e a mesma cor média das folhas;
+        - folhas entram crescendo do chão (escala 0 -> 1) ou por dither, nunca de uma vez;
+        - quanto mais longe, menos folhas e mais largas (afinar a densidade com a distância);
+        - a distância de troca depende da resolução/qualidade gráfica (4K pede mais longe).
    Ordem: 4.1 -> 4.2 -> 4.3 (a pintura pinta no terreno; a grama usa o pincel e a altura).
    Combinado: Python (3.4) antes, terreno logo depois.
 
