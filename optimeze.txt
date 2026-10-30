@@ -1,545 +1,136 @@
-Lista de otimização/revisão para o fim do projeto
-(cada item aqui é uma CATEGORIA de coisa a procurar no código todo, não um bug específico)
-
-Ordem pensada pra evitar corrigir uma coisa (ex: ponteiros pendurados) e só depois mexer
-em algo estrutural (ex: simplificação, reorganização de dados) que acabe reintroduzindo o
-mesmo tipo de problema. Por isso: primeiro a reorganização puramente mecânica de arquivos
-(Fase 0, não muda comportamento nenhum), depois as mudanças mais invasivas/estruturais de
-código (Fase 1 e 2), depois a varredura de segurança/correção como último filtro antes de
-dar o projeto por otimizado (Fase 3), e só então as configurações finais de build (Fase 4).
+Roteiro da CRS Development Kit: o que já foi feito (resumido), o que falta e as decisões
+Itens feitos ficam numa linha só (os detalhes estão no git). Pendentes mantêm a descrição
+completa, porque guardam decisões que ainda valem. Os números dos itens não mudam.
 
 ===============================================================================
->>> PONTO DE PARADA (2026-10-13) <<<
+>>> PRÓXIMO MARCO: release 0.1 <<<
 ===============================================================================
-Fase 0 concluída. Fase 1 (passada geral de simplificação) CONCLUÍDA no código C++
-(2026-10-13), um subsistema por vez; a partir de model/texture, uma sugestão por vez,
-usuário aprova, um commit cada.
-  ✅ engine/core (window, device, utils)
-  ✅ engine/rendering: swap chain + renderer (inclui o fix do semáforo, item 15/M4)
-  ✅ engine/rendering: pipeline + buffer + descriptors
-  ✅ engine/rendering: model + texture + shadow_map + camera (2026-10-13; feito uma
-     sugestão por vez, um commit cada; shadow_map revisado e sem mudança)
-  ✅ engine/rendering/systems (2026-10-13; inclui 2 bugs: luzes à mesma distância sumiam
-     no std::map, e o limite MAX_LIGHTS só era checado por assert)
-  ✅ engine/scene, editor, app (2026-10-13; rotação das luzes da demo removida — animação
-     de gameplay vai vir de script no futuro)
-  ✅ shaders GLSL + CMakeLists.txt (2026-10-14; GlobalUbo num include único
-     shaders/global_ubo.glsl; /W4 no código do projeto com zero avisos; implementação das
-     libs só-header em src/engine/third_party_impl.cpp). Filtro usado: não mexer no que
-     uma fase seguinte já vai reescrever (iluminação -> PBR, pointLight[10] -> M9, libs -> M7).
-
-ORDEM DAS FASES SEGUINTES (decidida 2026-10-14, aplicando o mesmo filtro do "não mexer
-no que vai ser reescrito" — muda a ordem do roadmap 2.2, que punha a Fase 2 inteira antes):
-  ✅ Fase 2, itens 4 (staging) e 8 (pipelines criados antes do loop): conferidos, já certos
-  -- Fase 2, itens 5/6/7 (layout, batching, culling): esperam cena grande pra medir
-  -- Fase 2, item 9: só revisitar se aparecer por frame
-  ✅ M7  bibliotecas (2026-10-14: OBJ removido, stb fixado)
-  ✅ M1  Vulkan 1.3 (2026-10-14; dynamicRendering e synchronization2 já ligados no device)
-  ✅ M2 + M3 (2026-10-14; em 4 passos A-D, cada um testado com a validação de sincronização
-     ligada — VK_KHRONOS_VALIDATION_VALIDATE_SYNC=1 — e o último também redimensionando a janela)
-  ✅ M5  VMA (2026-10-14; v3.4.0; buffers e imagens; detector de vazamento conferido)
-  ✅ M6  uploads agrupados (2026-10-14; CrsUploadBatch: modelo inteiro em 1 envio; pronto pro
-     scene manager subir uma cena inteira num lote só)
-  ✅ M9  luzes em SSBO (2026-10-14; storage buffer por frame, cresce sozinho; conferido por
-     comparação de print antes/depois)
-  ✅ Fase 2, item 10 (2026-10-14; via camada de plataforma engine/platform)
-  ✅ Fase 3 (filtro final), concluída 2026-10-14, uma sugestão por vez:
-     ✅ glTF validado (cgltf_validate) e liberado por RAII (item 13)
-     ✅ esperar a GPU num lugar só: DeviceIdleGuard no FirstApp::run (item 12)
-     ✅ handles RAII (engine/core/crs_handle): textura, shadow map, swap chain, pipelines,
-        descriptors, ImGui e device sem destrutor manual de handle (item 14)
-     ⏭ materialSets por endereço de textura (item 11): vira requisito do scene manager (roadmap 2.3)
-     ✅ VkResult: vkCheck nas chamadas do jogo rodando; map/flush lançam exceção (item 13)
-     ✅ um contador de frame só (o do CrsRenderer; a swap chain recebe o índice)
-  >> PRÓXIMO: Fase 4 (LTO, NDEBUG) fica pro fim do projeto, por definição. A revisão
-     (Fases 0-3) terminou: dá pra seguir o roadmap (2.3 scene manager, 3 câmera de jogo...).
+O ciclo completo já existe (editor -> componentes Python -> Play). Falta pra 0.1:
+  - Build Release com LTO (Fase 4, item 16) e NDEBUG sem validation layers (item 17)
+  - Python 3.12 "embeddable" (zip oficial) ao lado do .exe: hoje a engine usa o Python
+    instalado no Windows e não abre em PC sem ele. Subir o Python = subir o pybind11 junto.
+  - Pasta de saída (install do CMake): .exe + assets/ + shaders/ compilados + Python
+  - Teste num PC limpo (sem Python e sem Vulkan SDK)
+  - Antes: tirar o provisório que sobrou (o assets/scripts/ola.py rodando ao abrir a engine)
 
 ===============================================================================
-FASE 0 — Reorganização estrutural de arquivos (fazer antes de tudo)
+FEITO (resumo)
 ===============================================================================
+Revisão do código herdado do tutorial (2026-10-12 a 10-14):
+  ✅ Fase 0: pastas por responsabilidade (app, editor, engine/...); engine/ nunca inclui editor/app
+  ✅ Fase 1: passada de simplificação em todo o C++, shaders e CMake (/W4 sem avisos);
+     #define de constante -> constexpr
+  ✅ Fase 2: staging buffer conferido (vértice, índice, textura); pipelines criados antes do loop;
+     desenhar durante o arrasto de redimensionar no Windows (refresh callback)
+  ✅ Fase 2B: Vulkan 1.3, dynamic rendering, synchronization2, semáforo por imagem da swap chain,
+     VMA, uploads agrupados (CrsUploadBatch), luzes em SSBO, OBJ removido e stb fixado,
+     defines do GLM centralizados no CMake
+  ✅ Fase 3: glTF validado e liberado por RAII, esperar a GPU num lugar só (DeviceIdleGuard),
+     handles RAII (crs_handle), vkCheck nos VkResult, um contador de frame só
 
-1. ✅ Separar em pastas por responsabilidade (concluído 2026-10-12): src/{app, editor,
-   engine/{core, rendering/systems, scene}}; includes escritos a partir de src/; regra:
-   engine/ nunca inclui editor/, game/ ou app/. Junto: projeto entrou no git, com
-   .gitattributes (repo em LF, checkout nativo) — assets grandes fora até ter Git LFS.
-   (texto original do item abaixo, mantido pra referência)
-   - Hoje todo arquivo (crs_device.cpp, crs_model.cpp, first_app.cpp, etc.) fica solto
-     na raiz do projeto, seguindo o estilo do tutorial (feito assim por simplicidade
-     pedagógica, já que é um projeto pequeno de aprendizado — não é convenção do C++
-     nem limitação da linguagem).
-   - Pra um projeto maior (o RPG de verdade), faz sentido separar por pasta/responsabilidade,
-     parecido com o que engines de produção fazem (ex: Unreal com Source/Runtime/{Core,
-     RenderCore, Engine,...}, Godot com core/, scene/, servers/...). Sugestão de divisão
-     inicial: engine/ (classes Lve* genéricas, reaproveitáveis em qualquer jogo) vs.
-     game/ (lógica específica do RPG: combate, inventário, etc.), com subpastas por
-     subsistema (rendering/, physics/, etc.) conforme cada uma crescer.
-   - Fazer essa reorganização PRIMEIRO, antes de qualquer outra fase: é uma mudança
-     puramente mecânica (mover arquivo, ajustar #include e caminhos no CMakeLists.txt),
-     sem alterar lógica nenhuma — o menor risco possível de introduzir um bug novo. Com
-     a estrutura já limpa, fica mais fácil revisar as fases seguintes organizadas por
-     subsistema, em vez de vasculhar uma pasta única com dezenas de arquivos misturados.
-
-===============================================================================
-FASE 1 — Simplificação estrutural (fazer depois da Fase 0)
-===============================================================================
-
-2. Diretriz de estilo: simplificar tudo que puder, mesmo onde eu segui o tutorial à risca
-   - Já aconteceu várias vezes: meu código chega no mesmo resultado (semanticamente
-     equivalente) do tutorial usando menos estrutura — ex: valor padrão em vez de dois
-     construtores sobrecarregados + "Extract Method" (função init() separada). Ambos
-     obedecem DRY, só que por caminhos diferentes.
-   - Isso vale nos dois sentidos: tanto pra manter as partes onde eu já simplifiquei
-     (não "corrigir" pra bater 1:1 com o vídeo só por bater), quanto pra revisar as
-     partes onde eu segui o padrão dele exatamente como está — porque, com pouca
-     experiência, eu não consigo sempre perceber na hora se aquela complexidade
-     (função extra, sobrecarga, indireção) é necessária ou se é só o jeito dele
-     organizar, sem necessidade real.
-   - Instrução pra revisão final: passar por TODO o projeto (não só onde eu já
-     desviei) procurando trechos que fazem a mesma coisa com menos código/estrutura, e
-     simplificar. Só manter a versão mais complexa se ela resolver algo de verdade
-     (funcionalidade ou bug real) que a versão simples não resolveria — não por ser
-     "o jeito do tutorial".
-   - Fazer essa passada ANTES da Fase 3 (ponteiros/RAII/destruição), já que reescrever
-     código é exatamente o tipo de mudança que pode reintroduzir um dangling pointer ou
-     quebrar uma ordem de destruição sem querer.
-
-3. Macro de pré-processador onde um constexpr/const resolveria melhor
-   - Bug já identificado: MAX_LIGHTS (crs_frameInfo.hpp) foi declarado como
-     "#define MAX_LIGHTS 10" dentro de "namespace lve { ... }". Isso funciona, mas é
-     enganoso: #define é processado pelo pré-processador, que não entende chaves de
-     namespace — a macro vira global no arquivo (e em qualquer outro que incluir esse
-     header), não "lve::MAX_LIGHTS" como as chaves sugerem visualmente. Só não deu
-     problema ainda porque nenhum outro lugar do projeto usa esse nome.
-   - Instrução pra revisão final: procurar todo #define usado como constante (não como
-     inclusão condicional de header, esse uso é legítimo) e trocar por
-     "constexpr int MAX_LIGHTS = 10;" (ou equivalente) — isso sim respeita namespace de
-     verdade, tem tipo, e aparece no debugger/autocomplete do jeito que uma macro nunca
-     aparece.
+Roadmap:
+  ✅ 1    Tutorial do Galea (até especular + alpha blending), câmera orbital, ImGui, limitador de FPS
+  ✅ 1.1  Texturas (CrsTexture)
+  ✅ 1.2  Sombra do sol (shadow map + PCF 3x3)
+  ✅ 2    Carregador glTF (.glb) com textura por material
+  ✅ 2.1  Caixa da sombra seguindo a câmera (sem tremer)
+  ✅ 2.2  Revisão completa antes do Play (as Fases 0-3 acima)
+  ✅ 3    Cena (CrsScene), câmera de jogo como objeto, Play no editor (P / tecla à esquerda do 1),
+          física simples com gravidade e colisão de caixa
+  ✅ 3.1  Seleção por clique, setas de mover/girar/escalar (ImGuizmo), outliner, painel de propriedades
+  ✅ 3.2  Cursor capturado no Play
+  ✅ 3.3  Câmera em terceira pessoa (rig personagem -> pivô -> câmera, colisão com paredes e chão),
+          visual do personagem virando pra direção do movimento, animação idle/andar/correr/cair
+  ✅ 3.4  Python: 3.12 embutido com pybind11; API "crsdk" (camelCase) com referência .pyi em
+          assets/scripts/crsdk/; componentes (crsdk.Component com start(args)/update()) salvos na
+          cena com args por objeto; imports entre arquivos funcionando (assets/components e
+          assets/scripts no sys.path, Play esquece os módulos); erro tira só o componente;
+          editor com Add/Generate Component, args no painel e tempo de cada componente.
+          Nos testes, o Python é um só (religar o interpretador corrompia a memória)
+  ✅ 5    Animação esquelética (skinning na GPU) com transição entre clipes
+  ✅ 5.1  Eixos iguais ao glTF/Blender (Y pra cima, câmera olha pro -Z, frente = +Z)
+  ✅ 5.0  Salvar/carregar cena em JSON (scene_serializer), ids estáveis, menu Arquivo,
+          Abrir/Salvar como pela janela do sistema, Importar .glb, Adicionar (Shift+A),
+          vista da câmera do editor em <cena>.editor.json
 
 ===============================================================================
-FASE 2 — Otimizações de performance/arquitetura (mudanças mais aditivas)
+PENDENTE — revisão (regras que continuam valendo pra código novo)
 ===============================================================================
+2. Diretriz de estilo: simplificar tudo que puder. Manter a versão mais complexa só se ela
+   resolver algo de verdade (funcionalidade ou bug real), não por ser "o jeito do tutorial".
+   Simplificar ANTES da varredura de segurança (reescrever pode reintroduzir dangling pointer).
 
-4. Auditoria de staging buffer (otimização de memória)
-   - Critério: buffers escritos UMA VEZ (ou raramente) e lidos MUITAS VEZES pela GPU
-     (vertex buffer, index buffer, malha estática) deveriam usar staging buffer +
-     copyBuffer pra ficar em memória DEVICE_LOCAL (mais rápida pra GPU ler).
-   - Buffers escritos TODO FRAME pela CPU (ex: um futuro uniform buffer de câmera que
-     muda a cada frame) devem continuar em HOST_VISIBLE direto — staging não ajuda
-     nesse caso, só adiciona uma cópia extra sem necessidade.
-   - Já conferidos: createVertexBuffers (✅ usa staging), createIndexBuffers (✅ usa staging).
-   - ✅ Conferido de novo em 2026-10-14: textura também usa staging (CrsBuffer); o UBO,
-     escrito todo frame, fica em HOST_VISIBLE com flush — tudo dentro do critério.
-   - Conferir também qualquer buffer novo que aparecer depois (uniform buffers,
-     texturas, instance data, etc.) contra esse mesmo critério.
+Fase 2 — performance (esperam cena grande pra medir):
+5. Layout de dados: estruturas compactas e contíguas em vez de objetos com muitos campos sem uso.
+6. Batching: agrupar objetos do mesmo pipeline/material em vez de uma chamada de desenho cada.
+7. Culling (frustum/occlusion): descartar o que está fora da câmera ou escondido.
+9. Redundância aceitável (ex: findQueueFamilies várias vezes na inicialização): só revisitar se
+   algo parecido aparecer rodando por frame.
+10. Limite que ficou do redimensionar no Windows: segurar a borda parada ou MOVER a janela pela
+   barra de título ainda congela e pausa o jogo (loop modal do Windows). Solução definitiva:
+   thread de render separada da de eventos; meio-termo só Windows: WM_TIMER durante o loop modal
+   (crs_platform_windows.cpp). Fazer quando o jogo/editor precisar rodar sem pausar.
+   Toda textura/buffer novo: conferir contra o critério de staging (escrito uma vez e lido muito
+   = DEVICE_LOCAL com staging; escrito todo frame = HOST_VISIBLE direto).
 
-5. Layout de dados (cache-friendliness)
-   - Preferir estruturas de dados compactas e contíguas em vez de objetos genéricos com
-     muitos campos não usados (a lição da comparação UPBGE vs. engine sob medida).
+Fase 3 — varredura de segurança (repetir no código novo antes de cada release):
+11. Ponteiros pendurados: struct que guarda ponteiro pra um campo dele mesmo e é copiado.
+    PENDENTE de verdade: SimpleRenderSystem::materialSets usa o ENDEREÇO da CrsTexture como chave;
+    com descarregar cena, o set aponta pra image view destruída e uma textura nova no mesmo
+    endereço herda o set velho. O pool de materiais (MAX_MATERIALS = 100) nunca devolve sets.
+    Resolver no scene manager (2.3).
+12. Ordem de destruição: o inverso exato da criação em cada destrutor.
+13. Vazamentos: todo vkCreate/vkAllocate com o destroy/free; caminho de erro (throw) sem deixar
+    recurso criado sem limpar; entrada não confiável validada.
+14. RAII: todo recurso novo segue o padrão (sem new/malloc solto).
 
-6. Batching de draw calls
-   - Agrupar objetos que usam o mesmo pipeline/material em vez de emitir uma chamada de
-     desenho separada pra cada um.
-
-7. Culling (frustum/occlusion)
-   - Quando a cena tiver muitos objetos, conferir se objetos fora da câmera/escondidos
-     atrás de outros estão sendo descartados antes de desenhar.
-
-8. ✅ (conferido 2026-10-14: os 3 sistemas e o ImGui criam o pipeline no construtor,
-   antes do loop) Stutter de compilação de pipeline/shader
-   - Garantir que todo VkPipeline necessário é criado antecipadamente (carregamento/início),
-     nunca na primeira vez que é usado durante o gameplay de verdade.
-
-9. Redundância de cálculo aceitável hoje, revisar se virar hot path
-   - Ex: findQueueFamilies rodando mais de uma vez na inicialização (pickPhysicalDevice,
-     createLogicalDevice, createCommandPool). Não otimizar agora, só revisitar se algo
-     parecido aparecer rodando por frame, não só na inicialização.
-
-10. ✅ (feito 2026-10-14) Desenhar durante o arrasto de redimensionamento (Windows)
-   - Feito: refresh callback da CrsWindow + lambda drawFrame no FirstApp::run, ligado só onde
-     platform::needsRedrawDuringResize(); e o beginFrame passou a tentar adquirir de novo
-     depois de recriar a swap chain (era o motivo real do congelamento).
-   - LIMITES que ficaram (revisitar):
-     * só sai frame quando o tamanho muda: segurar a borda parada, ou MOVER a janela pela
-       barra de título (também é loop modal do Windows), ainda congela e pausa o jogo.
-       Solução definitiva: thread de render separada da thread de eventos (Unreal/Unity);
-       meio-termo só Windows: WM_TIMER durante o loop modal, no crs_platform_windows.cpp.
-       Fazer quando o jogo/editor precisar rodar sem pausar.
-     * ✅ (2026-10-19) drawFrame virou método do FirstApp; o refresh callback é [this]{ drawFrame(); }.
-     * frames do refresh callback não passam pelo limitador de FPS (inofensivo).
-   (texto original do item abaixo)
-   - No Windows, o SO trava o loop principal (glfwPollEvents) durante o arrasto de
-     redimensionar a janela — drawFrame() não roda até soltar o mouse, então a imagem
-     "congela" durante o arrasto (só atualiza no final). No Linux/macOS isso normalmente
-     não acontece, porque o loop de eventos deles não bloqueia da mesma forma.
-   - Correção: chamar drawFrame() (ou equivalente) de dentro do próprio
-     framebufferResizedCallback, já que esse callback continua sendo chamado pelo SO
-     mesmo com o loop principal travado.
-   - Exige dar a CrsWindow uma forma de acionar FirstApp::drawFrame() sem quebrar a
-     separação engine/jogo (hoje CrsWindow não conhece FirstApp de propósito) — por
-     exemplo, guardando um std::function/callback que FirstApp registra.
-   - Confirmado que não atrapalha portabilidade pra Linux: o mecanismo em si (GLFW +
-     Vulkan) é multiplataforma; no Linux só ficaria redundante (desenha um pouco mais
-     que o necessário durante o resize), sem quebrar nada.
+Fase 4 — build de produção (agora vem na release 0.1):
+16. LTO (Link-Time Optimization) no Release: recupera o inlining entre .cpp diferentes, que a
+    separação declaração/.cpp abre mão por padrão.
+17. NDEBUG no Release: desliga as validation layers (enableValidationLayers) e os assert().
 
 ===============================================================================
-FASE 2B — Modernização (o tutorial tem 4+ anos e simplifica de propósito)
+PENDENTE — roadmap (o que construir, rumo ao RPG de ação)
 ===============================================================================
+A ordem segue dependência real (o que precisa existir antes), não "o que é mais legal fazer
+primeiro", e está aberta a mudar conforme o projeto andar.
 
-Itens confirmados no código em 2026-10-12. Fica ANTES da Fase 3 porque são mudanças
-invasivas (reescrevem criação de recurso, sincronização e render pass) — exatamente o
-tipo de coisa que a varredura de ponteiros/RAII/destruição precisa revisar depois.
+Pendências pequenas do que já foi feito:
+  - Texturas: mipmaps, anisotropia
+  - glTF: vários materiais por modelo, normal map (precisa de tangentes), PBR, imagens externas
+    (.gltf + arquivos separados: hoje ignoradas sem aviso), nó com escala negativa inverte os
+    triângulos. No PBR: o especular hoje é tingido pela cor do objeto (fisicamente errado).
+  - Sombra: cascaded shadow maps (mundo aberto), PCSS (penumbra variável), sombra de point light
+  - Cena: lembrar a última cena aberta ao iniciar
+  - Python: CharacterInput na API (hoje o app monta o movimento em C++), applyRotation
+    local/global, os outros componentes (rigidBody, camera, luz). Ideias do template Character
+    Controller pro controlador: pulo duplo (número máximo de pulos), pulo com direção travada,
+    suavização do movimento (lerp da velocidade). Direção relativa à câmera (terceira pessoa) ou
+    à rotação do personagem (primeira pessoa): os dois modos, o script escolhe
 
-M1. ✅ (feito 2026-10-14) Versão da API: appInfo.apiVersion = VK_API_VERSION_1_0 (crs_device.cpp). A GPU
-    (RTX 5060) e o SDK (1.4) suportam 1.3+; subir pra 1.3 libera os itens M2 e M3 como
-    recursos do core, sem extensão.
-
-M2. ✅ (feito 2026-10-14) Dynamic rendering (core no 1.3) no lugar de VkRenderPass + VkFramebuffer
-    - Swap chain, shadow map e ImGui hoje criam render pass/framebuffer à moda antiga.
-      Com dynamic rendering o passe é aberto direto com vkCmdBeginRendering, apontando
-      as imagens na hora — some boa parte do código de render pass/framebuffer e de
-      recriação na troca de tamanho da janela.
-
-M3. ✅ (feito 2026-10-14) Synchronization2 (core no 1.3): vkCmdPipelineBarrier2 / vkQueueSubmit2, com
-    estágios e acessos declarados juntos (mais legível, menos erro). Junto com M2, as
-    barreiras de layout que hoje vivem nas subpass dependencies viram barreiras explícitas.
-
-M4. ✅ (resolvido 2026-10-12 na Fase 1, ver item 15) Semáforo por imagem da swap chain (= item 15 da Fase 3, aviso real no console).
-    Resolver junto com M2/M3, já que mexe no mesmo fluxo de frame.
-
-M5. ✅ (feito 2026-10-14: VMA v3.4.0; ao fechar, a VMA acusa qualquer alocação não
-    devolvida — testar fechando pelo X, não matando o processo) Alocação de memória: hoje cada buffer/imagem faz o próprio vkAllocateMemory
-    (createBuffer/createImageWithInfo). O Vulkan limita o número de alocações
-    (maxMemoryAllocationCount, tipicamente 4096) e alocar é caro — o certo é poucas
-    alocações grandes subdivididas. Solução padrão: VMA (Vulkan Memory Allocator).
-
-M6. ✅ (feito 2026-10-14: CrsUploadBatch; ainda espera com vkQueueWaitIdle no submit —
-    próximo passo natural, quando houver scene manager: fence + carregar em segundo plano)
-    Uploads síncronos: endSingleTimeCommands faz vkQueueWaitIdle a cada cópia (vertex,
-    index, textura) — a CPU para e espera a GPU a cada upload. Agrupar uploads num
-    command buffer só por carga (ex: o modelo inteiro, ou a cena inteira).
-    (Parcial 2026-10-13: begin/endSingleTimeCommands foram pro CrsDevice e a CrsTexture
-    usa eles, gravando as 2 transições + a cópia num command buffer só: 1 espera por
-    textura em vez de 3. Falta agrupar entre recursos diferentes.)
-
-M7. ✅ (feito 2026-10-14: suporte a OBJ removido junto com a tinyobjloader e o hack de
-    policy; chão virou models/plane.glb; stb fixado no commit 2c980bb) Bibliotecas: stb no GIT_TAG master (não fixado — o build pode mudar sozinho);
-    tinyobjloader v1.0.7 antiga (precisa do hack CMAKE_POLICY_VERSION_MINIMUM) —
-    atualizar ou remover o suporte a OBJ de vez, já que o formato do jogo é glTF.
-    (Visto 2026-10-14: o set(CMAKE_POLICY_VERSION_MINIMUM 3.5) vale pra todas as libs
-    declaradas depois dele no CMake, não só a tinyobjloader; e o projeto linka o alvo
-    tinyobjloader E define TINYOBJLOADER_IMPLEMENTATION no third_party_impl.cpp — usar
-    um dos dois.)
-
-M8. Defines do GLM (GLM_FORCE_RADIANS / GLM_FORCE_DEPTH_ZERO_TO_ONE) repetidos em 12
-    lugares no src/ — centralizar (no CMake via target_compile_definitions, ou num header
-    único). Hoje, se um arquivo incluir glm antes do define, a convenção de profundidade
-    fica diferente entre arquivos sem nenhum erro de compilação.
-
-M9. ✅ (feito 2026-10-14; clustered lighting continua como futuro, quando houver muitas luzes)
-    Luzes sem teto fixo: hoje as point lights vão num array de tamanho fixo dentro do UBO
-    (MAX_LIGHTS = 10 no C++ e pointLight[10] escrito à mão nos 4 shaders — tem que bater).
-    As luzes já são da cena (game objects); o fixo é só a CAPACIDADE, porque array em
-    uniform buffer precisa de tamanho na compilação do shader. Solução moderna: storage
-    buffer (SSBO) com array de tamanho em tempo de execução (PointLight lights[]), capacidade
-    cresce com a cena. Com muitas luzes, depois: clustered lighting. (Decidido 2026-10-12:
-    NÃO centralizar o 10 no CMake — resolver direto com SSBO aqui.)
-
-===============================================================================
-FASE 3 — Varredura final de segurança/correção (fazer por ÚLTIMO, é o filtro final)
-===============================================================================
-
-11. Ponteiros pendurados (dangling pointers)
-    - Procurar por qualquer struct que guarda um ponteiro/referência pra um campo dele mesmo
-      (ex: algo.ponteiro = &algo.outroCampo) e que depois é copiado ou retornado por valor.
-    - Bug já identificado: PipelineConfigInfo::viewportInfo (pViewports/pScissors apontando
-      pra viewport/scissor do mesmo struct, dentro de defaultPipelineConfigInfo, que retorna
-      por valor) — já corrigido, mas é exatamente o tipo de bug que as Fases 0-2 podem
-      reintroduzir sem querer, por isso essa checagem vem depois delas.
-    - Achado na Fase 1 (2026-10-13): SimpleRenderSystem::materialSets usa o ENDEREÇO da
-      CrsTexture como chave. Se um modelo for destruído durante o jogo, o descriptor set
-      fica apontando pra uma image view destruída, e uma textura nova alocada no mesmo
-      endereço herdaria o set velho. Hoje não acontece (modelos vivem o programa todo);
-      vira bug real quando houver carregar/descarregar de cena. Junto: os sets do pool de
-      materiais (MAX_MATERIALS = 100) nunca são devolvidos.
-
-12. Ordem de destruição dos recursos Vulkan
-    - Em cada destrutor (CrsDevice, CrsSwapChain, CrsPipeline, etc.), conferir se a ordem
-      de destruição é o inverso exato da ordem de criação.
-    - Achado na Fase 1 (2026-10-13): SimpleRenderSystem e PointLightSystem fazem
-      vkDeviceWaitIdle no destrutor, ShadowRenderSystem não. O FirstApp::run já espera no
-      fim do loop, mas se der exceção no meio os sistemas são destruídos sem essa espera.
-      Decidir um lugar só pra esperar a GPU (ex: um guard no run) em vez de cada destrutor.
-
-13. Vazamento de recurso (resource leak)
-    - Todo vkCreate*/vkAllocate* deve ter um vkDestroy*/vkFree* correspondente em algum lugar.
-    - Conferir se todo caminho de erro (throw) não deixa recurso já criado sem limpar.
-    - Achados na Fase 1 (2026-10-13): loadGltf não chama cgltf_free se der exceção no meio
-      do loop (unique_ptr com deleter resolve); construtores da CrsTexture não liberam os
-      pixels do stb se o upload der throw; VkResult sem checagem em vkMapMemory/
-      vkQueueSubmit/vkAllocateCommandBuffers (crs_buffer, endSingleTimeCommands).
-    - Entrada não confiável: loadGltf não chama cgltf_validate — um .glb malformado pode
-      fazer o accessor ler fora do buffer. Validar logo depois do cgltf_load_buffers.
-
-14. Consistência de RAII
-    - Conferir se toda classe que adquire um recurso (Vulkan, memória, arquivo, etc.) em
-      algum construtor libera esse mesmo recurso no destrutor correspondente.
-    - Prestar atenção especial em classes adicionadas mais pra frente no projeto: se algum
-      recurso novo foi alocado com "new"/malloc solto (sem RAII, sem ponteiro inteligente)
-      em vez de seguir o padrão já estabelecido (CrsWindow, CrsDevice, CrsPipeline,
-      CrsSwapChain).
-
-15. ✅ (resolvido 2026-10-12: renderFinishedSemaphores agora é por imagem da swap chain,
-    indexado pelo imageIndex; validation layer sem nenhum aviso) Reuso de semáforo do swap chain (aviso real já visto no console)
-    - Aviso da validation layer: "vkQueueSubmit(): pSignalSemaphores[0] ... may still be in
-      use by VkSwapchainKHR" — acontece porque imageAvailableSemaphores/renderFinishedSemaphores
-      são indexados por currentFrame (0/1, de MAX_FRAMES_IN_FLIGHT) em vez de pelo índice real
-      da imagem adquirida (0/1/2, de imageCount()). Padrão "clássico" de tutorial, pego por
-      validation layers mais recentes/rigorosas.
-    - Correção sugerida pela própria mensagem: um semáforo por imagem do swap chain, indexado
-      pelo imageIndex devolvido em acquireNextImage, não por currentFrame.
-    - Não trava o programa (é aviso, não erro fatal) — não veio de vkDeviceWaitIdle nem de
-      ordem de destruição, esses dois já foram corrigidos.
-
-===============================================================================
-FASE 4 — Configuração final de build (só depois de tudo acima estar revisado)
-===============================================================================
-
-16. LTO (Link-Time Optimization) no build de produção
-    - Confirmar se está ativado no build Release/Shipping (recupera inlining entre .cpp
-      diferentes, que a separação declaração/.cpp abre mão por padrão).
-
-17. NDEBUG no build de produção
-    - Confirmar que valida corretamente: desliga validation layers (enableValidationLayers)
-      e remove os assert() do binário final.
-
-===============================================================================
-NOTA (não é item de revisão, é decisão de projeto)
-===============================================================================
-
-- Formato de modelo 3D escolhido pro jogo: glTF (.glb) — exportado direto do Blender
-  (suporte nativo, File > Export > glTF 2.0). OBJ (usado agora no tutorial) é só pra
-  aprender a base de carregamento de modelo; não serve pro jogo final porque não
-  carrega esqueleto/skinning, necessário pro sistema de equipamento planejado.
-
-===============================================================================
-ROADMAP PÓS-TUTORIAL (o que construir depois de terminar o tutorial do Galea)
-===============================================================================
-
-Isso não é uma lista de revisão/otimização como as fases acima — é a ordem sugerida
-pra CONSTRUIR as próximas partes da engine rumo ao RPG de ação (câmera/movimento estilo
-Infinite Nikki, foco em combate e progressão de equipamento). A ordem segue dependência
-real (o que precisa existir antes de outra coisa fazer sentido), não "o que é mais
-legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for andando.
-
-1. ✅ Tutorial do Galea concluído (31 vídeos, até especular + alpha blending). UBO/
-   descriptor sets e iluminação básica (ambiente/difusa/especular) entregues por ele.
-   Texturas NUNCA fizeram parte da série de verdade (prometidas no vídeo 1, nunca
-   chegaram a aparecer) — por isso viram o primeiro item guiado por mim, não dele.
-   Também já construído, fora do escopo do tutorial oficial: câmera orbital (estilo
-   Blender, substituindo a livre), integração do Dear ImGui (UI de editor), limitador
-   de FPS configurável por câmera com contador na tela.
-
-1.1. ✅ Texturização (concluída 2026-10-12 — guiada por mim) — CrsTexture (stb_image +
-     staging buffer + transições de layout + image view + sampler), binding 1 do set
-     global como COMBINED_IMAGE_SAMPLER, simple_shader amostra a textura via UV e
-     multiplica pela cor do vértice antes da iluminação. Melhorias pendentes:
-     mipmaps, anisotropia, textura por objeto/material em vez de uma global.
-
-1.2. ✅ Sombra projetada (concluída 2026-10-12 — guiada por mim) — luz direcional (sol)
-     com sunDirection (aponta PARA o sol, w = intensidade) e lightSpaceMatrix no GlobalUbo;
-     shadowCamera ortográfica (caixa 20x20); CrsShadowMap (D32_SFLOAT 2048², render pass só
-     de profundidade); ShadowRenderSystem (depth bias, passe gravado antes do da swap chain);
-     shadow map no binding 2; simple_shader com luz difusa do sol + teste de sombra com PCF 3x3.
-     Também: flag useTexture por objeto (push constant) pra objetos sem textura.
-     Melhorias futuras: caixa do sol seguindo a câmera, cascaded shadow maps (mundo aberto),
-     PCSS (penumbra variável), sombra de point light (cube map).
-
-2. ✅ Carregador glTF (.glb) (concluído 2026-10-12) — cgltf; createModelFromFile escolhe
-   OBJ ou glTF pela extensão; achata os nós numa
-   malha só. Textura por material: a imagem de cor embutida no .glb vira a CrsTexture do
-   modelo, ligada no set 1 (por objeto) do SimpleRenderSystem; sem textura = branca 1x1.
-   Textura global removida. Pendentes: vários materiais por modelo, normal map (precisa de
-   tangentes), rugosidade/PBR, imagens externas (.gltf + arquivos separados — hoje são
-   ignoradas sem aviso), nó com escala negativa (espelhado) inverte a ordem dos triângulos
-   e o culling some com a face errada, mipmaps + anisotropia na CrsTexture.
-   Ao fazer o PBR (anotado na revisão dos shaders, 2026-10-14): hoje o especular é
-   multiplicado pela cor do objeto (fisicamente o reflexo não é tingido pelo albedo) e o
-   clamp depois do max no blinnTerm é redundante — não foi corrigido porque o modelo de
-   iluminação inteiro vai ser trocado.
-
-2.1. ✅ Caixa do sol segue a câmera (concluído 2026-10-12) — centro da caixa ortográfica
-     do shadow map = alvo da câmera orbital, encaixado na grade de texels pra não tremer;
-     SHADOW_HALF_SIZE / SHADOW_SUN_DISTANCE no topo do first_app.cpp.
-
-2.2. Revisão completa do projeto ANTES do modo Play (decidido 2026-10-12)
-   - Conclusão: o tutorial fez muita simplificação ("gambiarra" pedagógica) e tem 4+
-     anos, então tem coisa desatualizada. Antes de construir editor/Play em cima dessa
-     base, passar TODAS as fases de revisão da lista acima, na ordem:
-       Fase 0  (pastas engine/ vs game/)
-       Fase 1  (simplificação, #define -> constexpr)
-       Fase 2  (staging, layout de dados, batching, culling...)
-       Fase 2B (modernização: Vulkan 1.3, dynamic rendering, sync2, VMA, uploads...)
-       Fase 3  (ponteiros pendurados, ordem de destruição, vazamentos, RAII, semáforos)
-   - Fase 4 (LTO/NDEBUG) continua no fim do projeto: é configuração de build de produção.
-   - Itens da Fase 2 que só fazem sentido com cena grande (batching, culling) podem ficar
-     anotados e voltar quando houver conteúdo pra medir.
-
-2.3. Scene manager (carregar/descarregar cenas) — planejado pra logo depois da revisão
-   (anotado 2026-10-14). Requisitos que a revisão já deixou levantados:
-   - DONO DO DESCRIPTOR SET DE TEXTURA/MATERIAL: hoje o SimpleRenderSystem guarda um cache
-     materialSets indexado pelo ENDEREÇO da CrsTexture. Ao descarregar um modelo, o set fica
-     apontando pra uma image view destruída, e uma textura nova no mesmo endereço herdaria o
-     set velho. Decidir no desenho do scene manager: material como objeto dono do set? um
-     descriptor pool por cena, zerado (vkResetDescriptorPool) ao descarregar? modelos
+2.3. Scene manager (carregar/descarregar cenas):
+   - DONO DO DESCRIPTOR SET DE TEXTURA/MATERIAL (ver Fase 3, item 11): material como objeto dono
+     do set? um descriptor pool por cena, zerado (vkResetDescriptorPool) ao descarregar? modelos
      compartilhados entre cenas? Descarregar uma cena tem que invalidar e liberar os sets dela.
-     (o pool de materiais tem teto fixo MAX_MATERIALS = 100 e nunca devolve sets)
-   - Carregar a cena inteira num CrsUploadBatch só (1 espera); depois, fence no lugar do
-     vkQueueWaitIdle pra carregar em segundo plano sem travar.
-   - ✅ (2026-10-19) Sistemas e estado do frame saem do FirstApp::run() e a lambda drawFrame vira método
-     (ver Fase 2 item 10).
+   - Carregar a cena inteira num CrsUploadBatch só; depois, fence no lugar do vkQueueWaitIdle pra
+     carregar em segundo plano sem travar.
 
-3. ✅ (2026-10-16/17: CrsScene, CameraComponent + gizmo, CrsInput, Play com P / tecla à esquerda
-   do 1, física simples com gravidade e colisão de caixa) Câmera de jogo como objeto da cena, e só DEPOIS o modo Play
-   (ordem revista em 2026-10-12, substitui a ordem anterior):
-   - A engine é tratada primeiro como um editor (câmera orbital estilo Blender já
-     existe e é a câmera do editor, continua sendo).
-   - 3a. Antes do Play: criar a câmera de jogo como um objeto da cena — no mínimo com
-     um modelo/ícone visível no editor (tipo o gizmo de câmera do Blender/Unity), pra
-     dar pra posicionar e ver pra onde ela aponta. Ela ainda não precisa seguir
-     personagem nenhum nessa etapa.
-   - 3b. Modo Play no próprio editor (parecido com o "Play in Editor" do Unreal/Godot):
-     um estado editor/play que alterna sem destruir a cena. Ao dar Play, a renderização
-     passa a usar a câmera de jogo da 3a em vez da orbital; ao sair, volta pra orbital.
-   - Mais tarde (com personagem): a câmera de jogo vira terceira pessoa, lendo a
-     posição/rotação do personagem a cada frame e se posicionando atrás/acima dele
-     (setViewTarget/setViewYXZ).
+3.1. Destaque do selecionado como o do Blender: uma aura/contorno laranja leve em volta (efeito
+   de emissão), não troca de cor do modelo; vale pra objetos e gizmos. Jeito comum: desenhar o
+   selecionado numa máscara à parte e, num passe final, pintar de laranja a borda da máscara com
+   um leve desfoque. Painel crescendo aos poucos: definir pai, escolher modelo/textura.
 
-3.1. Seleção de objetos no editor (anotado 2026-10-21) — clicar num objeto seleciona; o
-   selecionado ganha um destaque como o do Blender: uma aura/contorno laranja leve em volta
-   dele (efeito de emissão), não uma troca de cor do modelo. Vale pra objetos normais e pra
-   gizmos. Jeito comum: desenhar o selecionado numa imagem à parte (máscara) e, num passe
-   final, pintar de laranja os pixels na borda dessa máscara, com um leve desfoque pra
-   parecer brilho. Depois disso: transform handles (setas de mover/girar/escalar).
-   Painel de propriedades do selecionado (pedido do usuário, 2026-10-22), crescendo aos poucos:
-   transform, definir pai, escolher modelo/textura/animação. E importar objetos pelo editor:
-   o objeto entra num ponto da cena e é posicionado depois (clicar + mover). Juntos, tiram a
-   montagem da cena do loadGameObjects (que hoje é código) e levam pro arquivo de cena.
+3.1.1. Gizmos gerados pela engine (decisão do usuário, 2026-10-26): todo objeto de editor (Empty,
+   trigger, colisor, luz, ponto de spawn, a câmera) tem a forma GERADA pela engine (caixa, esfera,
+   cápsula, cruz de eixos, pirâmide de visão a partir do FOV), sem arquivo; só os modelos do jogo
+   são importados. O gizmo do colisor sai do próprio halfExtents e nunca fica diferente da física.
+   Os .glb de gizmo (camera.glb, character.glb, empty.glb) e as formas do Adicionar são provisórios.
 
-3.1.1. Gizmos gerados pela engine (anotado 2026-10-26, decisão do usuário) — tudo que é objeto
-   de editor (Empty, trigger, colisor, luz, ponto de spawn e, se der, a própria câmera) tem a
-   forma GERADA pela engine (caixa, esfera, cápsula, cruz de eixos, pirâmide de visão da câmera
-   a partir do FOV), sem arquivo; só os modelos 3D do jogo são importados. Vantagem extra: o
-   gizmo do colisor/trigger sai do próprio halfExtents e nunca fica diferente da física. Os
-   .glb de gizmo feitos no Blender (camera.glb, character.glb, empty.glb) são provisórios.
+3.2. Cursor do Play configurável por jogo, com controle na interface do editor (visível, escondido
+   ou capturado; primeiro jogo: capturado fora dos menus, visível nos menus). Hoje é uma constante.
 
-3.2. Cursor do mouse no Play configurável por jogo (anotado 2026-10-22) — uma configuração do
-   jogo (com controle na interface do editor) diz como o cursor fica no Play: visível, escondido,
-   ou capturado (escondido e preso na janela, dando o movimento "infinito" que a câmera em
-   terceira pessoa precisa). No editor ele é sempre visível. Primeiro jogo: capturado fora dos
-   menus, visível nos menus. Fazer junto da câmera em terceira pessoa (é quando o mouse passa a
-   girar a câmera); no GLFW são os modos GLFW_CURSOR_NORMAL / HIDDEN / DISABLED, atrás de um
-   método do CrsWindow (o resto da engine não fala com o GLFW).
-
-3.3. Câmera seguindo o personagem e o movimento do personagem (anotado 2026-10-25) — a câmera
-   de jogo acompanha o player (terceira pessoa estilo Infinity Nikki: atrás e acima, girando com
-   o mouse, com limite de ângulo pra não virar de cabeça pra baixo), e o personagem passa a
-   virar pra direção em que anda. Base pronta: parentesco (a câmera pode ser filha do player,
-   como no UPBGE), CharacterControllerSystem, CrsInput com mouse, cursor capturado (3.2).
-   Andamento (2026-10-27): rig personagem -> pivô (Empty) -> câmera feito, cursor capturado e
-   mouse girando o pivô (CameraRigSystem). Falta, nesta ordem:
-   (a) a câmera atravessa objetos e vai pra baixo do chão: raio do pivô até a câmera contra os
-       colisores (raycast da cena, em C++) e a câmera para antes do que bater — o chão também é
-       colisor, então resolve os dois casos;
-   (b) o personagem virar pra direção do movimento: do jeito que o usuário fazia no UPBGE — quando
-       o vetor de movimento não é zero, o VISUAL (o filho com o modelo/armature) gira em Y pra
-       alinhar com ele; quando volta a zero, mantém a última direção. Gira só o visual, não a
-       cápsula: o pivô da câmera também é filho da cápsula, e girar ela faria a câmera girar
-       junto. Com um giro suave (velocidade de virada) em vez de instantâneo;
-   (c) animação (idle/andar/correr) = item 5 (animação esquelética), depois do (b).
-
-3.4.0. API candidata (anotada desde 2026-10-29; vira a API de consulta + .pyi quando o Python
-   entrar): funções do C++ já pensadas pra serem chamadas por script.
-   - animator: play(nome, fade=0.2, loop=True), isBlending(), blendWeight(), clip, time, speed,
-     loop, duration, clipTime(), progress(), isFinished(), frame(fps=30)
-   - personagem: CharacterInput (moveDirection, jump, run) = a intenção que o script/IA manda
-   - cena: createGameObject(), findGameObjectById(), raycast(raio, distância, ignorar), worldMatrix()
-   - objeto: name, transform (translation, rotation, scale), parentId, componentes opcionais
-3.4.1. Passo 1 feito (2026-10-30): Python 3.12 embutido com pybind11 2.13.6 (engine/scripting,
-   CrsScripting::runFile). Hoje usa o Python instalado no Windows (python312.dll achado pelo PATH).
-   PENDENTE pra distribuir o jogo: levar junto o "embeddable Python" (zip oficial) ao lado do .exe,
-   senão não abre em PC sem Python 3.12. Subir de versão do Python = subir o pybind11 junto.
-3.4.2. Passo 2 feito (2026-10-30): API Python = módulo embutido "crsdk" (engine/scripting/
-   crs_python_api.cpp), nomes em camelCase como no C++ (escolha do usuário). Tem: Vec2/Vec3,
-   Transform, GameObject (name, id, transform, parent/parentId, children, worldPosition, animator),
-   Animator (lista do 3.4.0), Scene (objects, find, findById, createObject, raycast, activeCamera),
-   Input (isDown, wasPressed, wasReleased, mouse, mouseDelta), Window, crsdk.keys e crsdk.mouse.
-   crsdk.scene/input/window são lidos na hora (o app troca a cena ao entrar/sair do Play).
-   Referência pro VS Code: assets/scripts/crsdk/*.pyi (mantida à mão junto com o .cpp).
-   Falta na API: CharacterInput (a intenção de movimento: hoje o app monta ela no C++),
-   applyRotation local/global e os outros componentes (rigidBody, camera, luz).
-   Próximo (passo 3): script como componente do objeto, classe com start(args)/update() rodando
-   no Play, args editáveis no painel do editor, e o tempo gasto por script.
-3.4.3. Passo 3 feito (2026-10-30): componentes Python.
-   - crsdk.Component (classe base em Python: self.object, args, start(args), update()) e crsdk.deltaTime;
-     ScriptComponent no objeto (arquivo + classe + args mudados), salvo na cena ("scripts");
-   - imports: assets/components e assets/scripts no sys.path; o Play esquece os módulos do projeto
-     (edição vale sem fechar a engine); sem .pyc/__pycache__;
-   - erro num componente aparece uma vez (console + janela de stats) e tira só ele do Play;
-   - editor: seção Componentes no painel (args por tipo: bool/int/float/texto, botão "padrão",
-     Remover), Add Component (lista as classes achadas na pasta, lida de novo ao abrir) e
-     Generate Component (cria o .py com o modelo e prende no objeto; recusa nome que esconderia
-     um módulo do Python, ex: random.py);
-   - tempo do update() de cada componente na janela de stats durante o Play.
-   Testes: o Python é UM só pros testes também (religar o interpretador a cada teste corrompia a
-   memória depois de várias voltas); cada teste limpa o que ligou e esquece os módulos.
-   Ainda provisório: o ola.py rodando ao abrir a engine (passo 2). Falta na API: CharacterInput.
-   >> Próximo marco: release 0.1 (ver Fase 4, itens 16 e 17, e o Python embutido do 3.4.1).
-   Pedido do usuário pro passo 3 (2026-10-30):
-   - pasta própria dos componentes: assets/components/ (um .py pode ter um ou mais componentes);
-   - no painel do objeto selecionado: "Add Component" (lista as classes achadas na pasta) e
-     "Generate Component" (cria um .py novo já com o modelo: classe, args, start, update);
-   - IMPORTS TÊM QUE FUNCIONAR: no UPBGE dividir o código em outro arquivo e importar no
-     componente não funcionava, e era tudo dentro do componente ou nada. Aqui: a pasta dos
-     componentes (e assets/scripts/) entra no sys.path, então "import utils" ou
-     "from comum.matematica import x" funcionam como num projeto Python normal. E ao dar Play,
-     os módulos do projeto são descartados do sys.modules, pra edição num arquivo importado valer
-     sem fechar a engine (o outro motivo clássico de "mudei e não mudou").
-3.4. Scripts Python como componentes de objeto (anotado 2026-10-25, pedido do usuário) — o
-   mesmo modelo do KX_PythonComponent do UPBGE: uma classe Python presa a um objeto, com
-   start(args) e update(), e os "args" (sensibilidade do mouse, inverter eixo, limitar
-   rotação...) aparecendo editáveis no painel de propriedades do editor. Exemplo-alvo: o
-   template de câmera em primeira pessoa do UnidayStudio (mouselook + limite de rotação),
-   que deveria poder ser escrito quase igual. Divisão de trabalho: a engine (C++) faz o que
-   roda pesado todo frame — física, colisão, render, o CharacterControllerSystem —, e o script
-   Python decide o comportamento (pra onde a câmera vai, o que cada tecla faz, regras do jogo),
-   como os logic bricks/componentes do UPBGE. A API exposta pro Python precisa de: transform
-   (posição, rotação, applyRotation local/global), pai/filhos, input (teclas, mouse e o
-   DELTA do mouse — com o cursor capturado não precisa recolocar o mouse no centro como o
-   template faz), tamanho da janela, e a intenção de movimento do personagem (CharacterInput).
-   Jeito comum de embutir: CPython + pybind11. Antes disso: o cursor capturado (3.2) e a câmera
-   seguindo o player (3.3) em C++, que viram o primeiro script a ser portado pra Python.
-   Segundo exemplo-alvo: o template Character Controller do mesmo autor. Ele mapeia quase 1 pra 1
-   no que já existe: walkDirection = CharacterInput.moveDirection, jump() = input.jump,
-   onGround = RigidBodyComponent::onGround, "Make Object Invisible" = editorOnly na cápsula.
-   O que ele pede e a engine ainda não tem (bons candidatos pro CharacterComponent/controlador):
-   correr segurando Shift (runSpeed além do moveSpeed), número máximo de pulos (pulo duplo),
-   "pulo com direção travada" (no ar a direção/rotação não muda) e suavização do movimento
-   (lerp da velocidade em vez de parar/arrancar na hora). O "Avoid Sliding" dele é contorno
-   de um problema da física do UPBGE (Bullet); a nossa não escorrega assim, não precisa.
-   Diferença de projeto: lá a direção é relativa à ROTAÇÃO do personagem (primeira pessoa);
-   aqui é relativa à CÂMERA (terceira pessoa) — os dois modos podem existir, o script escolhe.
-   Esclarecido pelo usuário (2026-10-25): os templates são só referência de COMO o sistema
-   funciona (um script preso a cada objeto que precisa, todos rodando durante o Play), não do
-   comportamento final da câmera/personagem do jogo, e não é pra copiar o UPBGE — é seguir a
-   mesma lógica. Junto vem uma API Python documentada pra consulta (como a referência do bge):
-   documentação das funções/classes expostas + arquivo .pyi pro VS Code autocompletar e mostrar
-   a ajuda de cada função enquanto o script é escrito. Bom ter também: tempo gasto por script
-   no editor (ms por frame), pra achar script pesado.
-
-4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
-   suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
-   com o item 3: sobrevoar/inspecionar em modo editor, andar de verdade em modo jogo.
+4. Terreno básico, sem streaming ainda (mundo pequeno o bastante pra não precisar de LOD de cara).
+   Serve nos dois modos: sobrevoar no editor, andar de verdade no Play.
    Desenho pedido pelo usuário (2026-10-29), em C++ (engine/terrain), dados em assets/terrains/:
    4.1. Terreno em PEDAÇOS (tiles): o usuário diz só o tamanho total; a engine cria quantos
         pedaços forem precisos, cada um com o próprio heightmap de resolução fixa (ex: 257x257
@@ -568,43 +159,11 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
         - quanto mais longe, menos folhas e mais largas (afinar a densidade com a distância);
         - a distância de troca depende da resolução/qualidade gráfica (4K pede mais longe).
    Ordem: 4.1 -> 4.2 -> 4.3 (a pintura pinta no terreno; a grama usa o pincel e a altura).
-   Combinado: Python (3.4) antes, terreno logo depois.
+   Combinado: depois da release 0.1.
 
-5.0. Ordem decidida pelo usuário (2026-10-28): animação esquelética agora; LOGO DEPOIS, salvar e
-   carregar a cena em arquivo — objetivo claro: o que for mudado no editor (posição de objeto, da
-   câmera...) fica salvo e é lido de volta, em vez de só valer o que está no loadGameObjects.
-   Junto vêm os ids por cena (adiados desde a CrsScene) e a cena saindo do código.
-   Formato: JSON (nlohmann/json), texto pra ler/editar/ver no git; o código de ler/gravar fica
-   isolado num scene_serializer (dá pra trocar por binário no futuro sem mexer no resto).
-   Sequência combinada (2026-10-28). ✅ TODOS (1 a 8) feitos em 2026-10-29. Extras: vista da câmera
-   do editor em <cena>.editor.json (fora do git); Abrir.../Salvar como... pela janela do sistema;
-   Importar .glb e Adicionar (Shift+A: Empty, Câmera, Luz pontual). Pendente: lembrar a última
-   cena aberta ao iniciar; formas do Adicionar geradas pela engine (hoje usam .glb).
-   Detalhes dos passos 1 a 6 (até o commit 8069c0a):
-   formato versão 2, o programa abre scenes/main.json ao iniciar (sem arquivo ou com erro:
-   cena de exemplo do loadGameObjects), Arquivo > Abrir/Salvar/Sair, Ctrl+O/Ctrl+S.
-     1. nlohmann/json no CMake
-     2. o objeto guarda o caminho do modelo (+ cache: mesmo .glb carregado uma vez)
-     3. ids estáveis por cena (o parentId continua valendo depois de carregar)
-     4. salvar e carregar o básico (nome, modelo, transform, pai, editorOnly) num caminho fixo
-        (scenes/....json); teste de ida e volta (salvar -> carregar -> comparar)
-     5. barra de menu no topo (ImGui::BeginMainMenuBar, estilo Blender): Arquivo -> Nova,
-        Abrir, Salvar (Ctrl+S), Salvar como, Sair; o painel e o sceneArea descontam a altura
-     6. componentes no JSON, um por vez (rigidBody, camera, character, cameraRig,
-        faceMovement, animator)
-     7. diálogo nativo de arquivo (nativefiledialog-extended)
-     8. Arquivo -> Importar .glb; depois menu Adicionar (Shift+A) com as formas geradas
-5. ✅ Animação esquelética (ossos + skinning) (concluído 2026-10-28, commits A1..A6) —
-   esqueleto e clipes lidos do glTF, matrizes dos ossos num storage buffer por frame
-   (set 0, binding 3), pipelines de skinning no passe principal e na sombra, AnimatorComponent
-   avançando o tempo no Play. Pendente: trocar/misturar clipes (idle -> andar), por script.
-5.1. ✅ Eixos iguais ao glTF/Blender (2026-10-28, commits E1 e E2): Y pra cima, mão direita,
-   câmera olha pro -Z local, frente dos modelos = +Z. O loader não converte mais nada.
-
-6. Sistema de equipamento via skinning compartilhado (arma/roupa como malha
-   separada, rigged no mesmo esqueleto do personagem, deformada pela mesma paleta
-   de matrizes de osso por frame) — depende do item 5. Correção deliberada de um
-   erro de uma tentativa anterior em Godot (ver memória de longo prazo do projeto).
+6. Sistema de equipamento via skinning compartilhado (arma/roupa como malha separada, rigged no
+   mesmo esqueleto do personagem, deformada pela mesma paleta de matrizes de osso por frame).
+   Correção deliberada de um erro de uma tentativa anterior em Godot.
 
 6.1. Máscara de opacidade do corpo (anotado 2026-10-18, a partir de uma pesquisa do
    usuário) — complementa o item 6, não substitui: resolve a pele do corpo atravessando
@@ -624,7 +183,6 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      sombra pode ignorar a máscara (a sombra da pele escondida fica embaixo da roupa);
      (3) os bindings do exemplo da pesquisa não batem com os da engine (set 0 binding 2
      já é o buffer de luzes; texturas de material ficam no set 1) — encaixar no layout real.
-   - Depende dos itens 5 (animação esquelética) e 6 (equipamento por skinning compartilhado).
 
 6.2. Partes do corpo que ligam/desligam (anotado 2026-10-18, incremental, depois do 6.1) —
    o corpo dividido em poucas regiões grandes (ex: tronco, braços, pernas, pés) que um item
@@ -658,17 +216,15 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
      "Origin to Geometry" — isso dá a cada parte uma matriz diferente e foi o que abriu a
      fresta). Origem no centro é ótimo pra objeto solto (caixa, porta), não pra peça de personagem.
 
-7. Sistema de combate — depende do item 5, se beneficia do item 6 já existir
+7. Sistema de combate — depende do item 5 (feito), se beneficia do item 6 já existir
    (feedback visual de arma equipada, etc.).
 
-8. Progressão de equipamento/status (upar, melhorar itens) — mistura de dados e
-   lógica de jogo, pode crescer em paralelo com o item 7.
+8. Progressão de equipamento/status (upar, melhorar itens) — mistura de dados e lógica de
+   jogo, pode crescer em paralelo com o item 7.
 
-9. Streaming de mundo + LOD — só quando o terreno/conteúdo real for grande o
-   suficiente pra doer em performance. LOD reduz detalhe do que está longe mas
-   carregado; streaming evita até carregar o que está muito longe. As duas
-   técnicas são necessárias juntas pra um mundo aberto de verdade (nenhuma
-   substitui a outra).
+9. Streaming de mundo + LOD — só quando o terreno/conteúdo real for grande o bastante pra doer
+   em performance. LOD reduz detalhe do que está longe mas carregado; streaming evita até
+   carregar o que está muito longe. Um mundo aberto de verdade precisa dos dois.
    LOD de modelos (decidido 2026-10-29): híbrido.
    - Automático por padrão: ao importar, a engine gera os níveis simplificando a malha
      (biblioteca meshoptimizer, a mesma que o Godot 4 usa). Bom pra pedras, props, prédios.
@@ -696,17 +252,12 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    Regra: o que dá pra alcançar tem a cadeia de LOD completa e volta a ficar real ao chegar perto
    (streaming carrega antes de chegar, com folga pra queda rápida); o que não dá, é só fundo.
 
-10. Editor de terreno dentro da própria engine (opcional, avançado) — só faz
-    sentido depois dos itens 3 (modo editor já existe) e 4 (terreno já existe).
-    Motivo de preferir isso a esculpir no Blender e exportar: o formato de dados
-    do terreno precisa bater com o esquema de chunk/streaming da própria engine
-    desde a origem (esculpir fora e importar exigiria uma etapa extra de
-    conversão/fatiamento depois); editar dentro da engine também dá referência
-    de escala real (personagem do lado) e a iluminação/renderização verdadeira
-    do jogo, coisa que o viewport do Blender não reproduz fielmente. Também evita
-    costura visível entre pedaços de terreno editados isoladamente em arquivos
-    separados. Alternativa mais barata: esculpir no Blender e importar, aceitando
-    a fricção extra — válido se esse editor nunca virar prioridade.
+10. Editor de terreno dentro da própria engine (opcional, avançado) — depois do item 4.
+    Motivo de preferir isso a esculpir no Blender e exportar: o formato de dados do terreno
+    precisa bater com o esquema de pedaços/streaming da engine desde a origem (esculpir fora
+    exigiria converter/fatiar depois); editar na engine também dá escala real (personagem do
+    lado) e a iluminação verdadeira do jogo, e evita costura entre pedaços editados em arquivos
+    separados. Alternativa mais barata: esculpir no Blender e importar, aceitando a fricção extra.
 
 11. Projetos (longo prazo, versão 2.0/3.0 — pedido do usuário 2026-10-30) — a engine abre
     PROJETOS: cada projeto é uma pasta com o próprio assets/ (modelos, sons, texturas, cenas,
@@ -728,3 +279,17 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
       do que é do PROJETO: os da engine ficam do lado do .exe e servem pra todo projeto;
     - quando chegar a hora, os caminhos passam por um lugar só (ex: project.path("models/x.glb"))
       em vez de cada arquivo montar o próprio "assets/...".
+
+===============================================================================
+DECISÕES DE PROJETO
+===============================================================================
+- Formato de modelo: glTF (.glb), exportado direto do Blender (tem esqueleto/skinning, que o
+  equipamento precisa).
+- Formato de cena: JSON (nlohmann/json), texto pra ler/editar/ver no git; ler/gravar fica isolado
+  no scene_serializer (dá pra trocar por binário depois sem mexer no resto).
+- Divisão de trabalho: a engine (C++) faz o pesado de todo frame (física, colisão, render,
+  controlador de personagem); os componentes Python decidem o comportamento (o que cada tecla faz,
+  pra onde a câmera vai, regras do jogo). Os templates do UPBGE/UnidayStudio são referência de
+  COMO o sistema funciona, não algo pra copiar.
+- API Python em camelCase como o C++ (escolha do usuário); a referência .pyi é mantida à mão
+  junto com o crs_python_api.cpp.

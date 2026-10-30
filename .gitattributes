@@ -9,5 +9,6 @@
 *.png binary
 *.jpg binary
 *.glb binary
+*.ttf binary
 *.spv binary
 *.exe binary

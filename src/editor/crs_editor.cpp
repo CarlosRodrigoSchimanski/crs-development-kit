@@ -1,4 +1,5 @@
 #include "editor/crs_editor.hpp"
+#include "editor/crs_editor_theme.hpp"
 
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
@@ -142,36 +143,42 @@ namespace crsdk {
             ImGuiWindowFlags_NoCollapse
         );
 
-        //lista de objetos da cena
-        if (ImGui::CollapsingHeader("Outliner", ImGuiTreeNodeFlags_DefaultOpen)) {
-            drawOutLiner(scene);
-        }
+        //lista de objetos da cena: um card só, que rola por dentro quando a cena é grande
+        theme::beginCard("OutlinerCard", screen->WorkSize.y * 0.4f);
+        if (theme::cardHeader("Outliner", "", true)) drawOutLiner(scene);
+        theme::endCard();
 
-        //propriedades do selecionado
-        if (ImGui::CollapsingHeader("Propriedades", ImGuiTreeNodeFlags_DefaultOpen)) {
-            CrsGameObject* selected = getSelected(scene);
-            if (selected) {
-                ImGui::Text("%s", selected->name.c_str());
-                ImGui::Separator();
-
+        //propriedades do selecionado: um card pra cada parte (transform, animação, cada componente),
+        //fechados de início: só o título; a setinha abre (e o card lembra se estava aberto)
+        CrsGameObject* selected = getSelected(scene);
+        if (selected) {
+            theme::beginCard("TransformCard");
+            if (theme::cardHeader(selected->name, "Transform")) {
                 TransformComponent& transform = selected->transform;
-                ImGui::DragFloat3("Posição:", &transform.translation.x, 0.05f);
+                theme::fieldLabel("Posição");
+                ImGui::DragFloat3("##posicao", &transform.translation.x, 0.05f);
                 //engine guarda radianos e o painel mostra graus
                 glm::vec3 degrees = glm::degrees(transform.rotation);
-                if (ImGui::DragFloat3("Rotação:", &degrees.x, 1.f)) {
+                theme::fieldLabel("Rotação");
+                if (ImGui::DragFloat3("##rotacao", &degrees.x, 1.f)) {
                     transform.rotation = glm::radians(degrees);
                 }
-                ImGui::DragFloat3("Escala:", &transform.scale.x, 0.01f);
-
-                if (selected->animator) {
-                    ImGui::Separator();
-                    drawAnimatorProperties(*selected);
-                }
-
-                drawComponentProperties(*selected, components, requests);
-            } else {
-                ImGui::TextDisabled("Nada Selecionado");
+                theme::fieldLabel("Escala");
+                ImGui::DragFloat3("##escala", &transform.scale.x, 0.01f);
             }
+            theme::endCard();
+
+            if (selected->animator) {
+                theme::beginCard("AnimatorCard");
+                if (theme::cardHeader("Animação")) drawAnimatorProperties(*selected);
+                theme::endCard();
+            }
+
+            drawComponentProperties(*selected, components, requests);
+        } else {
+            theme::beginCard("NothingSelectedCard");
+            ImGui::TextDisabled("Nada selecionado");
+            theme::endCard();
         }
 
         ImGui::End();
@@ -189,7 +196,8 @@ namespace crsdk {
         }
 
         const char *current = animator.clip.empty() ? "(a primeira)" : animator.clip.c_str();
-        if (ImGui::BeginCombo("Animação:", current)) {
+        theme::fieldLabel("Clipe");
+        if (ImGui::BeginCombo("##clipe", current)) {
             for (size_t i = 0; i < names.size(); i++) {
                 ImGui::PushID(static_cast<int>(i));
                 if (ImGui::Selectable(names[i].c_str(), names[i] == animator.clip)) {
@@ -210,55 +218,65 @@ namespace crsdk {
         return nullptr;
     }
 
-    //o campo de um arg, do tipo do valor; true = mudou neste frame
-    static bool drawArgField(const std::string &label, ScriptArg &value) {
-        if (auto *b = std::get_if<bool>(&value)) return ImGui::Checkbox(label.c_str(), b);
-        if (auto *i = std::get_if<int>(&value)) return ImGui::DragInt(label.c_str(), i);
-        if (auto *f = std::get_if<float>(&value)) return ImGui::DragFloat(label.c_str(), f, 0.05f);
-        return ImGui::InputText(label.c_str(), &std::get<std::string>(value));
+    //o campo de um arg, do tipo do valor (id: um "##nome" escondido); true = mudou neste frame
+    static bool drawArgField(const std::string &id, ScriptArg &value) {
+        if (auto *b = std::get_if<bool>(&value)) return ImGui::Checkbox(id.c_str(), b);
+        if (auto *i = std::get_if<int>(&value)) return ImGui::DragInt(id.c_str(), i);
+        if (auto *f = std::get_if<float>(&value)) return ImGui::DragFloat(id.c_str(), f, 0.05f);
+        return ImGui::InputText(id.c_str(), &std::get<std::string>(value));
     }
 
     void CrsEditor::drawComponentProperties(CrsGameObject &obj, const std::vector<ComponentInfo> &components, EditorRequests &requests) {
-        ImGui::SeparatorText("Componentes");
-
         std::optional<size_t> toRemove{};
         for (size_t i = 0; i < obj.scripts.size(); i++) {
             ScriptComponent &script = obj.scripts[i];
             ImGui::PushID(static_cast<int>(i));
-            if (ImGui::TreeNodeEx("##componente", ImGuiTreeNodeFlags_DefaultOpen, "%s (%s)", script.className.c_str(), script.module.c_str())) {
-                const ComponentInfo *info = findComponentInfo(components, script);
-                if (info == nullptr) {
-                    ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f), "não achado em assets/components");
-                } else {
-                    if (!info->description.empty()) ImGui::TextDisabled("%s", info->description.c_str());
-                    for (const ComponentArgInfo &arg : info->args) {
-                        //o valor mudado neste objeto, ou o padrão da classe
-                        //(tipo diferente do padrão = o .py mudou o tipo do arg: vale o padrão)
-                        auto it = script.args.find(arg.name);
-                        bool changed = it != script.args.end() && it->second.index() == arg.defaultValue.index();
-                        ScriptArg value = changed ? it->second : arg.defaultValue;
-                        if (drawArgField(arg.name, value)) script.args[arg.name] = value;
-                        if (changed) {
-                            ImGui::SameLine();
-                            if (ImGui::SmallButton(("padrão##" + arg.name).c_str())) script.args.erase(arg.name);
-                            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Voltar ao valor do .py");
-                        }
+            //um card por componente: a classe no título e o arquivo apagado ao lado
+            theme::beginCard("ComponentCard");
+            bool open = theme::cardHeader(script.className, script.module);
+            //Remover encostado na direita da linha do título (aparece com o card fechado também)
+            float removeWidth = ImGui::CalcTextSize("Remover").x + ImGui::GetStyle().FramePadding.x * 2.f;
+            ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - removeWidth);
+            if (ImGui::SmallButton("Remover")) toRemove = i;
+
+            const ComponentInfo *info = findComponentInfo(components, script);
+            if (!open) {
+                //fechado: só o título
+            } else if (info == nullptr) {
+                ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f), "não achado em assets/components");
+            } else {
+                if (!info->description.empty()) ImGui::TextDisabled("%s", info->description.c_str());
+                for (const ComponentArgInfo &arg : info->args) {
+                    //o valor mudado neste objeto, ou o padrão da classe
+                    //(tipo diferente do padrão = o .py mudou o tipo do arg: vale o padrão)
+                    auto it = script.args.find(arg.name);
+                    bool changed = it != script.args.end() && it->second.index() == arg.defaultValue.index();
+                    ScriptArg value = changed ? it->second : arg.defaultValue;
+                    //mudado: o campo deixa lugar pro botão "padrão" na mesma linha
+                    float resetWidth = ImGui::CalcTextSize("padrão").x + ImGui::GetStyle().FramePadding.x * 2.f;
+                    theme::fieldLabel(arg.name, changed ? resetWidth : 0.f);
+                    if (drawArgField("##" + arg.name, value)) script.args[arg.name] = value;
+                    if (changed) {
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton(("padrão##" + arg.name).c_str())) script.args.erase(arg.name);
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Voltar ao valor do .py");
                     }
                 }
-                if (ImGui::SmallButton("Remover")) toRemove = i;
-                ImGui::TreePop();
             }
+            theme::endCard();
             ImGui::PopID();
         }
         //depois do for: apagar no meio dele pularia o próximo componente
         if (toRemove) obj.scripts.erase(obj.scripts.begin() + static_cast<std::ptrdiff_t>(*toRemove));
 
-        if (ImGui::Button("Add Component")) {
+        //os dois botões dividem a largura do painel
+        float halfWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        if (ImGui::Button("Add Component", ImVec2(halfWidth, 0.f))) {
             requests.refreshComponents = true;
             ImGui::OpenPopup("AddComponent");
         }
         ImGui::SameLine();
-        if (ImGui::Button("Generate Component")) {
+        if (ImGui::Button("Generate Component", ImVec2(halfWidth, 0.f))) {
             newComponentName.clear();
             ImGui::OpenPopup("GenerateComponent");
         }

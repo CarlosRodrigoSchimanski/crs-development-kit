@@ -1,4 +1,5 @@
 #include "editor/crs_imgui.hpp"
+#include "editor/crs_editor_theme.hpp"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -43,6 +44,8 @@ namespace crsdk {
         imguiPool = CrsDescriptorPoolHandle{crsDevice.device(), pool};
 
         ImGui::CreateContext();
+        //cores, cantos e fontes do editor (antes do primeiro frame: as fontes entram na textura dele)
+        theme::apply();
 
         //"true" instala os callbacks de mouse/teclado/scroll do GLFW; o ImGui encadeia
         //com os callbacks que a CrsWindow já registrou, em vez de substituí-los

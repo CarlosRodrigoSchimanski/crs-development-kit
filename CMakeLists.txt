@@ -231,6 +231,7 @@ set(APP_SOURCES
     src/editor/orbit_camera_controller.cpp
     src/editor/crs_imgui.cpp
     src/editor/crs_editor.cpp
+    src/editor/crs_editor_theme.cpp
     src/editor/file_dialog.cpp
 )
 
