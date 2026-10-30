@@ -2,15 +2,15 @@
 
 #include <doctest/doctest.h>
 
-using namespace lve;
+using namespace crsdk;
 
 //personagem (com colisor) > pivô (rig) > câmera, como no loadGameObjects; o pivô olha pra -Z,
 //então a câmera fica no +Z dele
 struct RigScene {
-    LveScene scene;
-    LveGameObject *player = nullptr;
-    LveGameObject *pivot = nullptr;
-    LveGameObject *camera = nullptr;
+    CrsScene scene;
+    CrsGameObject *player = nullptr;
+    CrsGameObject *pivot = nullptr;
+    CrsGameObject *camera = nullptr;
 
     RigScene() {
         player = &scene.createGameObject();
@@ -36,7 +36,7 @@ TEST_CASE("rig sem nada no caminho: câmera na distância cheia") {
 TEST_CASE("rig com parede entre o pivô e a câmera: a câmera fica antes dela") {
     RigScene rig;
     //parede de lado 2 centrada em z = 3: a face de frente pro pivô fica em z = 2
-    LveGameObject &wall = rig.scene.createGameObject();
+    CrsGameObject &wall = rig.scene.createGameObject();
     wall.transform.translation = {0.f, 0.f, 3.f};
     wall.rigidBody.emplace();
     wall.rigidBody->type = BodyType::Static;

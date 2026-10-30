@@ -1,5 +1,5 @@
-#include "engine/animation/lve_animation.hpp"
-#include "engine/animation/lve_animator_system.hpp"
+#include "engine/animation/crs_animation.hpp"
+#include "engine/animation/crs_animator_system.hpp"
 #include "engine/gameplay/character_animation_system.hpp"
 
 #include <doctest/doctest.h>
@@ -7,7 +7,7 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-using namespace lve;
+using namespace crsdk;
 
 //quatérnio no formato do glTF (x, y, z, w), como o loader vai guardar nos keyframes
 static glm::vec4 gltfQuat(const glm::quat &q) {
@@ -137,8 +137,8 @@ TEST_CASE("blendPoses: no meio da transição fica no meio das duas poses") {
 }
 
 TEST_CASE("animator.play: a anterior some aos poucos e a transição termina") {
-    LveScene scene;
-    LveGameObject &obj = scene.createGameObject();
+    CrsScene scene;
+    CrsGameObject &obj = scene.createGameObject();
     obj.animator.emplace();
     obj.animator->clip = "idle";
     obj.animator->time = 3.f;
@@ -172,11 +172,11 @@ TEST_CASE("animator.play: pedir a mesma animação não recomeça nem mistura") 
 }
 
 //cápsula com física + visual filho com as animações, como no loadGameObjects
-static LveGameObject &addAnimatedCharacter(LveScene &scene, LveGameObject *&body) {
+static CrsGameObject &addAnimatedCharacter(CrsScene &scene, CrsGameObject *&body) {
     body = &scene.createGameObject();
     body->rigidBody.emplace();
     body->character.emplace();
-    LveGameObject &visual = scene.createGameObject();
+    CrsGameObject &visual = scene.createGameObject();
     visual.parentId = body->getId();
     visual.animator.emplace();
     visual.characterAnimation.emplace();
@@ -188,9 +188,9 @@ static LveGameObject &addAnimatedCharacter(LveScene &scene, LveGameObject *&body
 }
 
 TEST_CASE("CharacterAnimationSystem: parado, andando, correndo e no ar") {
-    LveScene scene;
-    LveGameObject *body = nullptr;
-    LveGameObject &visual = addAnimatedCharacter(scene, body);
+    CrsScene scene;
+    CrsGameObject *body = nullptr;
+    CrsGameObject &visual = addAnimatedCharacter(scene, body);
     CharacterAnimationSystem system;
     float walkSpeed = body->character->moveSpeed;
 

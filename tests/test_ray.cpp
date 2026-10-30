@@ -1,12 +1,12 @@
-#include "engine/scene/lve_ray.hpp"
-#include "engine/rendering/lve_camera.hpp"
+#include "engine/scene/crs_ray.hpp"
+#include "engine/rendering/crs_camera.hpp"
 
 #include <doctest/doctest.h>
 
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-using namespace lve;
+using namespace crsdk;
 
 //caixa de lado 2 centrada na origem (como o cubo de teste)
 const glm::vec3 BOX_MIN{-1.f};
@@ -67,8 +67,8 @@ TEST_CASE("objeto girado: o raio é levado pro espaço dele") {
 }
 
 //câmera de teste: fora do eixo e um pouco inclinada, pra um erro de sinal não passar despercebido
-static LveCamera makeTestCamera() {
-    LveCamera camera;
+static CrsCamera makeTestCamera() {
+    CrsCamera camera;
     camera.setPerspectiveProjection(glm::radians(50.f), 800.f / 600.f, 0.1f, 100.f);
     camera.setViewDirection({1.f, -2.f, -6.f}, glm::normalize(glm::vec3{-0.1f, 0.3f, 1.f}));
     return camera;
@@ -76,7 +76,7 @@ static LveCamera makeTestCamera() {
 const glm::vec2 SCREEN{800.f, 600.f};
 
 TEST_CASE("raio do pixel passa pelo ponto do mundo que aparece nele (ida e volta)") {
-    LveCamera camera = makeTestCamera();
+    CrsCamera camera = makeTestCamera();
     glm::vec3 worldPoint{0.5f, 0.3f, 2.f};
 
     //ida (o caminho normal da câmera): mundo -> pixel
@@ -96,7 +96,7 @@ TEST_CASE("raio do pixel passa pelo ponto do mundo que aparece nele (ida e volta
 }
 
 TEST_CASE("pixel do centro da tela: o raio vai pra onde a câmera olha") {
-    LveCamera camera = makeTestCamera();
+    CrsCamera camera = makeTestCamera();
     glm::vec3 forward = glm::normalize(glm::vec3{-0.1f, 0.3f, 1.f});
 
     Ray ray = screenPointToRay(SCREEN * 0.5f, SCREEN, camera.getProjection(), camera.getView());

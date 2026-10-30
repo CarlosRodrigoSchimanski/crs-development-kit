@@ -1,8 +1,8 @@
-#include "engine/scene/lve_game_object.hpp"
+#include "engine/scene/crs_game_object.hpp"
 
 #include <doctest/doctest.h>
 
-using namespace lve;
+using namespace crsdk;
 
 //duas matrizes iguais, número a número (com folga de arredondamento)
 static void checkSameMatrix(const glm::mat4 &a, const glm::mat4 &b) {

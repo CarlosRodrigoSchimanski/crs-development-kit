@@ -117,7 +117,7 @@
 
   <figure>
     <div class="svg-wrap">
-      <svg viewBox="0 0 860 880" role="img" aria-label="Diagrama de posse: main.cpp cria FirstApp, que possui diretamente LveWindow, LveDevice, LveSwapChain, LvePipeline e LveModel, nessa ordem de construção. Setas tracejadas mostram que LveDevice referencia LveWindow, e que LveSwapChain, LvePipeline e LveModel referenciam LveDevice. Nada referencia FirstApp de volta.">
+      <svg viewBox="0 0 860 880" role="img" aria-label="Diagrama de posse: main.cpp cria FirstApp, que possui diretamente CrsWindow, CrsDevice, CrsSwapChain, CrsPipeline e CrsModel, nessa ordem de construção. Setas tracejadas mostram que CrsDevice referencia CrsWindow, e que CrsSwapChain, CrsPipeline e CrsModel referenciam CrsDevice. Nada referencia FirstApp de volta.">
         <defs>
           <marker id="ownArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
             <polygon points="0,0 7,3 0,6" fill="currentColor"></polygon>
@@ -141,48 +141,48 @@
         <line x1="46" y1="140" x2="814" y2="140" stroke="var(--line)" stroke-width="1"></line>
 
         <!-- member boxes -->
-        <!-- LveWindow y=156 cy=188 -->
+        <!-- CrsWindow y=156 cy=188 -->
         <rect x="110" y="156" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
-        <text x="126" y="182" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveWindow</text>
+        <text x="126" y="182" class="mono" font-size="14" font-weight="600" fill="var(--ink)">CrsWindow</text>
         <text x="126" y="202" font-size="11" fill="var(--muted)">janela GLFW · surface · rastreio de redimensionamento</text>
         <text x="95" y="192" text-anchor="middle" font-size="11" fill="var(--muted)">①</text>
 
-        <!-- LveDevice y=244 cy=276 -->
+        <!-- CrsDevice y=244 cy=276 -->
         <rect x="110" y="244" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
-        <text x="126" y="270" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveDevice</text>
+        <text x="126" y="270" class="mono" font-size="14" font-weight="600" fill="var(--ink)">CrsDevice</text>
         <text x="126" y="290" font-size="11" fill="var(--muted)">instance · validation layers · physical/logical device · command pool</text>
         <text x="95" y="280" text-anchor="middle" font-size="11" fill="var(--muted)">②</text>
 
-        <!-- LveSwapChain y=332 cy=364 -->
+        <!-- CrsSwapChain y=332 cy=364 -->
         <rect x="110" y="332" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
-        <text x="126" y="358" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveSwapChain</text>
+        <text x="126" y="358" class="mono" font-size="14" font-weight="600" fill="var(--ink)">CrsSwapChain</text>
         <text x="126" y="378" font-size="11" fill="var(--muted)">imagens · render pass · framebuffers · profundidade · semáforos/fences</text>
         <text x="95" y="368" text-anchor="middle" font-size="11" fill="var(--muted)">③</text>
 
-        <!-- LvePipeline y=420 cy=452 -->
+        <!-- CrsPipeline y=420 cy=452 -->
         <rect x="110" y="420" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
-        <text x="126" y="446" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LvePipeline</text>
+        <text x="126" y="446" class="mono" font-size="14" font-weight="600" fill="var(--ink)">CrsPipeline</text>
         <text x="126" y="466" font-size="11" fill="var(--muted)">shader modules · VkPipeline (estado fixo + viewport/scissor dinâmico)</text>
         <text x="95" y="456" text-anchor="middle" font-size="11" fill="var(--muted)">④</text>
 
-        <!-- LveModel y=508 cy=540 -->
+        <!-- CrsModel y=508 cy=540 -->
         <rect x="110" y="508" width="600" height="64" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
-        <text x="126" y="534" class="mono" font-size="14" font-weight="600" fill="var(--ink)">LveModel</text>
+        <text x="126" y="534" class="mono" font-size="14" font-weight="600" fill="var(--ink)">CrsModel</text>
         <text x="126" y="554" font-size="11" fill="var(--muted)">buffer de vértices (posição + cor)</text>
         <text x="95" y="544" text-anchor="middle" font-size="11" fill="var(--muted)">⑤</text>
 
         <!-- reference rails -->
         <path d="M710,256 L730,256 L730,188 L710,188" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
-        <text x="730" y="248" font-size="10.5" fill="var(--ref)" class="mono">LveWindow&amp;</text>
+        <text x="730" y="248" font-size="10.5" fill="var(--ref)" class="mono">CrsWindow&amp;</text>
 
         <path d="M710,364 L750,364 L750,268 L710,268" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
-        <text x="716" y="358" font-size="10.5" fill="var(--ref)" class="mono">LveDevice&amp;</text>
+        <text x="716" y="358" font-size="10.5" fill="var(--ref)" class="mono">CrsDevice&amp;</text>
 
         <path d="M710,452 L770,452 L770,280 L710,280" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
-        <text x="716" y="446" font-size="10.5" fill="var(--ref)" class="mono">LveDevice&amp;</text>
+        <text x="716" y="446" font-size="10.5" fill="var(--ref)" class="mono">CrsDevice&amp;</text>
 
         <path d="M710,540 L790,540 L790,292 L710,292" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#refArrow)"></path>
-        <text x="716" y="534" font-size="10.5" fill="var(--ref)" class="mono">LveDevice&amp;</text>
+        <text x="716" y="534" font-size="10.5" fill="var(--ref)" class="mono">CrsDevice&amp;</text>
 
         <!-- raw members owned directly by FirstApp -->
         <rect x="110" y="588" width="600" height="36" rx="6" fill="var(--box-raw)" stroke="var(--line)" stroke-dasharray="3 3"></rect>
@@ -208,7 +208,7 @@
         </defs>
 
         <rect x="180" y="20" width="280" height="44" rx="22" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></rect>
-        <text x="320" y="47" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">while (!lveWindow.shouldClose())</text>
+        <text x="320" y="47" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">while (!crsWindow.shouldClose())</text>
 
         <line x1="320" y1="64" x2="320" y2="88" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
         <rect x="180" y="90" width="280" height="44" rx="8" fill="var(--box-bg)" stroke="var(--ink)" stroke-width="1.5"></rect>
@@ -216,7 +216,7 @@
 
         <line x1="320" y1="134" x2="320" y2="158" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
         <rect x="180" y="160" width="280" height="54" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
-        <text x="320" y="180" text-anchor="middle" font-size="10.5" fill="var(--muted)">lveSwapChain-&gt;</text>
+        <text x="320" y="180" text-anchor="middle" font-size="10.5" fill="var(--muted)">crsSwapChain-&gt;</text>
         <text x="320" y="200" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">acquireNextImage(&amp;imageIndex)</text>
 
         <line x1="320" y1="214" x2="320" y2="236" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
@@ -231,13 +231,13 @@
         <text x="320" y="379" text-anchor="middle" class="mono" font-size="12.5" font-weight="600" fill="var(--ink)">recordComandBuffer(imageIndex)</text>
         <text x="200" y="398" class="mono vk-text" font-size="10.5" fill="var(--accent)">vkCmdBeginRenderPass</text>
         <text x="200" y="414" class="mono vk-text" font-size="10.5" fill="var(--accent)">vkCmdSetViewport / vkCmdSetScissor</text>
-        <text x="200" y="430" class="mono vk-text" font-size="10.5" fill="var(--accent)">lvePipeline-&gt;bind()</text>
-        <text x="200" y="446" class="mono vk-text" font-size="10.5" fill="var(--accent)">lveModel-&gt;bind() + draw()</text>
+        <text x="200" y="430" class="mono vk-text" font-size="10.5" fill="var(--accent)">crsPipeline-&gt;bind()</text>
+        <text x="200" y="446" class="mono vk-text" font-size="10.5" fill="var(--accent)">crsModel-&gt;bind() + draw()</text>
         <text x="200" y="462" class="mono vk-text" font-size="10.5" fill="var(--accent)">vkCmdEndRenderPass</text>
 
         <line x1="320" y1="490" x2="320" y2="518" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
         <rect x="180" y="520" width="280" height="54" rx="8" fill="var(--box-engine)" stroke="var(--line)"></rect>
-        <text x="320" y="540" text-anchor="middle" font-size="10.5" fill="var(--muted)">lveSwapChain-&gt;</text>
+        <text x="320" y="540" text-anchor="middle" font-size="10.5" fill="var(--muted)">crsSwapChain-&gt;</text>
         <text x="320" y="560" text-anchor="middle" class="mono" font-size="12.5" fill="var(--ink)">submitCommandBuffers(...)</text>
 
         <line x1="320" y1="574" x2="320" y2="596" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#flowArrow)"></line>
@@ -281,11 +281,11 @@
     <tbody>
       <tr><td class="file mono">main.cpp</td><td class="mono">—</td><td>Cria <code class="mono">FirstApp</code> e chama <code class="mono">run()</code>.</td></tr>
       <tr><td class="file mono">first_app.*</td><td class="mono">FirstApp</td><td>Camada de aplicação: loop principal, pipeline layout, command buffers, orquestra o resto.</td></tr>
-      <tr><td class="file mono">lve_window.*</td><td class="mono">LveWindow</td><td>Janela GLFW, surface Vulkan, rastreio de redimensionamento.</td></tr>
-      <tr><td class="file mono">lve_device.*</td><td class="mono">LveDevice</td><td>Instance, validation layers, physical/logical device, command pool, helpers de buffer/imagem.</td></tr>
-      <tr><td class="file mono">lve_swap_chain.*</td><td class="mono">LveSwapChain</td><td>Swap chain, render pass, framebuffers, recursos de profundidade, sincronização CPU/GPU.</td></tr>
-      <tr><td class="file mono">lve_pipeline.*</td><td class="mono">LvePipeline / PipelineConfigInfo</td><td>Shader modules e o <code class="mono">VkPipeline</code> gráfico (estado fixo + dynamic state).</td></tr>
-      <tr><td class="file mono">lve_model.*</td><td class="mono">LveModel / Vertex</td><td>Buffer de vértices (posição + cor) de um modelo.</td></tr>
+      <tr><td class="file mono">crs_window.*</td><td class="mono">CrsWindow</td><td>Janela GLFW, surface Vulkan, rastreio de redimensionamento.</td></tr>
+      <tr><td class="file mono">crs_device.*</td><td class="mono">CrsDevice</td><td>Instance, validation layers, physical/logical device, command pool, helpers de buffer/imagem.</td></tr>
+      <tr><td class="file mono">crs_swap_chain.*</td><td class="mono">CrsSwapChain</td><td>Swap chain, render pass, framebuffers, recursos de profundidade, sincronização CPU/GPU.</td></tr>
+      <tr><td class="file mono">crs_pipeline.*</td><td class="mono">CrsPipeline / PipelineConfigInfo</td><td>Shader modules e o <code class="mono">VkPipeline</code> gráfico (estado fixo + dynamic state).</td></tr>
+      <tr><td class="file mono">crs_model.*</td><td class="mono">CrsModel / Vertex</td><td>Buffer de vértices (posição + cor) de um modelo.</td></tr>
       <tr><td class="file mono">shaders/*.vert, *.frag</td><td class="mono">—</td><td>Shaders GLSL, compilados pra <code class="mono">.spv</code> pelo CMake.</td></tr>
     </tbody>
   </table>

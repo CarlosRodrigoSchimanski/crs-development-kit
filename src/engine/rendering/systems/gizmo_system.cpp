@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-namespace lve {
+namespace crsdk {
     struct GizmoPushConstantData {
         glm::mat4 modelMatrix{1.f};
         glm::vec4 color{1.f};
@@ -17,13 +17,13 @@ namespace lve {
     const glm::vec4 GIZMO_EDGE_TINT{1.5f, 1.5f, 1.5f, 1.f};
 
     GizmoRenderSystem::GizmoRenderSystem(
-        LveDevice& device, 
+        CrsDevice& device, 
         VkFormat colorFormat, 
         VkFormat depthFormat, 
-        VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
+        VkDescriptorSetLayout globalSetLayout) : crsDevice{device} {
             //set 0 = global (camera)
-            pipelineLayout = LvePipeline::createPipelineLayout(
-                lveDevice,
+            pipelineLayout = CrsPipeline::createPipelineLayout(
+                crsDevice,
                 {globalSetLayout},
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 sizeof(GizmoPushConstantData)
@@ -36,7 +36,7 @@ namespace lve {
         assert(pipelineLayout.get() != VK_NULL_HANDLE && "Cannot create pipeline before pipeline layout");
 
         PipelineConfigInfo pipelineConfig{};
-        LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
+        CrsPipeline::defaultPipelineConfigInfo(pipelineConfig);
         //o gizmo.vert só lê posição (location 0) e cor (location 1)
         std::vector<VkVertexInputAttributeDescription> positionAndColor{};
         for (auto& attribute : pipelineConfig.attributeDescriptions) {
@@ -44,23 +44,23 @@ namespace lve {
         }
         pipelineConfig.attributeDescriptions = positionAndColor;
 
-        LvePipeline::enableAlphaBlending(pipelineConfig);
+        CrsPipeline::enableAlphaBlending(pipelineConfig);
 
         //transparente: testa a profundidade, mas não escreve
         pipelineConfig.depthStencilInfo.depthWriteEnable = VK_FALSE;
         pipelineConfig.colorAttachmentFormats = {colorFormat};
         pipelineConfig.depthAttachmentFormat = depthFormat;
         pipelineConfig.pipelineLayout = pipelineLayout.get();
-        fillPipeline = std::make_unique<LvePipeline>(
-            lveDevice,
+        fillPipeline = std::make_unique<CrsPipeline>(
+            crsDevice,
             "shaders/gizmo.vert.spv",
             "shaders/gizmo.frag.spv",
             pipelineConfig);
 
         //arestas: mesma configuração, mas cada par de índices vira uma linha
         pipelineConfig.inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-        edgePipeline = std::make_unique<LvePipeline>(
-            lveDevice,
+        edgePipeline = std::make_unique<CrsPipeline>(
+            crsDevice,
             "shaders/gizmo.vert.spv",
             "shaders/gizmo.frag.spv",
             pipelineConfig);
@@ -80,13 +80,13 @@ namespace lve {
             0,
             nullptr);
 
-        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
+        for (auto& kv : frameInfo.crsScene.getGameObjects()) {
             auto& obj = kv.second;
             //só gizmos com modelo
             if (!obj.editorOnly || obj.model == nullptr) continue;
 
             GizmoPushConstantData push{};
-            push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
+            push.modelMatrix = frameInfo.crsScene.worldMatrix(obj);
             push.color = GIZMO_FILL_TINT;
 
             vkCmdPushConstants(
@@ -103,12 +103,12 @@ namespace lve {
 
         //arestas por cima do preenchimento
         edgePipeline->bind(frameInfo.commandBuffer);
-        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
+        for (auto& kv : frameInfo.crsScene.getGameObjects()) {
             auto& obj = kv.second;
             if (!obj.editorOnly || obj.model == nullptr) continue;
 
             GizmoPushConstantData push{};
-            push.modelMatrix = frameInfo.lveScene.worldMatrix(obj);
+            push.modelMatrix = frameInfo.crsScene.worldMatrix(obj);
             push.color = GIZMO_EDGE_TINT;
 
             vkCmdPushConstants(

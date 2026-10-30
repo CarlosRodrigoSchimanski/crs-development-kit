@@ -3,9 +3,9 @@
 #include <glm/gtc/constants.hpp>
 #include <cmath>
 
-namespace lve {
+namespace crsdk {
 
-    void CharacterControllerSystem::update(LveScene &scene, const CharacterInput &input) {
+    void CharacterControllerSystem::update(CrsScene &scene, const CharacterInput &input) {
         //direção so no chão, e no maximo comprimento 1 (normalinando o vetor)
         glm::vec3 direction{input.moveDirection.x, 0.f, input.moveDirection.z};
         float length = glm::length(direction);
@@ -35,11 +35,11 @@ namespace lve {
         return current + (difference >0.f ? maxStep : -maxStep);
     }
 
-    void CharacterControllerSystem::faceMovement(LveScene &scene, float dt) {
+    void CharacterControllerSystem::faceMovement(CrsScene &scene, float dt) {
         for (auto &kv : scene.getGameObjects()) {
             auto &obj = kv.second;
             if (!obj.faceMovement || !obj.parentId) continue;
-            LveGameObject *parent = scene.findGameObjectById(*obj.parentId);
+            CrsGameObject *parent = scene.findGameObjectById(*obj.parentId);
             if (!parent || !parent->rigidBody) continue;
 
             glm::vec2 velocity{parent->rigidBody->velocity.x, parent->rigidBody->velocity.z};

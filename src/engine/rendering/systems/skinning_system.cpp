@@ -1,27 +1,27 @@
 #include "engine/rendering/systems/skinning_system.hpp"
 
-#include "engine/animation/lve_animation.hpp"
-#include "engine/rendering/lve_swap_chain.hpp"
+#include "engine/animation/crs_animation.hpp"
+#include "engine/rendering/crs_swap_chain.hpp"
 
 #include <cmath>
 #include <filesystem>
 
-namespace lve {
+namespace crsdk {
 
     //quantas matrizes de osso cabem no buffer de cada frame no começo (cresce sozinho se precisar)
     constexpr size_t INITIAL_BONE_CAPACITY = 256;
 
-    SkinningSystem::SkinningSystem(LveDevice &device, LveAnimationLibrary &animationLibrary)
-        : lveDevice{device}, animationLibrary{animationLibrary} {
-        boneBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+    SkinningSystem::SkinningSystem(CrsDevice &device, CrsAnimationLibrary &animationLibrary)
+        : crsDevice{device}, animationLibrary{animationLibrary} {
+        boneBuffers.resize(CrsSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (auto &boneBuffer : boneBuffers) {
             boneBuffer = createBoneBuffer(INITIAL_BONE_CAPACITY);
         }
     }
 
-    std::unique_ptr<LveBuffer> SkinningSystem::createBoneBuffer(size_t capacity) {
-        auto boneBuffer = std::make_unique<LveBuffer>(
-            lveDevice,
+    std::unique_ptr<CrsBuffer> SkinningSystem::createBoneBuffer(size_t capacity) {
+        auto boneBuffer = std::make_unique<CrsBuffer>(
+            crsDevice,
             sizeof(glm::mat4),
             static_cast<uint32_t>(capacity),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -36,7 +36,7 @@ namespace lve {
 
     //primeiro os arquivos do animator (pelo nome do arquivo), depois as do modelo;
     //vazio ou não achou = o primeiro arquivo, ou a primeira do modelo
-    const AnimationClip *SkinningSystem::findClip(const LveModel &model, const AnimatorComponent &animator, const std::string &name) {
+    const AnimationClip *SkinningSystem::findClip(const CrsModel &model, const AnimatorComponent &animator, const std::string &name) {
         const Skeleton &skeleton = *model.getSkeleton();
         for (const std::string &file : animator.animations) {
             if (std::filesystem::path{file}.stem().string() == name) return animationLibrary.get(file, skeleton);
@@ -56,11 +56,11 @@ namespace lve {
         return sampleClip(skeleton, *clip, time);
     }
 
-    bool SkinningSystem::update(LveScene &scene, int frameIndex) {
+    bool SkinningSystem::update(CrsScene &scene, int frameIndex) {
         //todas as matrizes do frame, uma fatia por objeto animado
         std::vector<glm::mat4> bones;
         for (auto &kv : scene.getGameObjects()) {
-            LveGameObject &obj = kv.second;
+            CrsGameObject &obj = kv.second;
             if (!obj.animator || obj.model == nullptr || !obj.model->hasSkin()) continue;
             const Skeleton *skeleton = obj.model->getSkeleton();
             if (skeleton == nullptr) continue;

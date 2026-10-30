@@ -1,4 +1,4 @@
-#include "engine/animation/lve_animation_file.hpp"
+#include "engine/animation/crs_animation_file.hpp"
 
 #include <doctest/doctest.h>
 
@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-using namespace lve;
+using namespace crsdk;
 
 //bytes -> texto base64 (o glTF aceita os dados embutidos assim, sem arquivo .bin)
 static std::string toBase64(const std::vector<float> &values) {

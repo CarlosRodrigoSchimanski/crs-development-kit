@@ -1,19 +1,19 @@
-#include "engine/scene/lve_scene.hpp"
+#include "engine/scene/crs_scene.hpp"
 
 #include <doctest/doctest.h>
 
 #include <glm/gtc/constants.hpp>
 
-using namespace lve;
+using namespace crsdk;
 
 //posição no mundo de um objeto (a coluna 3 da matriz é a translação)
-static glm::vec3 worldPosition(LveScene &scene, const LveGameObject &obj) {
+static glm::vec3 worldPosition(CrsScene &scene, const CrsGameObject &obj) {
     return glm::vec3{scene.worldMatrix(obj)[3]};
 }
 
 TEST_CASE("objeto sem pai: a matriz do mundo é a do próprio transform") {
-    LveScene scene;
-    LveGameObject &obj = scene.createGameObject();
+    CrsScene scene;
+    CrsGameObject &obj = scene.createGameObject();
     obj.transform.translation = {1.f, 2.f, 3.f};
 
     glm::vec3 p = worldPosition(scene, obj);
@@ -23,10 +23,10 @@ TEST_CASE("objeto sem pai: a matriz do mundo é a do próprio transform") {
 }
 
 TEST_CASE("filho acompanha o pai") {
-    LveScene scene;
-    LveGameObject &parent = scene.createGameObject();
+    CrsScene scene;
+    CrsGameObject &parent = scene.createGameObject();
     parent.transform.translation = {5.f, 0.f, 0.f};
-    LveGameObject &child = scene.createGameObject();
+    CrsGameObject &child = scene.createGameObject();
     child.parentId = parent.getId();
     child.transform.translation = {1.f, 0.f, 0.f};  //1 à direita do pai
 
@@ -37,11 +37,11 @@ TEST_CASE("filho acompanha o pai") {
 }
 
 TEST_CASE("filho gira em volta do pai (ordem pai x filho)") {
-    LveScene scene;
-    LveGameObject &parent = scene.createGameObject();
+    CrsScene scene;
+    CrsGameObject &parent = scene.createGameObject();
     parent.transform.translation = {5.f, 0.f, 0.f};
     parent.transform.rotation.y = glm::half_pi<float>();  //90 graus em Y
-    LveGameObject &child = scene.createGameObject();
+    CrsGameObject &child = scene.createGameObject();
     child.parentId = parent.getId();
     child.transform.translation = {1.f, 0.f, 0.f};
 
@@ -52,13 +52,13 @@ TEST_CASE("filho gira em volta do pai (ordem pai x filho)") {
 }
 
 TEST_CASE("neto soma pai e avô") {
-    LveScene scene;
-    LveGameObject &grandparent = scene.createGameObject();
+    CrsScene scene;
+    CrsGameObject &grandparent = scene.createGameObject();
     grandparent.transform.translation = {1.f, 0.f, 0.f};
-    LveGameObject &parent = scene.createGameObject();
+    CrsGameObject &parent = scene.createGameObject();
     parent.parentId = grandparent.getId();
     parent.transform.translation = {0.f, 2.f, 0.f};
-    LveGameObject &child = scene.createGameObject();
+    CrsGameObject &child = scene.createGameObject();
     child.parentId = parent.getId();
     child.transform.translation = {0.f, 0.f, 3.f};
 
@@ -69,8 +69,8 @@ TEST_CASE("neto soma pai e avô") {
 }
 
 //uma parede: caixa de colisão estática de lado 2 (ou do tamanho pedido) numa posição
-static LveGameObject &addWall(LveScene &scene, glm::vec3 position, glm::vec3 scale = glm::vec3{1.f}) {
-    LveGameObject &wall = scene.createGameObject();
+static CrsGameObject &addWall(CrsScene &scene, glm::vec3 position, glm::vec3 scale = glm::vec3{1.f}) {
+    CrsGameObject &wall = scene.createGameObject();
     wall.transform.translation = position;
     wall.transform.scale = scale;
     wall.rigidBody.emplace();
@@ -79,8 +79,8 @@ static LveGameObject &addWall(LveScene &scene, glm::vec3 position, glm::vec3 sca
 }
 
 TEST_CASE("raycast: acerta o colisor mais perto e diz a distância") {
-    LveScene scene;
-    LveGameObject &near = addWall(scene, {0.f, 0.f, 5.f});
+    CrsScene scene;
+    CrsGameObject &near = addWall(scene, {0.f, 0.f, 5.f});
     addWall(scene, {0.f, 0.f, 10.f});
     Ray ray{{0.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
 
@@ -92,7 +92,7 @@ TEST_CASE("raycast: acerta o colisor mais perto e diz a distância") {
 }
 
 TEST_CASE("raycast: o que está depois da distância máxima não conta") {
-    LveScene scene;
+    CrsScene scene;
     addWall(scene, {0.f, 0.f, 5.f});
     Ray ray{{0.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
 
@@ -100,10 +100,10 @@ TEST_CASE("raycast: o que está depois da distância máxima não conta") {
 }
 
 TEST_CASE("raycast: o objeto ignorado fica de fora (o raio sai de dentro dele)") {
-    LveScene scene;
+    CrsScene scene;
     //o raio começa DENTRO desta caixa, como o pivô da câmera dentro da cápsula do personagem
-    LveGameObject &capsule = addWall(scene, {0.f, 0.f, 0.f});
-    LveGameObject &wall = addWall(scene, {0.f, 0.f, 5.f});
+    CrsGameObject &capsule = addWall(scene, {0.f, 0.f, 0.f});
+    CrsGameObject &wall = addWall(scene, {0.f, 0.f, 5.f});
     Ray ray{{0.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
 
     auto withoutIgnore = scene.raycast(ray, 100.f);
@@ -116,9 +116,9 @@ TEST_CASE("raycast: o objeto ignorado fica de fora (o raio sai de dentro dele)")
 }
 
 TEST_CASE("raycast: usa o centro e a escala do colisor") {
-    LveScene scene;
+    CrsScene scene;
     //caixa com a origem nos pés (centro 1 acima) e o dobro de largura em X
-    LveGameObject &body = addWall(scene, {0.f, 0.f, 0.f}, {2.f, 1.f, 1.f});
+    CrsGameObject &body = addWall(scene, {0.f, 0.f, 0.f}, {2.f, 1.f, 1.f});
     body.rigidBody->center = {0.f, 1.f, 0.f};
 
     //raio de lado, na altura do centro da caixa (y = 1): acerta a face em x = -2
@@ -133,23 +133,23 @@ TEST_CASE("raycast: usa o centro e a escala do colisor") {
 }
 
 TEST_CASE("ids: cada cena começa do zero") {
-    LveScene first;
+    CrsScene first;
     first.createGameObject();
     first.createGameObject();
 
-    LveScene second;
+    CrsScene second;
     CHECK(second.createGameObject().getId() == 0);
 }
 
 TEST_CASE("ids: criar com id escolhido, os automáticos continuam depois dele") {
-    LveScene scene;
+    CrsScene scene;
     scene.createGameObject(10);
 
     CHECK(scene.createGameObject().getId() == 11);
 }
 
 TEST_CASE("ids: id repetido é erro") {
-    LveScene scene;
+    CrsScene scene;
     scene.createGameObject(3);
 
     CHECK_THROWS(scene.createGameObject(3));

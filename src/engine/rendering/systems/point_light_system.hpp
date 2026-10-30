@@ -1,21 +1,21 @@
 #pragma once
 
-#include "engine/rendering/lve_camera.hpp"
-#include "engine/core/lve_device.hpp"
-#include "engine/rendering/lve_pipeline.hpp"
-#include "engine/scene/lve_game_object.hpp"
-#include "engine/rendering/lve_frameInfo.hpp"
-#include "engine/rendering/lve_buffer.hpp"
-#include "engine/rendering/lve_swap_chain.hpp"
+#include "engine/rendering/crs_camera.hpp"
+#include "engine/core/crs_device.hpp"
+#include "engine/rendering/crs_pipeline.hpp"
+#include "engine/scene/crs_game_object.hpp"
+#include "engine/rendering/crs_frameInfo.hpp"
+#include "engine/rendering/crs_buffer.hpp"
+#include "engine/rendering/crs_swap_chain.hpp"
 
 #include <memory>
 #include <vector>
 
-namespace lve {
+namespace crsdk {
     class PointLightSystem {
         public:
 
-            PointLightSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
+            PointLightSystem(CrsDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
 
             PointLightSystem(const PointLightSystem&) = delete;
             PointLightSystem& operator=(const PointLightSystem&) = delete;
@@ -32,12 +32,12 @@ namespace lve {
 
         private:
             void createPipeline(VkFormat colorFormat, VkFormat depthFormat);
-            std::unique_ptr<LveBuffer> createLightBuffer(size_t capacity);
+            std::unique_ptr<CrsBuffer> createLightBuffer(size_t capacity);
 
-            LveDevice& lveDevice;
-            std::unique_ptr<LvePipeline> lvePipeline;
-            LvePipelineLayout pipelineLayout;
+            CrsDevice& crsDevice;
+            std::unique_ptr<CrsPipeline> crsPipeline;
+            CrsPipelineLayout pipelineLayout;
             //um por frame em voo: a CPU reescreve todo frame, e o frame anterior pode estar sendo lido
-            std::vector<std::unique_ptr<LveBuffer>> lightBuffers;
+            std::vector<std::unique_ptr<CrsBuffer>> lightBuffers;
     };
 }

@@ -1,4 +1,4 @@
-#include "engine/scripting/lve_scripting.hpp"
+#include "engine/scripting/crs_scripting.hpp"
 
 #include <doctest/doctest.h>
 
@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-using namespace lve;
+using namespace crsdk;
 
 static std::string tempPath(const std::string &name) {
     return (std::filesystem::temp_directory_path() / name).generic_string();
@@ -26,7 +26,7 @@ static std::string readText(const std::string &path) {
 }
 
 TEST_CASE("Python: o script roda de verdade") {
-    LveScripting scripting;
+    CrsScripting scripting;
     std::string script = tempPath("ge_teste_script.py");
     std::string result = tempPath("ge_teste_resultado.txt");
     //o script escreve um arquivo: se ele existir com o texto certo, o Python rodou
@@ -40,7 +40,7 @@ TEST_CASE("Python: o script roda de verdade") {
 }
 
 TEST_CASE("Python: erro no script vira exceção com a mensagem do Python") {
-    LveScripting scripting;
+    CrsScripting scripting;
     std::string script = tempPath("ge_teste_erro.py");
     writeText(script, "x = 1 / 0\n");
 
@@ -49,6 +49,6 @@ TEST_CASE("Python: erro no script vira exceção com a mensagem do Python") {
 }
 
 TEST_CASE("Python: script que não existe é erro") {
-    LveScripting scripting;
+    CrsScripting scripting;
     CHECK_THROWS(scripting.runFile(tempPath("ge_nao_existe.py")));
 }

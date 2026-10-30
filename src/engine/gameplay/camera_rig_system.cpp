@@ -1,7 +1,7 @@
 #include "engine/gameplay/camera_rig_system.hpp"
 
-namespace lve {
-    void CameraRigSystem::update(LveScene &scene, glm::vec2 mouseDelta) {
+namespace crsdk {
+    void CameraRigSystem::update(CrsScene &scene, glm::vec2 mouseDelta) {
         for (auto &kv : scene.getGameObjects()) {
             auto &obj = kv.second;
             if (!obj.cameraRig) continue;
@@ -16,7 +16,7 @@ namespace lve {
         }
     }
 
-    void CameraRigSystem::placeCamera(LveScene &scene) {
+    void CameraRigSystem::placeCamera(CrsScene &scene) {
         for (auto &kv : scene.getGameObjects()) {
             auto &pivot = kv.second;
             if (!pivot.cameraRig) continue;

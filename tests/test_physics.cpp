@@ -1,16 +1,16 @@
-#include "engine/physics/lve_physics_system.hpp"
+#include "engine/physics/crs_physics_system.hpp"
 
 #include <doctest/doctest.h>
 
 #include <cmath>
 
-using namespace lve;
+using namespace crsdk;
 
 //passo fixo de 60 quadros por segundo, como um jogo rodando liso
 constexpr float DT = 1.f / 60.f;
 
 //roda a física por uma quantidade de segundos simulados
-static void simulate(PhysicsSystem &physics, LveScene &scene, float seconds) {
+static void simulate(PhysicsSystem &physics, CrsScene &scene, float seconds) {
     //arredonda: 1 / (1/60) dá 59.999... em float, e o static_cast sozinho cortaria pra 59
     int steps = static_cast<int>(std::lround(seconds / DT));
     for (int i = 0; i < steps; i++) {
@@ -19,9 +19,9 @@ static void simulate(PhysicsSystem &physics, LveScene &scene, float seconds) {
 }
 
 TEST_CASE("corpo dinâmico cai com a gravidade (pro -Y)") {
-    LveScene scene;
+    CrsScene scene;
     PhysicsSystem physics;
-    LveGameObject &cube = scene.createGameObject();
+    CrsGameObject &cube = scene.createGameObject();
     cube.rigidBody.emplace();
 
     simulate(physics, scene, 1.f);
@@ -32,15 +32,15 @@ TEST_CASE("corpo dinâmico cai com a gravidade (pro -Y)") {
 }
 
 TEST_CASE("cubo pousa no chão estático e para") {
-    LveScene scene;
+    CrsScene scene;
     PhysicsSystem physics;
 
     //mesma cena do loadGameObjects: cubo de lado 2 em y = 1.5, chão chato em y = 0
-    LveGameObject &cube = scene.createGameObject();
+    CrsGameObject &cube = scene.createGameObject();
     cube.transform.translation = {0.f, 1.5f, 0.f};
     cube.rigidBody.emplace();
 
-    LveGameObject &floor = scene.createGameObject();
+    CrsGameObject &floor = scene.createGameObject();
     floor.transform.scale = {5.f, 1.f, 5.f};
     floor.rigidBody.emplace();
     floor.rigidBody->type = BodyType::Static;
@@ -56,9 +56,9 @@ TEST_CASE("cubo pousa no chão estático e para") {
 }
 
 TEST_CASE("objeto sem corpo físico é ignorado") {
-    LveScene scene;
+    CrsScene scene;
     PhysicsSystem physics;
-    LveGameObject &prop = scene.createGameObject();
+    CrsGameObject &prop = scene.createGameObject();
     prop.transform.translation = {1.f, 2.f, 3.f};
 
     simulate(physics, scene, 1.f);
@@ -69,17 +69,17 @@ TEST_CASE("objeto sem corpo físico é ignorado") {
 }
 
 TEST_CASE("origem nos pés: o corpo pousa com os pés no chão") {
-    LveScene scene;
+    CrsScene scene;
     PhysicsSystem physics;
 
     //personagem: caixa de altura 1.8 acima da origem
-    LveGameObject &player = scene.createGameObject();
+    CrsGameObject &player = scene.createGameObject();
     player.transform.translation = {0.f, 2.f, 0.f};
     player.transform.scale = {0.4f, 0.9f, 0.4f};
     player.rigidBody.emplace();
     player.rigidBody->center = {0.f, 1.f, 0.f};
 
-    LveGameObject &floor = scene.createGameObject();
+    CrsGameObject &floor = scene.createGameObject();
     floor.transform.translation = {0.f, -0.5f, 0.f};
     floor.transform.scale = {10.f, 1.f, 10.f};
     floor.rigidBody.emplace();

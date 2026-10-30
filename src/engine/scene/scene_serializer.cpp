@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace lve {
+namespace crsdk {
     //ordered_json: as chaves ficam na ordem em que foram escritas (id e nome primeiro)
     using json = nlohmann::ordered_json;
 
@@ -38,7 +38,7 @@ namespace lve {
     }
 
     //os componentes do objeto: só as configurações (velocidade, tempo da animação... recomeçam ao carregar)
-    static void componentsToJson(json &j, const LveGameObject &obj) {
+    static void componentsToJson(json &j, const CrsGameObject &obj) {
         if (obj.pointLight) {
             j["pointLight"] = {{"intensity", rounded(obj.pointLight->lightIntensity)}};
         }
@@ -98,7 +98,7 @@ namespace lve {
     }
 
     //o caminho inverso; campo que falta fica com o valor padrão do componente
-    static void componentsFromJson(const json &j, LveGameObject &obj) {
+    static void componentsFromJson(const json &j, CrsGameObject &obj) {
         if (j.contains("pointLight")) {
             const json &c = j.at("pointLight");
             PointLightComponent light{};
@@ -168,7 +168,7 @@ namespace lve {
     }
 
     //um objeto da cena: o básico e os componentes
-    static json objectToJson(const LveGameObject &obj) {
+    static json objectToJson(const CrsGameObject &obj) {
         json j;
         j["id"] = obj.getId();
         j["name"] = obj.name;
@@ -190,17 +190,17 @@ namespace lve {
         return j;
     }
 
-    void saveScene(const LveScene &scene, const std::string &filepath) {
+    void saveScene(const CrsScene &scene, const std::string &filepath) {
         //em ordem de id: o arquivo não muda de ordem a cada salvar (o git mostra só o que mudou)
-        std::vector<const LveGameObject *> sorted;
+        std::vector<const CrsGameObject *> sorted;
         for (const auto &kv : scene.getGameObjects()) {
             sorted.push_back(&kv.second);
         }
         std::sort(sorted.begin(), sorted.end(),
-            [](const LveGameObject *a, const LveGameObject *b) { return a->getId() < b->getId(); });
+            [](const CrsGameObject *a, const CrsGameObject *b) { return a->getId() < b->getId(); });
 
         json objects = json::array();
-        for (const LveGameObject *obj : sorted) {
+        for (const CrsGameObject *obj : sorted) {
             objects.push_back(objectToJson(*obj));
         }
 
@@ -224,14 +224,14 @@ namespace lve {
     }
 
     //um objeto do arquivo, criado na cena com o mesmo id
-    static void objectFromJson(LveScene &scene, const json &j, const ModelLoader &loadModel) {
-        LveGameObject &obj = scene.createGameObject(j.at("id").get<LveGameObject::id_t>());
+    static void objectFromJson(CrsScene &scene, const json &j, const ModelLoader &loadModel) {
+        CrsGameObject &obj = scene.createGameObject(j.at("id").get<CrsGameObject::id_t>());
         obj.name = j.value("name", "");
         if (j.contains("model")) {
             obj.model = loadModel(j["model"].get<std::string>());
         }
         if (j.contains("parent")) {
-            obj.parentId = j["parent"].get<LveGameObject::id_t>();
+            obj.parentId = j["parent"].get<CrsGameObject::id_t>();
         }
         obj.editorOnly = j.value("editorOnly", false);
         obj.color = vec3Or(j, "color", obj.color);
@@ -245,7 +245,7 @@ namespace lve {
         componentsFromJson(j, obj);
     }
 
-    LveScene loadScene(const std::string &filepath, const ModelLoader &loadModel) {
+    CrsScene loadScene(const std::string &filepath, const ModelLoader &loadModel) {
         std::ifstream in{filepath};
         if (!in) {
             throw std::runtime_error("não consegui abrir a cena: " + filepath);
@@ -258,12 +258,12 @@ namespace lve {
             throw std::runtime_error("versão de cena desconhecida (" + std::to_string(version) + "): " + filepath);
         }
 
-        LveScene scene;
+        CrsScene scene;
         for (const json &j : file.at("objects")) {
             objectFromJson(scene, j, loadModel);
         }
         if (file.contains("activeCamera")) {
-            scene.setActiveCamera(file["activeCamera"].get<LveGameObject::id_t>());
+            scene.setActiveCamera(file["activeCamera"].get<CrsGameObject::id_t>());
         }
         return scene;
     }

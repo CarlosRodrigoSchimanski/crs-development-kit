@@ -1,17 +1,17 @@
 #pragma once
 
-#include "engine/core/lve_device.hpp"
-#include "engine/rendering/lve_pipeline.hpp"
-#include "engine/rendering/lve_frameInfo.hpp"
-#include "engine/rendering/lve_shadow_map.hpp"
+#include "engine/core/crs_device.hpp"
+#include "engine/rendering/crs_pipeline.hpp"
+#include "engine/rendering/crs_frameInfo.hpp"
+#include "engine/rendering/crs_shadow_map.hpp"
 
 #include <memory>
 
-namespace lve {
+namespace crsdk {
     //desenha a cena do ponto de vista do sol no shadow map (só profundidade)
     class ShadowRenderSystem {
         public:
-            ShadowRenderSystem(LveDevice& device, LveShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout);
+            ShadowRenderSystem(CrsDevice& device, CrsShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout);
 
             ShadowRenderSystem(const ShadowRenderSystem&) = delete;
             ShadowRenderSystem& operator=(const ShadowRenderSystem&) = delete;
@@ -23,12 +23,12 @@ namespace lve {
         private:
             void createPipeline();
 
-            LveDevice& lveDevice;
-            LveShadowMap& shadowMap;
-            std::unique_ptr<LvePipeline> lvePipeline;
-            LvePipelineLayout pipelineLayout;
+            CrsDevice& crsDevice;
+            CrsShadowMap& shadowMap;
+            std::unique_ptr<CrsPipeline> crsPipeline;
+            CrsPipelineLayout pipelineLayout;
             //objetos animados: a sombra também segue a pose (ossos do binding 3)
-            std::unique_ptr<LvePipeline> skinnedPipeline;
-            LvePipelineLayout skinnedPipelineLayout;
+            std::unique_ptr<CrsPipeline> skinnedPipeline;
+            CrsPipelineLayout skinnedPipelineLayout;
     };
 }

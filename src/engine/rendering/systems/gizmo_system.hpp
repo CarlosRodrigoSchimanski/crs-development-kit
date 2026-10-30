@@ -1,16 +1,16 @@
 #pragma once
 
-#include "engine/core/lve_device.hpp"
-#include "engine/rendering/lve_pipeline.hpp"
-#include "engine/rendering/lve_frameInfo.hpp"
+#include "engine/core/crs_device.hpp"
+#include "engine/rendering/crs_pipeline.hpp"
+#include "engine/rendering/crs_frameInfo.hpp"
 
 #include <memory>
 
-namespace lve {
+namespace crsdk {
     //desenha os objetos só do editor 'gizmos', semi tranparente
     class GizmoRenderSystem {
         public:
-            GizmoRenderSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
+            GizmoRenderSystem(CrsDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
 
             GizmoRenderSystem(const GizmoRenderSystem&) = delete;
             GizmoRenderSystem& operator = (const GizmoRenderSystem&) = delete;
@@ -20,14 +20,14 @@ namespace lve {
         private:
             void createPipeline(VkFormat colorFormat, VkFormat depthFormat);
 
-            LveDevice& lveDevice;
-            LvePipelineLayout pipelineLayout;
+            CrsDevice& crsDevice;
+            CrsPipelineLayout pipelineLayout;
 
             //preenchimento transparente
-            std::unique_ptr<LvePipeline> fillPipeline;
+            std::unique_ptr<CrsPipeline> fillPipeline;
 
             //arestas reais em linha, opacas
-            std::unique_ptr<LvePipeline> edgePipeline;
+            std::unique_ptr<CrsPipeline> edgePipeline;
 
         };
 }

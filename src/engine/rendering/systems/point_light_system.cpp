@@ -5,7 +5,7 @@
 #include <cassert>
 #include <map>
 
-namespace lve {
+namespace crsdk {
 
     struct PointLightPushConstants {
         glm::vec4 position{};
@@ -16,23 +16,23 @@ namespace lve {
     //quantas luzes cabem no storage buffer de cada frame no começo (cresce sozinho se precisar)
     constexpr size_t INITIAL_LIGHT_CAPACITY = 64;
 
-    PointLightSystem::PointLightSystem(LveDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout) : lveDevice{device} {
-        pipelineLayout = LvePipeline::createPipelineLayout(
-            lveDevice,
+    PointLightSystem::PointLightSystem(CrsDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout) : crsDevice{device} {
+        pipelineLayout = CrsPipeline::createPipelineLayout(
+            crsDevice,
             {globalSetLayout},
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             sizeof(PointLightPushConstants));
         createPipeline(colorFormat, depthFormat);
 
-        lightBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+        lightBuffers.resize(CrsSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (auto &lightBuffer : lightBuffers) {
             lightBuffer = createLightBuffer(INITIAL_LIGHT_CAPACITY);
         }
     }
 
-    std::unique_ptr<LveBuffer> PointLightSystem::createLightBuffer(size_t capacity) {
-        auto lightBuffer = std::make_unique<LveBuffer>(
-            lveDevice,
+    std::unique_ptr<CrsBuffer> PointLightSystem::createLightBuffer(size_t capacity) {
+        auto lightBuffer = std::make_unique<CrsBuffer>(
+            crsDevice,
             sizeof(PointLight),
             static_cast<uint32_t>(capacity),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -49,16 +49,16 @@ namespace lve {
         assert(pipelineLayout.get() != VK_NULL_HANDLE && "Cannot create pipeline before pipeline layout");
 
         PipelineConfigInfo pipelineConfig{};
-        LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
-        LvePipeline::enableAlphaBlending(pipelineConfig);
+        CrsPipeline::defaultPipelineConfigInfo(pipelineConfig);
+        CrsPipeline::enableAlphaBlending(pipelineConfig);
         pipelineConfig.bindingDescriptions.clear();
         pipelineConfig.attributeDescriptions.clear();
         //desenha na imagem da tela (cor + profundidade)
         pipelineConfig.colorAttachmentFormats = {colorFormat};
         pipelineConfig.depthAttachmentFormat = depthFormat;
         pipelineConfig.pipelineLayout = pipelineLayout.get();
-        lvePipeline = std::make_unique<LvePipeline>(
-            lveDevice,
+        crsPipeline = std::make_unique<CrsPipeline>(
+            crsDevice,
             "shaders/point_light.vert.spv",
             "shaders/point_light.frag.spv",
             pipelineConfig);
@@ -68,7 +68,7 @@ namespace lve {
     //quem usa a engine)
     bool PointLightSystem::update(FrameInfo& frameInfo, GlobalUbo& ubo) {
         std::vector<PointLight> lights;
-        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
+        for (auto& kv : frameInfo.crsScene.getGameObjects()) {
             auto& obj = kv.second;
             if (!obj.pointLight) continue;
             lights.push_back({glm::vec4(obj.transform.translation, 1.f), glm::vec4(obj.color, obj.pointLight->lightIntensity)});
@@ -96,8 +96,8 @@ namespace lve {
     void PointLightSystem::render(FrameInfo& frameInfo) {
         //de trás pra frente por causa da transparência; multimap porque duas luzes podem estar
         //à mesma distância (com map, a segunda sobrescreveria a primeira e uma sumiria)
-        std::multimap<float, LveGameObject::id_t> sorted;
-        for (auto& kv : frameInfo.lveScene.getGameObjects()) {
+        std::multimap<float, CrsGameObject::id_t> sorted;
+        for (auto& kv : frameInfo.crsScene.getGameObjects()) {
             auto& obj = kv.second;
             if (!obj.pointLight) continue;
         
@@ -106,7 +106,7 @@ namespace lve {
             sorted.emplace(dis, obj.getId());
         }
 
-        lvePipeline->bind(frameInfo.commandBuffer);
+        crsPipeline->bind(frameInfo.commandBuffer);
 
         vkCmdBindDescriptorSets(
             frameInfo.commandBuffer,
@@ -119,7 +119,7 @@ namespace lve {
             nullptr);
         
         for (auto it = sorted.rbegin(); it != sorted.rend(); ++it) {
-            auto& obj = frameInfo.lveScene.getGameObjects().at(it->second);
+            auto& obj = frameInfo.crsScene.getGameObjects().at(it->second);
 
             PointLightPushConstants push{};
             push.position = glm::vec4(obj.transform.translation, 1.f);

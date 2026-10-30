@@ -1,5 +1,5 @@
 #include "engine/gameplay/character_controller_system.hpp"
-#include "engine/physics/lve_physics_system.hpp"
+#include "engine/physics/crs_physics_system.hpp"
 
 #include <doctest/doctest.h>
 
@@ -7,20 +7,20 @@
 
 #include <cmath>
 
-using namespace lve;
+using namespace crsdk;
 
 constexpr float DT = 1.f / 60.f;
 
 //um personagem parado no ar (sem chão: só o movimento horizontal importa aqui)
-static LveGameObject &addCharacter(LveScene &scene) {
-    LveGameObject &player = scene.createGameObject();
+static CrsGameObject &addCharacter(CrsScene &scene) {
+    CrsGameObject &player = scene.createGameObject();
     player.rigidBody.emplace();
     player.character.emplace();
     return player;
 }
 
 //um frame do jogo: o controlador antes da física, como no FirstApp
-static void simulate(LveScene &scene, const CharacterInput &input, float seconds) {
+static void simulate(CrsScene &scene, const CharacterInput &input, float seconds) {
     CharacterControllerSystem controller;
     PhysicsSystem physics;
     //arredonda: 1 / (1/60) dá 59.999... em float, e o static_cast sozinho cortaria pra 59
@@ -32,8 +32,8 @@ static void simulate(LveScene &scene, const CharacterInput &input, float seconds
 }
 
 TEST_CASE("personagem anda na direção pedida com a velocidade dele") {
-    LveScene scene;
-    LveGameObject &player = addCharacter(scene);
+    CrsScene scene;
+    CrsGameObject &player = addCharacter(scene);
     CharacterInput input;
     input.moveDirection = {0.f, 0.f, 1.f};
 
@@ -44,8 +44,8 @@ TEST_CASE("personagem anda na direção pedida com a velocidade dele") {
 }
 
 TEST_CASE("correndo (Shift) usa a velocidade de corrida") {
-    LveScene scene;
-    LveGameObject &player = addCharacter(scene);
+    CrsScene scene;
+    CrsGameObject &player = addCharacter(scene);
     CharacterInput input;
     input.moveDirection = {0.f, 0.f, 1.f};
     input.run = true;
@@ -56,8 +56,8 @@ TEST_CASE("correndo (Shift) usa a velocidade de corrida") {
 }
 
 TEST_CASE("andar na diagonal não fica mais rápido") {
-    LveScene scene;
-    LveGameObject &player = addCharacter(scene);
+    CrsScene scene;
+    CrsGameObject &player = addCharacter(scene);
     CharacterInput input;
     input.moveDirection = {1.f, 0.f, 1.f};  //W + D: comprimento 1.41
 
@@ -68,8 +68,8 @@ TEST_CASE("andar na diagonal não fica mais rápido") {
 }
 
 TEST_CASE("sem intenção de movimento o personagem para") {
-    LveScene scene;
-    LveGameObject &player = addCharacter(scene);
+    CrsScene scene;
+    CrsGameObject &player = addCharacter(scene);
     CharacterInput walk;
     walk.moveDirection = {1.f, 0.f, 0.f};
     simulate(scene, walk, 0.5f);
@@ -81,8 +81,8 @@ TEST_CASE("sem intenção de movimento o personagem para") {
 }
 
 TEST_CASE("objeto sem componente de personagem não é movido pelo controlador") {
-    LveScene scene;
-    LveGameObject &box = scene.createGameObject();
+    CrsScene scene;
+    CrsGameObject &box = scene.createGameObject();
     box.rigidBody.emplace();
     CharacterInput input;
     input.moveDirection = {1.f, 0.f, 0.f};
@@ -93,8 +93,8 @@ TEST_CASE("objeto sem componente de personagem não é movido pelo controlador")
 }
 
 //personagem em pé num chão estático grande (mesma montagem do loadGameObjects)
-static LveGameObject &addFloor(LveScene &scene) {
-    LveGameObject &floor = scene.createGameObject();
+static CrsGameObject &addFloor(CrsScene &scene) {
+    CrsGameObject &floor = scene.createGameObject();
     floor.transform.translation = {0.f, -1.5f, 0.f};
     floor.transform.scale = {10.f, 1.f, 10.f};
     floor.rigidBody.emplace();
@@ -104,9 +104,9 @@ static LveGameObject &addFloor(LveScene &scene) {
 }
 
 TEST_CASE("personagem apoiado no chão fica onGround") {
-    LveScene scene;
+    CrsScene scene;
     addFloor(scene);
-    LveGameObject &player = addCharacter(scene);
+    CrsGameObject &player = addCharacter(scene);
 
     simulate(scene, CharacterInput{}, 1.f);
 
@@ -114,9 +114,9 @@ TEST_CASE("personagem apoiado no chão fica onGround") {
 }
 
 TEST_CASE("pulo apoiado no chão sobe (y aumenta)") {
-    LveScene scene;
+    CrsScene scene;
     addFloor(scene);
-    LveGameObject &player = addCharacter(scene);
+    CrsGameObject &player = addCharacter(scene);
     simulate(scene, CharacterInput{}, 1.f);
     float standingY = player.transform.translation.y;
 
@@ -130,9 +130,9 @@ TEST_CASE("pulo apoiado no chão sobe (y aumenta)") {
 }
 
 TEST_CASE("pulo no ar não faz nada") {
-    LveScene scene;
+    CrsScene scene;
     addFloor(scene);
-    LveGameObject &player = addCharacter(scene);
+    CrsGameObject &player = addCharacter(scene);
     simulate(scene, CharacterInput{}, 1.f);
 
     CharacterInput jump;
@@ -163,8 +163,8 @@ TEST_CASE("turnTowards: não passa do alvo") {
 }
 
 //cápsula se movendo + visual filho que vira pro movimento
-static LveGameObject &addVisual(LveScene &scene, LveGameObject &body) {
-    LveGameObject &visual = scene.createGameObject();
+static CrsGameObject &addVisual(CrsScene &scene, CrsGameObject &body) {
+    CrsGameObject &visual = scene.createGameObject();
     visual.parentId = body.getId();
     visual.faceMovement.emplace();
     visual.faceMovement->turnSpeed = 1000.f;  //vira na hora, pro teste olhar só a direção final
@@ -172,9 +172,9 @@ static LveGameObject &addVisual(LveScene &scene, LveGameObject &body) {
 }
 
 TEST_CASE("faceMovement: o visual fica de frente pro movimento (com o desvio do modelo)") {
-    LveScene scene;
-    LveGameObject &body = addCharacter(scene);
-    LveGameObject &visual = addVisual(scene, body);
+    CrsScene scene;
+    CrsGameObject &body = addCharacter(scene);
+    CrsGameObject &visual = addVisual(scene, body);
     body.rigidBody->velocity = {1.f, 0.f, 0.f};  //andando pro +X
 
     CharacterControllerSystem controller;
@@ -187,9 +187,9 @@ TEST_CASE("faceMovement: o visual fica de frente pro movimento (com o desvio do 
 }
 
 TEST_CASE("faceMovement: parado, mantém a última direção") {
-    LveScene scene;
-    LveGameObject &body = addCharacter(scene);
-    LveGameObject &visual = addVisual(scene, body);
+    CrsScene scene;
+    CrsGameObject &body = addCharacter(scene);
+    CrsGameObject &visual = addVisual(scene, body);
     visual.transform.rotation.y = 1.234f;
     body.rigidBody->velocity = {0.f, -3.f, 0.f};  //só caindo: nada no chão
 

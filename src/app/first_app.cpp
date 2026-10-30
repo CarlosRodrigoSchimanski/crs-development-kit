@@ -1,13 +1,13 @@
 #include "app/first_app.hpp"
-#include "engine/rendering/lve_camera.hpp"
+#include "engine/rendering/crs_camera.hpp"
 #include "engine/rendering/systems/simple_render_system.hpp"
 #include "engine/rendering/systems/point_light_system.hpp"
 #include "engine/rendering/systems/shadow_render_system.hpp"
-#include "engine/physics/lve_physics_system.hpp"
-#include "engine/rendering/lve_buffer.hpp"
-#include "editor/lve_imgui.hpp"
-#include "engine/rendering/lve_shadow_map.hpp"
-#include "engine/platform/lve_platform.hpp"
+#include "engine/physics/crs_physics_system.hpp"
+#include "engine/rendering/crs_buffer.hpp"
+#include "editor/crs_imgui.hpp"
+#include "engine/rendering/crs_shadow_map.hpp"
+#include "engine/platform/crs_platform.hpp"
 #include "engine/scene/scene_serializer.hpp"
 #include "editor/file_dialog.hpp"
 
@@ -19,7 +19,7 @@
 #include <filesystem>
 #include <thread>
 
-namespace lve {
+namespace crsdk {
     //limite do tempo de um frame (evita saltos grandes na física)
     constexpr float MAX_FRAME_TIME = 0.05f;
     //limite de FPS do programa (<= 0 = sem limite)
@@ -45,7 +45,7 @@ namespace lve {
     }
 
     //posiciona a câmera do sol em volta do centro
-    static void updateShadowCamera(LveCamera &shadowCamera, glm::vec3 center, glm::vec3 lightDirection, uint32_t shadowMapSize) {
+    static void updateShadowCamera(CrsCamera &shadowCamera, glm::vec3 center, glm::vec3 lightDirection, uint32_t shadowMapSize) {
         shadowCamera.setViewDirection(center - lightDirection * SHADOW_SUN_DISTANCE, lightDirection);
         //alinha à grade de texels (a borda da sombra não treme ao mover)
         float texelWorldSize = (2.f * SHADOW_HALF_SIZE) / static_cast<float>(shadowMapSize);
@@ -59,27 +59,27 @@ namespace lve {
 
     //desregistra o refresh callback ao sair do run()
     struct RefreshCallbackGuard {
-        LveWindow &window;
+        CrsWindow &window;
         ~RefreshCallbackGuard() { window.setRefreshCallback(nullptr); }
     };
 
     //espera a GPU terminar ao sair do run()
     struct DeviceIdleGuard {
-        LveDevice &device;
+        CrsDevice &device;
         //sem vkCheck de propósito (destrutor não pode lançar exceção)
         ~DeviceIdleGuard() { vkDeviceWaitIdle(device.device()); }
     };
 
     FirstApp::FirstApp() {
         //pool e layout dos descriptors globais
-        globalPool = LveDescriptorPool::Builder{lveDevice}
-            .setMaxSets(LveSwapChain::MAX_FRAMES_IN_FLIGHT)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, LveSwapChain::MAX_FRAMES_IN_FLIGHT)
+        globalPool = CrsDescriptorPool::Builder{crsDevice}
+            .setMaxSets(CrsSwapChain::MAX_FRAMES_IN_FLIGHT)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, CrsSwapChain::MAX_FRAMES_IN_FLIGHT)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, CrsSwapChain::MAX_FRAMES_IN_FLIGHT)
             //2 storage buffers por set: luzes (binding 2) e ossos (binding 3)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 * LveSwapChain::MAX_FRAMES_IN_FLIGHT)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 * CrsSwapChain::MAX_FRAMES_IN_FLIGHT)
             .build();
-        globalSetLayout = LveDescriptorSetLayout::Builder{lveDevice}
+        globalSetLayout = CrsDescriptorSetLayout::Builder{crsDevice}
             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
             .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
@@ -87,32 +87,32 @@ namespace lve {
             .build();
 
         //buffers do UBO
-        uboBuffers.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+        uboBuffers.resize(CrsSwapChain::MAX_FRAMES_IN_FLIGHT);
         for(size_t i = 0; i < uboBuffers.size(); i++) {
-            uboBuffers[i] = std::make_unique<LveBuffer>(
-                lveDevice,
+            uboBuffers[i] = std::make_unique<CrsBuffer>(
+                crsDevice,
                 sizeof(GlobalUbo),
                 1,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                lveDevice.properties.limits.minUniformBufferOffsetAlignment
+                crsDevice.properties.limits.minUniformBufferOffsetAlignment
             );
             uboBuffers[i]->map();
         }
 
         //sistemas de render e UI
-        VkFormat colorFormat = lveRenderer.getSwapChainImageFormat();
-        VkFormat depthFormat = lveRenderer.getSwapChainDepthFormat();
+        VkFormat colorFormat = crsRenderer.getSwapChainImageFormat();
+        VkFormat depthFormat = crsRenderer.getSwapChainDepthFormat();
         VkDescriptorSetLayout globalLayout = globalSetLayout->getDescriptorSetLayout();
-        simpleRenderSystem = std::make_unique<SimpleRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
-        pointLightSystem = std::make_unique<PointLightSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
-        shadowRenderSystem = std::make_unique<ShadowRenderSystem>(lveDevice, shadowMap, globalLayout);
-        gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(lveDevice, colorFormat, depthFormat, globalLayout);
-        skinningSystem = std::make_unique<SkinningSystem>(lveDevice, animationLibrary);
-        lveImgui = std::make_unique<LveImgui>(lveWindow, lveDevice, colorFormat, depthFormat, lveRenderer.getImageCount());
+        simpleRenderSystem = std::make_unique<SimpleRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
+        pointLightSystem = std::make_unique<PointLightSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
+        shadowRenderSystem = std::make_unique<ShadowRenderSystem>(crsDevice, shadowMap, globalLayout);
+        gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
+        skinningSystem = std::make_unique<SkinningSystem>(crsDevice, animationLibrary);
+        crsImgui = std::make_unique<CrsImgui>(crsWindow, crsDevice, colorFormat, depthFormat, crsRenderer.getImageCount());
 
         //descriptor sets globais: ligam UBO, shadow map, luzes e ossos aos shaders
-        globalDescriptorSets.resize(LveSwapChain::MAX_FRAMES_IN_FLIGHT);
+        globalDescriptorSets.resize(CrsSwapChain::MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < globalDescriptorSets.size(); i++) {
             auto bufferInfo = uboBuffers[i]->descriptorInfo();
             auto lightBufferInfo = pointLightSystem->lightBufferInfo(static_cast<int>(i));
@@ -123,7 +123,7 @@ namespace lve {
             //mesmo layout da barreira de saída do passe de sombra
             shadowMapInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
-            LveDescriptorWriter(*globalSetLayout, *globalPool)
+            CrsDescriptorWriter(*globalSetLayout, *globalPool)
                 .writeBuffer(0, &bufferInfo)
                 .writeImage(1, &shadowMapInfo)
                 .writeBuffer(2, &lightBufferInfo)
@@ -153,14 +153,14 @@ namespace lve {
         currentTime = std::chrono::high_resolution_clock::now();
 
         //guards da saída: desregistram o callback e esperam a GPU
-        RefreshCallbackGuard refreshGuard{lveWindow};
-        DeviceIdleGuard deviceIdleGuard{lveDevice};
+        RefreshCallbackGuard refreshGuard{crsWindow};
+        DeviceIdleGuard deviceIdleGuard{crsDevice};
         //redesenha durante o arrasto da borda (Windows)
         if (platform::needsRedrawDuringResize()) {
-            lveWindow.setRefreshCallback([this]() { drawFrame(); });
+            crsWindow.setRefreshCallback([this]() { drawFrame(); });
         }
 
-        while (!lveWindow.shouldClose()) {
+        while (!crsWindow.shouldClose()) {
             //eventos da janela e um frame
             glfwPollEvents();
             drawFrame();
@@ -183,19 +183,19 @@ namespace lve {
 
     void FirstApp::loadGameObjects() {
         //cubo de teste (dinâmico)
-        std::shared_ptr<LveModel> lveModel = modelCache.load("assets/models/iron_cube.glb");
-        auto& cube = lveScene.createGameObject();
+        std::shared_ptr<CrsModel> crsModel = modelCache.load("assets/models/iron_cube.glb");
+        auto& cube = crsScene.createGameObject();
         cube.name = "cube";
-        cube.model = lveModel;
+        cube.model = crsModel;
         cube.transform.translation = {0.f, 1.5f, 0.f};
         cube.transform.scale = glm::vec3{1.f, 1.f, 1.f};
         cube.rigidBody.emplace();
 
         //personagem: cápsula com a física (visível no Play até o visual entrar como filho)
-        lveModel = modelCache.load("assets/editor/character.glb");
-        auto& player = lveScene.createGameObject();
+        crsModel = modelCache.load("assets/editor/character.glb");
+        auto& player = crsScene.createGameObject();
         player.name = "Player";
-        player.model = lveModel;
+        player.model = crsModel;
         player.editorOnly = true;  //só a física: gizmo no editor, invisível no Play
         player.transform.translation = {3.f, 2.f, 0.f};
         player.transform.scale = {1.f, 1.f, 1.f};
@@ -205,10 +205,10 @@ namespace lve {
         player.character.emplace();
 
         //visual do personagem: filho da cápsula (anda junto com ela)
-        lveModel = modelCache.load("assets/models/basicFemaleTest.glb");
-        auto& playerVisual = lveScene.createGameObject();
+        crsModel = modelCache.load("assets/models/basicFemaleTest.glb");
+        auto& playerVisual = crsScene.createGameObject();
         playerVisual.name = "PlayerMesh";
-        playerVisual.model = lveModel;
+        playerVisual.model = crsModel;
         playerVisual.parentId = player.getId();
         playerVisual.transform.rotation.y = glm::radians(180.f);
         playerVisual.faceMovement.emplace();
@@ -228,31 +228,31 @@ namespace lve {
         playerVisual.characterAnimation->fall = "fall_01";
 
         //pivô da câmera (um Empty): filho do personagem, na altura da cabeça; o mouse vai girar ele
-        lveModel = modelCache.load("assets/editor/empty.glb");
-        auto& cameraPivot = lveScene.createGameObject();
+        crsModel = modelCache.load("assets/editor/empty.glb");
+        auto& cameraPivot = crsScene.createGameObject();
         cameraPivot.name = "CameraPivot";
-        cameraPivot.model = lveModel;
+        cameraPivot.model = crsModel;
         cameraPivot.cameraRig.emplace();
         cameraPivot.editorOnly = true;  //gizmo só no editor (provisório: a engine vai gerar a cruz de eixos)
         cameraPivot.parentId = player.getId();
         cameraPivot.transform.translation = {0.f, 1.6f, 0.f};  //1,6 acima dos pés
 
         //câmera de jogo
-        lveModel = modelCache.load("assets/editor/camera.glb");
-        auto& gameCamera = lveScene.createGameObject();
+        crsModel = modelCache.load("assets/editor/camera.glb");
+        auto& gameCamera = crsScene.createGameObject();
         gameCamera.name = "Camera";
-        gameCamera.model = lveModel;
+        gameCamera.model = crsModel;
         gameCamera.editorOnly = true;  //gizmo só no editor
         gameCamera.parentId = cameraPivot.getId();
         gameCamera.transform.translation = {0.f, 0.f, 4.f};
         gameCamera.camera.emplace();
-        lveScene.setActiveCamera(gameCamera.getId());
+        crsScene.setActiveCamera(gameCamera.getId());
 
         //chão (estático)
-        lveModel = modelCache.load("assets/models/plane.glb");
-        auto& floor = lveScene.createGameObject();
+        crsModel = modelCache.load("assets/models/plane.glb");
+        auto& floor = crsScene.createGameObject();
         floor.name = "Floor";
-        floor.model = lveModel;
+        floor.model = crsModel;
         floor.transform.translation = {0.f, 0.f, 0.f};
         floor.transform.scale = glm::vec3{10.f, 1.f, 10.f};
         floor.rigidBody.emplace();
@@ -262,25 +262,25 @@ namespace lve {
 
     void FirstApp::startPlay() {
         //a cena do editor fica intacta
-        playScene = lveScene;
-        lveWindow.setCursorMode(PLAY_CURSOR);
-        lveInput.skipNextMouseDelta();
+        playScene = crsScene;
+        crsWindow.setCursorMode(PLAY_CURSOR);
+        crsInput.skipNextMouseDelta();
     }
 
     void FirstApp::stopPlay() {
         playScene.reset();
-        lveWindow.setCursorMode(CursorMode::Visible);
-        lveInput.skipNextMouseDelta();
+        crsWindow.setCursorMode(CursorMode::Visible);
+        crsInput.skipNextMouseDelta();
     }
 
     void FirstApp::updatePlayMode() {
         //não dispara enquanto digita no ImGui
         bool typing = ImGui::GetIO().WantCaptureKeyboard;
-        if (!playScene && !typing && lveInput.wasPressed(GLFW_KEY_P)) {
+        if (!playScene && !typing && crsInput.wasPressed(GLFW_KEY_P)) {
             startPlay();
         }
         //tecla à esquerda do 1 (GRAVE_ACCENT no GLFW)
-        else if (playScene && lveInput.wasPressed(GLFW_KEY_GRAVE_ACCENT)) {
+        else if (playScene && crsInput.wasPressed(GLFW_KEY_GRAVE_ACCENT)) {
             stopPlay();
         }
     }
@@ -288,14 +288,14 @@ namespace lve {
     void FirstApp::updateSceneFile() {
         //só no editor, e não enquanto digita no ImGui
         if (playScene || ImGui::GetIO().WantCaptureKeyboard) return;
-        bool ctrl = lveInput.isDown(GLFW_KEY_LEFT_CONTROL) || lveInput.isDown(GLFW_KEY_RIGHT_CONTROL);
-        bool shift = lveInput.isDown(GLFW_KEY_LEFT_SHIFT) || lveInput.isDown(GLFW_KEY_RIGHT_SHIFT);
+        bool ctrl = crsInput.isDown(GLFW_KEY_LEFT_CONTROL) || crsInput.isDown(GLFW_KEY_RIGHT_CONTROL);
+        bool shift = crsInput.isDown(GLFW_KEY_LEFT_SHIFT) || crsInput.isDown(GLFW_KEY_RIGHT_SHIFT);
         if (!ctrl) return;
-        if (lveInput.wasPressed(GLFW_KEY_S)) {
+        if (crsInput.wasPressed(GLFW_KEY_S)) {
             if (shift) saveSceneAsDialog();
             else saveSceneFile();
         }
-        if (lveInput.wasPressed(GLFW_KEY_O)) {
+        if (crsInput.wasPressed(GLFW_KEY_O)) {
             openSceneDialog();
         }
     }
@@ -303,7 +303,7 @@ namespace lve {
     bool FirstApp::openSceneFile(const std::string &filepath) {
         try {
             //lê numa cena nova: se der erro no meio, a do editor não é tocada
-            lveScene = loadScene(filepath, [this](const std::string &path) { return modelCache.load(path); });
+            crsScene = loadScene(filepath, [this](const std::string &path) { return modelCache.load(path); });
             sceneFile = filepath;
             sceneFileStatus = "Cena aberta de " + filepath;
             editor.clearSelection();
@@ -317,7 +317,7 @@ namespace lve {
 
     void FirstApp::saveSceneFile() {
         try {
-            saveScene(lveScene, sceneFile);
+            saveScene(crsScene, sceneFile);
             editor.saveView(editorViewFile(sceneFile));
             sceneFileStatus = "Cena salva em " + sceneFile;
         } catch (const std::exception &e) {
@@ -340,8 +340,8 @@ namespace lve {
             auto chosen = openFileDialog("Modelo glTF", "glb", MODEL_FOLDER);
             if (!chosen) return;
             //carrega antes de criar: se o arquivo der erro, a cena não ganha um objeto vazio
-            std::shared_ptr<LveModel> model = modelCache.load(*chosen);
-            auto& obj = lveScene.createGameObject();
+            std::shared_ptr<CrsModel> model = modelCache.load(*chosen);
+            auto& obj = crsScene.createGameObject();
             obj.name = std::filesystem::path{*chosen}.stem().string();
             obj.model = model;
             obj.transform.translation = editor.getFocusPoint();
@@ -355,11 +355,11 @@ namespace lve {
     void FirstApp::addObject(AddKind kind) {
         try {
             //gizmo de editor de cada tipo (provisório: a engine vai gerar essas formas)
-            std::shared_ptr<LveModel> model{};
+            std::shared_ptr<CrsModel> model{};
             if (kind == AddKind::Empty) model = modelCache.load("assets/editor/empty.glb");
             if (kind == AddKind::Camera) model = modelCache.load("assets/editor/camera.glb");
 
-            auto& obj = lveScene.createGameObject();
+            auto& obj = crsScene.createGameObject();
             obj.model = model;
             obj.transform.translation = editor.getFocusPoint();
             switch (kind) {
@@ -399,8 +399,8 @@ namespace lve {
         }
     }
 
-    LveScene& FirstApp::activeScene() {
-        return playScene.has_value() ? *playScene : lveScene;
+    CrsScene& FirstApp::activeScene() {
+        return playScene.has_value() ? *playScene : crsScene;
     }
 
     void FirstApp::drawStatsWindow(float fps) {
@@ -420,14 +420,14 @@ namespace lve {
         );
         ImGui::Text("FPS: %.0f", fps);
         ImGui::Text("Mode %s",playScene ? "Play" : "Editor");
-        LveGameObject* selected = editor.getSelected(lveScene);
+        CrsGameObject* selected = editor.getSelected(crsScene);
         if (selected) {
             ImGui::Text("Selecionado: %s", selected->name.c_str());
         } else {
             ImGui::Text("Selecionado: nenhum");
         }
 
-        ImGui::Text("Mouse delta: %.1f, %.1f", lveInput.getMouseDelta().x, lveInput.getMouseDelta().y);
+        ImGui::Text("Mouse delta: %.1f, %.1f", crsInput.getMouseDelta().x, crsInput.getMouseDelta().y);
         if (!sceneFileStatus.empty()) {
             ImGui::Text("%s", sceneFileStatus.c_str());
         }
@@ -436,19 +436,19 @@ namespace lve {
     }
 
     VkRect2D FirstApp::computeSceneArea() const {
-        VkExtent2D extent = lveRenderer.getSwapChainExtent();
+        VkExtent2D extent = crsRenderer.getSwapChainExtent();
         if (playScene) return VkRect2D{{0, 0}, extent};
         return editor.sceneArea(extent);
     }
 
-    LveGameObject* FirstApp::findGameCamera() {
+    CrsGameObject* FirstApp::findGameCamera() {
         if (!playScene) return nullptr;
         auto id = playScene->getActiveCamera();
         if (!id) return nullptr;
         return playScene->findGameObjectById(*id);
     }
 
-    CharacterInput FirstApp::readCharacterInput(LveGameObject* gameCamera) {
+    CharacterInput FirstApp::readCharacterInput(CrsGameObject* gameCamera) {
         CharacterInput input{};
         //digitando no ImGui: as teclas são texto
         if (ImGui::GetIO().WantCaptureKeyboard) return input;
@@ -465,16 +465,16 @@ namespace lve {
             if (glm::length(flatRight) > 0.001f) right = glm::normalize(flatRight);
         }
 
-        if (lveInput.isDown(GLFW_KEY_W)) input.moveDirection += forward;
-        if (lveInput.isDown(GLFW_KEY_S)) input.moveDirection -= forward;
-        if (lveInput.isDown(GLFW_KEY_D)) input.moveDirection += right;
-        if (lveInput.isDown(GLFW_KEY_A)) input.moveDirection -= right;
-        input.jump = lveInput.wasPressed(GLFW_KEY_SPACE);
-        input.run = lveInput.isDown(GLFW_KEY_LEFT_SHIFT);
+        if (crsInput.isDown(GLFW_KEY_W)) input.moveDirection += forward;
+        if (crsInput.isDown(GLFW_KEY_S)) input.moveDirection -= forward;
+        if (crsInput.isDown(GLFW_KEY_D)) input.moveDirection += right;
+        if (crsInput.isDown(GLFW_KEY_A)) input.moveDirection -= right;
+        input.jump = crsInput.wasPressed(GLFW_KEY_SPACE);
+        input.run = crsInput.isDown(GLFW_KEY_LEFT_SHIFT);
         return input;
     }
 
-    void FirstApp::updateCamera(LveGameObject* gameCamera, float aspect) {
+    void FirstApp::updateCamera(CrsGameObject* gameCamera, float aspect) {
         if (gameCamera) {
             //Posição e frente no mundo
             glm::mat4 world = playScene->worldMatrix(*gameCamera);
@@ -486,12 +486,12 @@ namespace lve {
         }
         //editor: orbital
         if (!playScene) {
-            editor.updateCamera(lveWindow, camera);
+            editor.updateCamera(crsWindow, camera);
         }
         camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
     }
 
-    glm::mat4 FirstApp::computeLightSpaceMatrix(LveGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize) {
+    glm::mat4 FirstApp::computeLightSpaceMatrix(CrsGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize) {
         //centro: alvo da orbital, ou à frente da câmera de jogo
         glm::vec3 shadowCenter = editor.getFocusPoint();
         if (gameCamera) {
@@ -506,9 +506,9 @@ namespace lve {
     void FirstApp::renderFrame(FrameInfo& frameInfo) {
         //sombra primeiro: o passe principal lê o shadow map
         shadowRenderSystem->renderShadowMap(frameInfo);
-        lveRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
+        crsRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
         //a cena fica no retangulo
-        lveRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);
+        crsRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);
         simpleRenderSystem->renderGameObjects(frameInfo);
         pointLightSystem->render(frameInfo);
 
@@ -517,11 +517,11 @@ namespace lve {
             gizmoRenderSystem->render(frameInfo);
         }
 
-        lveImgui->render(frameInfo.commandBuffer);
-        lveRenderer.endSwapChainRendering(frameInfo.commandBuffer);
+        crsImgui->render(frameInfo.commandBuffer);
+        crsRenderer.endSwapChainRendering(frameInfo.commandBuffer);
     }
 
-    void FirstApp::updateGlobalUbo(FrameInfo& frameInfo, LveGameObject* gameCamera) {
+    void FirstApp::updateGlobalUbo(FrameInfo& frameInfo, CrsGameObject* gameCamera) {
         //câmera
         GlobalUbo ubo{};
         ubo.projection = camera.getProjection();
@@ -536,16 +536,16 @@ namespace lve {
         if (pointLightSystem->update(frameInfo, ubo)) {
             //buffer de luzes cresceu: atualiza o descriptor
             auto lightBufferInfo = pointLightSystem->lightBufferInfo(frameInfo.frameIndex);
-            LveDescriptorWriter(*globalSetLayout, *globalPool)
+            CrsDescriptorWriter(*globalSetLayout, *globalPool)
                 .writeBuffer(2, &lightBufferInfo)
                 .overwrite(globalDescriptorSets[frameInfo.frameIndex]);
         }
 
         //ossos dos objetos animados
-        if (skinningSystem->update(frameInfo.lveScene, frameInfo.frameIndex)) {
+        if (skinningSystem->update(frameInfo.crsScene, frameInfo.frameIndex)) {
             //buffer de ossos cresceu: atualiza o descriptor
             auto boneBufferInfo = skinningSystem->boneBufferInfo(frameInfo.frameIndex);
-            LveDescriptorWriter(*globalSetLayout, *globalPool)
+            CrsDescriptorWriter(*globalSetLayout, *globalPool)
                 .writeBuffer(3, &boneBufferInfo)
                 .overwrite(globalDescriptorSets[frameInfo.frameIndex]);
         }
@@ -577,23 +577,23 @@ namespace lve {
         float frameTime = updateFrameTime();
 
         //teclado: lido antes de qualquer coisa do frame
-        lveInput.update(lveWindow);
+        crsInput.update(crsWindow);
         //P / ' alternam editor e Play
         updatePlayMode();
         //Ctrl+S salva a cena
         updateSceneFile();
         //clique seleciona (só no editor)
         if (!playScene) {
-            editor.updateSelection(lveScene, lveInput, camera, sceneArea);
-            editor.updateShortcuts(lveInput);
+            editor.updateSelection(crsScene, crsInput, camera, sceneArea);
+            editor.updateShortcuts(crsInput);
         }
 
         //câmera de jogo
-        LveGameObject* gameCamera = findGameCamera();
+        CrsGameObject* gameCamera = findGameCamera();
 
         //personagens e física (só no Play)
         if (playScene) {
-            cameraRigSystem.update(*playScene, lveInput.getMouseDelta());
+            cameraRigSystem.update(*playScene, crsInput.getMouseDelta());
             characterController.update(*playScene, readCharacterInput(gameCamera));
             physicsSystem.update(*playScene, frameTime);
             characterController.faceMovement(*playScene, frameTime);
@@ -602,8 +602,8 @@ namespace lve {
             animatorSystem.update(*playScene, frameTime);
         }
 
-        if (auto commandBuffer = lveRenderer.beginFrame()) {
-            int frameIndex = lveRenderer.getFrameIndex();
+        if (auto commandBuffer = crsRenderer.beginFrame()) {
+            int frameIndex = crsRenderer.getFrameIndex();
 
             sceneArea = computeSceneArea();
             float sceneAspect = static_cast<float>(sceneArea.extent.width) / static_cast<float>(sceneArea.extent.height);
@@ -622,24 +622,24 @@ namespace lve {
             updateGlobalUbo(frameInfo, gameCamera);
 
             //UI
-            lveImgui->newFrame();
+            crsImgui->newFrame();
             editor.beginFrame();
             drawStatsWindow(displayFps);
 
             //interface do editor (só fora do Play)
             if (!playScene) {
-                EditorRequests requests = editor.drawUi(lveScene, camera, sceneArea);
+                EditorRequests requests = editor.drawUi(crsScene, camera, sceneArea);
                 if (requests.openScene) openSceneDialog();
                 if (requests.saveScene) saveSceneFile();
                 if (requests.saveSceneAs) saveSceneAsDialog();
                 if (requests.importModel) importModelDialog();
                 if (requests.add != AddKind::None) addObject(requests.add);
-                if (requests.quit) glfwSetWindowShouldClose(lveWindow.getGLFWwindow(), GLFW_TRUE);
+                if (requests.quit) glfwSetWindowShouldClose(crsWindow.getGLFWwindow(), GLFW_TRUE);
             }
 
             //render
             renderFrame(frameInfo);
-            lveRenderer.endFrame();
+            crsRenderer.endFrame();
         }
 
         drawingFrame = false;

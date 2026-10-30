@@ -1,14 +1,14 @@
 #include "engine/gameplay/character_animation_system.hpp"
 
-namespace lve {
+namespace crsdk {
     //abaixo disso conta como parado (unidades por segundo)
     constexpr float STOPPED_SPEED = 0.1f;
 
-    void CharacterAnimationSystem::update(LveScene &scene) {
+    void CharacterAnimationSystem::update(CrsScene &scene) {
         for (auto &kv : scene.getGameObjects()) {
             auto &obj = kv.second;
             if (!obj.characterAnimation || !obj.animator || !obj.parentId) continue;
-            LveGameObject *body = scene.findGameObjectById(*obj.parentId);
+            CrsGameObject *body = scene.findGameObjectById(*obj.parentId);
             if (body == nullptr || !body->rigidBody) continue;
 
             const CharacterAnimationComponent &anims = *obj.characterAnimation;

@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 #nome e linguagem do projeto
-project(G_E_Youtube LANGUAGES CXX)
+project(CRSDK LANGUAGES CXX)
 
 #versão do c++ a ser utilizada
 set(CMAKE_CXX_STANDARD 20)
@@ -175,50 +175,50 @@ find_package(Vulkan REQUIRED)
 #engine: biblioteca usada pelo jogo e pelos testes (tudo de src/engine/).
 #Regra: engine/ nunca inclui editor/, game/ ou app/
 set(ENGINE_SOURCES
-    src/engine/core/lve_window.cpp
-    src/engine/core/lve_device.cpp
-    src/engine/core/lve_handle.cpp
-    src/engine/core/lve_vk_check.cpp
-    src/engine/core/lve_input.cpp
-    src/engine/rendering/lve_pipeline.cpp
-    src/engine/rendering/lve_swap_chain.cpp
-    src/engine/rendering/lve_model.cpp
-    src/engine/rendering/lve_model_cache.cpp
-    src/engine/rendering/lve_renderer.cpp
-    src/engine/rendering/lve_camera.cpp
-    src/engine/rendering/lve_buffer.cpp
-    src/engine/rendering/lve_descriptors.cpp
-    src/engine/rendering/lve_texture.cpp
-    src/engine/rendering/lve_shadow_map.cpp
-    src/engine/rendering/lve_image_barrier.cpp
-    src/engine/rendering/lve_upload_batch.cpp
+    src/engine/core/crs_window.cpp
+    src/engine/core/crs_device.cpp
+    src/engine/core/crs_handle.cpp
+    src/engine/core/crs_vk_check.cpp
+    src/engine/core/crs_input.cpp
+    src/engine/rendering/crs_pipeline.cpp
+    src/engine/rendering/crs_swap_chain.cpp
+    src/engine/rendering/crs_model.cpp
+    src/engine/rendering/crs_model_cache.cpp
+    src/engine/rendering/crs_renderer.cpp
+    src/engine/rendering/crs_camera.cpp
+    src/engine/rendering/crs_buffer.cpp
+    src/engine/rendering/crs_descriptors.cpp
+    src/engine/rendering/crs_texture.cpp
+    src/engine/rendering/crs_shadow_map.cpp
+    src/engine/rendering/crs_image_barrier.cpp
+    src/engine/rendering/crs_upload_batch.cpp
     src/engine/rendering/systems/simple_render_system.cpp
     src/engine/rendering/systems/point_light_system.cpp
     src/engine/rendering/systems/shadow_render_system.cpp
     src/engine/rendering/systems/gizmo_system.cpp
     src/engine/rendering/systems/skinning_system.cpp
-    src/engine/scene/lve_game_object.cpp
-    src/engine/scene/lve_scene.cpp
+    src/engine/scene/crs_game_object.cpp
+    src/engine/scene/crs_scene.cpp
     src/engine/scene/scene_serializer.cpp
-    src/engine/scene/lve_ray.cpp
-    src/engine/physics/lve_physics_system.cpp
+    src/engine/scene/crs_ray.cpp
+    src/engine/physics/crs_physics_system.cpp
     src/engine/gameplay/character_controller_system.cpp
     src/engine/gameplay/camera_rig_system.cpp
     src/engine/gameplay/character_animation_system.cpp
-    src/engine/scripting/lve_scripting.cpp
-    src/engine/animation/lve_animation.cpp
-    src/engine/animation/lve_gltf_animation.cpp
-    src/engine/animation/lve_animation_file.cpp
-    src/engine/animation/lve_animation_library.cpp
-    src/engine/animation/lve_animator_system.cpp
+    src/engine/scripting/crs_scripting.cpp
+    src/engine/animation/crs_animation.cpp
+    src/engine/animation/crs_gltf_animation.cpp
+    src/engine/animation/crs_animation_file.cpp
+    src/engine/animation/crs_animation_library.cpp
+    src/engine/animation/crs_animator_system.cpp
 )
 
 #camada de plataforma: uma implementação por sistema operacional, escolhida AQUI (o código não
 #tem #ifdef de SO). SO sem implementação própria usa a genérica
 if(WIN32)
-    list(APPEND ENGINE_SOURCES src/engine/platform/lve_platform_windows.cpp)
+    list(APPEND ENGINE_SOURCES src/engine/platform/crs_platform_windows.cpp)
 else()
-    list(APPEND ENGINE_SOURCES src/engine/platform/lve_platform_generic.cpp)
+    list(APPEND ENGINE_SOURCES src/engine/platform/crs_platform_generic.cpp)
 endif()
 
 #jogo/editor: o executável (main, app e editor)
@@ -226,8 +226,8 @@ set(APP_SOURCES
     src/main.cpp
     src/app/first_app.cpp
     src/editor/orbit_camera_controller.cpp
-    src/editor/lve_imgui.cpp
-    src/editor/lve_editor.cpp
+    src/editor/crs_imgui.cpp
+    src/editor/crs_editor.cpp
     src/editor/file_dialog.cpp
 )
 
@@ -240,36 +240,36 @@ else()
 endif()
 
 #a engine + a implementação das libs só-header (fora do ENGINE_SOURCES de propósito: sem os avisos extras)
-add_library(ge_engine STATIC ${ENGINE_SOURCES} src/engine/third_party_impl.cpp)
+add_library(crsdk_engine STATIC ${ENGINE_SOURCES} src/engine/third_party_impl.cpp)
 #PUBLIC = vale pra engine E pra quem usa ela (jogo e testes); PRIVATE = só pra engine.
-#Todo #include do projeto é escrito a partir de src/ (ex: "engine/rendering/lve_model.hpp")
-target_include_directories(ge_engine PUBLIC src PRIVATE ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
-target_link_libraries(ge_engine PUBLIC glfw Vulkan::Vulkan glm::glm GPUOpen::VulkanMemoryAllocator)
-target_link_libraries(ge_engine PRIVATE nlohmann_json::nlohmann_json)
-#o Python fica escondido dentro da engine: quem usa só vê o LveScripting
-target_link_libraries(ge_engine PRIVATE pybind11::embed)
+#Todo #include do projeto é escrito a partir de src/ (ex: "engine/rendering/crs_model.hpp")
+target_include_directories(crsdk_engine PUBLIC src PRIVATE ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
+target_link_libraries(crsdk_engine PUBLIC glfw Vulkan::Vulkan glm::glm GPUOpen::VulkanMemoryAllocator)
+target_link_libraries(crsdk_engine PRIVATE nlohmann_json::nlohmann_json)
+#o Python fica escondido dentro da engine: quem usa só vê o CrsScripting
+target_link_libraries(crsdk_engine PRIVATE pybind11::embed)
 #configuração do glm definida UMA vez: profundidade 0..1 como o Vulkan espera (o padrão do glm é
 #-1..1, do OpenGL). PUBLIC: quem usa a engine tem que enxergar o glm do mesmo jeito
-target_compile_definitions(ge_engine PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
-#winmm: só existe/é necessária no Windows (timeBeginPeriod, no lve_platform_windows.cpp)
+target_compile_definitions(crsdk_engine PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
+#winmm: só existe/é necessária no Windows (timeBeginPeriod, no crs_platform_windows.cpp)
 if(WIN32)
-    target_link_libraries(ge_engine PRIVATE winmm)
+    target_link_libraries(crsdk_engine PRIVATE winmm)
 endif()
 
 #o jogo: app + editor + ImGui e ImGuizmo (compilados junto, não linkados), usando a engine
-add_executable(G_E_Youtube ${APP_SOURCES} ${IMGUI_SOURCES} ${imguizmo_SOURCE_DIR}/src/ImGuizmo.cpp)
-target_include_directories(G_E_Youtube PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${imguizmo_SOURCE_DIR}/src)
-target_link_libraries(G_E_Youtube PRIVATE ge_engine)
+add_executable(CRSDK ${APP_SOURCES} ${IMGUI_SOURCES} ${imguizmo_SOURCE_DIR}/src/ImGuizmo.cpp)
+target_include_directories(CRSDK PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${imguizmo_SOURCE_DIR}/src)
+target_link_libraries(CRSDK PRIVATE crsdk_engine)
 #o editor grava a vista da câmera dele em .json
-target_link_libraries(G_E_Youtube PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(CRSDK PRIVATE nlohmann_json::nlohmann_json)
 #janelas de abrir/salvar arquivo do editor
-target_link_libraries(G_E_Youtube PRIVATE nfd)
+target_link_libraries(CRSDK PRIVATE nfd)
 
 #chamada de verificação de compilação dos shaders
 add_custom_target(Shaders DEPENDS ${SPIRV_BINARY_FILES})
 
 #garante que os shaders sejam compilados antes do executável
-add_dependencies(G_E_Youtube Shaders)
+add_dependencies(CRSDK Shaders)
 #----------------------------------------------------------#
 
 #testes automatizados: executável separado, sem janela nem GPU.
@@ -288,12 +288,12 @@ set(TEST_SOURCES
     tests/test_animation_file.cpp
     tests/test_scripting.cpp
 )
-add_executable(G_E_Youtube_tests ${TEST_SOURCES})
+add_executable(CRSDK_tests ${TEST_SOURCES})
 if(MSVC)
-    target_compile_options(G_E_Youtube_tests PRIVATE /W4)
+    target_compile_options(CRSDK_tests PRIVATE /W4)
 else()
-    target_compile_options(G_E_Youtube_tests PRIVATE -Wall -Wextra)
+    target_compile_options(CRSDK_tests PRIVATE -Wall -Wextra)
 endif()
-target_link_libraries(G_E_Youtube_tests PRIVATE ge_engine doctest::doctest)
-add_test(NAME engine_tests COMMAND G_E_Youtube_tests)
+target_link_libraries(CRSDK_tests PRIVATE crsdk_engine doctest::doctest)
+add_test(NAME engine_tests COMMAND CRSDK_tests)
 #----------------------------------------------------------#

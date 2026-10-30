@@ -1,9 +1,9 @@
 #pragma once
 
-#include "engine/core/lve_window.hpp"
-#include "engine/rendering/lve_camera.hpp"
+#include "engine/core/crs_window.hpp"
+#include "engine/rendering/crs_camera.hpp"
 
-namespace lve {
+namespace crsdk {
 
     //controla a câmera no estilo de navegação do Blender:
     //botão do meio do mouse arrasta = orbita em torno do alvo
@@ -11,7 +11,7 @@ namespace lve {
     //roda do mouse = zoom (aproxima/afasta do alvo)
     class OrbitCameraController {
         public:
-            void update(LveWindow &lveWindow, LveCamera &camera);
+            void update(CrsWindow &crsWindow, CrsCamera &camera);
 
             //aponta a câmera numa direção (do alvo até a câmera), mantendo o alvo e a distância
             void setOrbitDirection(glm::vec3 direction);

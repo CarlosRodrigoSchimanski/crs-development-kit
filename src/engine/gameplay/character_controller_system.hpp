@@ -1,8 +1,8 @@
 #pragma once
 
-#include "engine/scene/lve_scene.hpp"
+#include "engine/scene/crs_scene.hpp"
 
-namespace lve {
+namespace crsdk {
     //o que controla(jogador / ia) quer fazer neste frame
     struct CharacterInput {
         glm::vec3 moveDirection{0.f}; //no mundo; só x e z contam (o chao)
@@ -15,8 +15,8 @@ namespace lve {
     //move os personagens pela intenção; gravidade e chao ficam com o PhysicsSystem
     class CharacterControllerSystem {
     public:
-        void update(LveScene &scene, const CharacterInput &input);
-        void faceMovement(LveScene &scene, float dt);
+        void update(CrsScene &scene, const CharacterInput &input);
+        void faceMovement(CrsScene &scene, float dt);
     };
     
 }

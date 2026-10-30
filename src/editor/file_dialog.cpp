@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <stdexcept>
 
-namespace lve {
+namespace crsdk {
     //o nfd trabalha em UTF-8
     static std::filesystem::path fromUtf8(const nfdu8char_t *text) {
         return std::filesystem::path{std::u8string{reinterpret_cast<const char8_t *>(text)}};

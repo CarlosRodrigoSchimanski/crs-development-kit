@@ -2,10 +2,10 @@
 
 #include <imgui.h>
 
-namespace lve {
+namespace crsdk {
 
-    void OrbitCameraController::update(LveWindow &lveWindow, LveCamera &camera) {
-        GLFWwindow *window = lveWindow.getGLFWwindow();
+    void OrbitCameraController::update(CrsWindow &crsWindow, CrsCamera &camera) {
+        GLFWwindow *window = crsWindow.getGLFWwindow();
 
         //se o mouse está interagindo com alguma janela/botão do ImGui, a câmera não
         //deve orbitar/panear ao mesmo tempo — senão arrastar um slider da UI também giraria a cena
@@ -53,7 +53,7 @@ namespace lve {
         //zoom: roda do mouse aproxima/afasta a câmera do alvo
         //sempre consome o delta (senão ele se acumula e "explode" quando a UI libera o mouse),
         //mas só aplica no zoom se o scroll não era destinado à UI
-        float scrollDelta = lveWindow.consumeScrollDelta();
+        float scrollDelta = crsWindow.consumeScrollDelta();
         if (!uiWantsMouse) {
             distance -= scrollDelta * zoomSpeed;
             distance = glm::max(distance, minDistance);
