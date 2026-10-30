@@ -500,6 +500,26 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
 4. Terreno básico, sem streaming ainda (heightmap simples, mundo pequeno o
    suficiente pra não precisar de streaming/LOD de cara). Ganha utilidade dupla
    com o item 3: sobrevoar/inspecionar em modo editor, andar de verdade em modo jogo.
+   Desenho pedido pelo usuário (2026-10-29), em C++ (engine/terrain), dados em assets/terrains/:
+   4.1. Terreno em PEDAÇOS (tiles): o usuário diz só o tamanho total; a engine cria quantos
+        pedaços forem precisos, cada um com o próprio heightmap de resolução fixa (ex: 257x257
+        amostras por pedaço) — a resolução não cai com o tamanho do mundo. Cada pedaço carrega
+        e descarrega sozinho (já prepara o streaming / carregamento por setor).
+        A engine cuida das divisas: a borda é a MESMA amostra nos dois pedaços vizinhos (por isso
+        257 = 256 + 1); o pincel que passa na divisa escreve nos dois; a normal da borda usa os
+        vizinhos (sem costura na luz). Com LOD por pedaço, vizinhos de resoluções diferentes
+        precisam de "saias" ou costura pra não abrir rachadura.
+        Colisão: terrain.heightAt(x, z) acha o pedaço e interpola (física + Python).
+   4.2. Pintura de camadas (texture splatting): splat map RGBA por pedaço (4 camadas por imagem:
+        terra, grama, estrada...), pincel no editor, shader mistura pelas cores. Mesma regra de
+        divisa do 4.1. Python: terrain.layerAt(x, z) (som de passo, poeira).
+   4.3. Grama procedural (scattering): mapa de densidade pintado; folhas espalhadas pela engine
+        com instancing (milhares numa chamada) e vento no vertex shader. Perto: folhas de verdade.
+        LONGE (ideia do usuário): troca as folhas por um ruído/tom de grama no próprio shader do
+        terreno, onde a densidade diz que tem grama — mantém a aparência sem o peso dos objetos;
+        a passagem perto->longe se mistura aos poucos (sem linha visível).
+   Ordem: 4.1 -> 4.2 -> 4.3 (a pintura pinta no terreno; a grama usa o pincel e a altura).
+   Combinado: Python (3.4) antes, terreno logo depois.
 
 5.0. Ordem decidida pelo usuário (2026-10-28): animação esquelética agora; LOGO DEPOIS, salvar e
    carregar a cena em arquivo — objetivo claro: o que for mudado no editor (posição de objeto, da
