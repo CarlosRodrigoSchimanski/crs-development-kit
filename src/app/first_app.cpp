@@ -15,8 +15,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
-#include <chrono>
 #include <filesystem>
+#include <iostream>
+#include <chrono>
 #include <thread>
 
 namespace crsdk {
@@ -36,6 +37,8 @@ namespace crsdk {
     constexpr const char *SCENE_FOLDER = "assets/scenes";
     //pasta onde a janela de importar começa
     constexpr const char *MODEL_FOLDER = "assets/models";
+    //componentes Python (os .py que o Add Component lista e o Generate Component cria)
+    constexpr const char *COMPONENT_FOLDER = "assets/components";
 
     //vista da câmera do editor de uma cena (pessoal: fora do git): main.json -> main.editor.json
     static std::string editorViewFile(const std::string &sceneFile) {
@@ -144,6 +147,9 @@ namespace crsdk {
         scripting.setScene(&crsScene);
         scripting.setInput(&crsInput);
         scripting.setWindow(&crsWindow);
+        scripting.addImportFolder(COMPONENT_FOLDER);
+        scripting.addImportFolder("assets/scripts");
+        refreshComponents();
 
         //provisório (passo 2 do Python): mostra no console a API crsdk lendo a cena
         try {
@@ -269,15 +275,46 @@ namespace crsdk {
         //a cena do editor fica intacta
         playScene = crsScene;
         scripting.setScene(&*playScene);
+        scripting.forgetProjectModules();
+        scripting.startComponents(*playScene);
         crsWindow.setCursorMode(PLAY_CURSOR);
         crsInput.skipNextMouseDelta();
     }
 
     void FirstApp::stopPlay() {
+        scripting.stopComponents();
         scripting.setScene(&crsScene);
         playScene.reset();
         crsWindow.setCursorMode(CursorMode::Visible);
         crsInput.skipNextMouseDelta();
+        //algum .py pode ter sido editado durante o Play
+        refreshComponents();
+    }
+
+    void FirstApp::refreshComponents() {
+        componentCatalog = scripting.findComponents(COMPONENT_FOLDER);
+        showScriptErrors();
+    }
+
+    void FirstApp::generateComponent(const std::string &className) {
+        try {
+            std::string module = scripting.createComponentFile(COMPONENT_FOLDER, className);
+            refreshComponents();
+            //já preso no objeto selecionado: é pra ele que o componente foi pedido
+            if (CrsGameObject *selected = editor.getSelected(crsScene)) {
+                selected->scripts.push_back({module, className});
+            }
+            sceneFileStatus = "Criado " + std::string{COMPONENT_FOLDER} + "/" + module + ".py";
+        } catch (const std::exception &e) {
+            sceneFileStatus = std::string{"Erro ao criar o componente: "} + e.what();
+        }
+    }
+
+    void FirstApp::showScriptErrors() {
+        for (const std::string &error : scripting.takeErrors()) {
+            std::cerr << "[componente] " << error << std::endl;
+            sceneFileStatus = "Erro no componente " + error;
+        }
     }
 
     void FirstApp::updatePlayMode() {
@@ -435,6 +472,12 @@ namespace crsdk {
         }
 
         ImGui::Text("Mouse delta: %.1f, %.1f", crsInput.getMouseDelta().x, crsInput.getMouseDelta().y);
+        //no Play: quanto cada componente Python gasta por frame (pra achar o pesado)
+        if (playScene) {
+            for (const ComponentTiming &timing : scripting.componentTimings()) {
+                ImGui::Text("%.3f ms  %s", timing.milliseconds, timing.label.c_str());
+            }
+        }
         if (!sceneFileStatus.empty()) {
             ImGui::Text("%s", sceneFileStatus.c_str());
         }
@@ -600,6 +643,10 @@ namespace crsdk {
 
         //personagens e física (só no Play)
         if (playScene) {
+            //componentes Python primeiro: eles decidem o comportamento, os sistemas abaixo executam
+            scripting.updateComponents(frameTime);
+            showScriptErrors();
+
             cameraRigSystem.update(*playScene, crsInput.getMouseDelta());
             characterController.update(*playScene, readCharacterInput(gameCamera));
             physicsSystem.update(*playScene, frameTime);
@@ -635,7 +682,9 @@ namespace crsdk {
 
             //interface do editor (só fora do Play)
             if (!playScene) {
-                EditorRequests requests = editor.drawUi(crsScene, camera, sceneArea);
+                EditorRequests requests = editor.drawUi(crsScene, camera, sceneArea, componentCatalog);
+                if (requests.refreshComponents) refreshComponents();
+                if (!requests.generateComponent.empty()) generateComponent(requests.generateComponent);
                 if (requests.openScene) openSceneDialog();
                 if (requests.saveScene) saveSceneFile();
                 if (requests.saveSceneAs) saveSceneAsDialog();

@@ -32,6 +32,44 @@ input: Input
 window: Window
 """A janela do jogo."""
 
+deltaTime: float
+"""Segundos desde o frame anterior. Multiplique a velocidade por ele: o movimento fica
+igual em qualquer FPS (ex: ``x += 2 * crsdk.deltaTime`` anda 2 unidades por segundo)."""
+
+
+class Component:
+    """Base dos componentes: um comportamento preso a um objeto, rodando durante o Play.
+
+    Crie um arquivo em ``assets/components/``, herde desta classe e escreva ``start`` e
+    ``update``. O arquivo pode importar outros da mesma pasta (ou de assets/scripts)::
+
+        import crsdk
+        from comum.matematica import lerp   # assets/components/comum/matematica.py
+
+        class Girar(crsdk.Component):
+            args = {"velocidade": 90.0}
+
+            def start(self, args):
+                self.velocidade = args["velocidade"]
+
+            def update(self):
+                self.object.transform.rotation.y += self.velocidade * crsdk.deltaTime
+
+    Um erro dentro do componente aparece na tela e tira só ele do Play; o jogo continua.
+    """
+
+    args: dict
+    """Os parâmetros do componente e o valor padrão de cada um. O ``start`` recebe uma
+    cópia: mudar o dicionário recebido não afeta os outros objetos."""
+    object: GameObject
+    """O objeto em que o componente está preso."""
+
+    def __init__(self, obj: GameObject) -> None: ...
+    def start(self, args: dict) -> None:
+        """Chamado uma vez ao dar Play, antes do primeiro update."""
+    def update(self) -> None:
+        """Chamado todo frame durante o Play."""
+
 
 class Vec2:
     """Vetor 2D (posição e movimento do mouse)."""

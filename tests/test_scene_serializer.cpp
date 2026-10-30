@@ -224,3 +224,66 @@ TEST_CASE("cena: arquivo de versão antiga é erro (quem chamou decide o que faz
 TEST_CASE("cena: arquivo que não existe é erro") {
     CHECK_THROWS(loadScene(tempScenePath("ge_nao_existe.json"), noModel));
 }
+
+TEST_CASE("cena: componentes Python voltam na mesma ordem; objeto sem nenhum não grava a lista") {
+    CrsScene original;
+    CrsGameObject &cube = original.createGameObject();
+    cube.scripts.push_back({"girar", "Girar"});
+    cube.scripts.push_back({"comum.pulo", "PuloDuplo"});
+    CrsGameObject &empty = original.createGameObject();
+    empty.name = "SemComponente";
+
+    std::string path = tempScenePath("ge_test_scripts.json");
+    saveScene(original, path);
+    CrsScene loaded = loadScene(path, noModel);
+
+    CrsGameObject *loadedCube = loaded.findGameObjectById(cube.getId());
+    REQUIRE(loadedCube != nullptr);
+    REQUIRE(loadedCube->scripts.size() == 2);
+    CHECK(loadedCube->scripts[0].module == "girar");
+    CHECK(loadedCube->scripts[0].className == "Girar");
+    CHECK(loadedCube->scripts[1].module == "comum.pulo");
+    CHECK(loadedCube->scripts[1].className == "PuloDuplo");
+    CHECK(loaded.findGameObjectById(empty.getId())->scripts.empty());
+
+    //o arquivo fica limpo: "scripts" só aparece no objeto que tem componente
+    std::ifstream in{path};
+    std::string text{std::istreambuf_iterator<char>{in}, std::istreambuf_iterator<char>{}};
+    in.close();
+    size_t first = text.find("\"scripts\"");
+    CHECK(first != std::string::npos);
+    CHECK(text.find("\"scripts\"", first + 1) == std::string::npos);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("cena: args mudados dos componentes Python voltam com o mesmo tipo") {
+    CrsScene original;
+    CrsGameObject &obj = original.createGameObject();
+    ScriptComponent script{"pulo", "Pulo"};
+    script.args["altura"] = 2.5f;
+    script.args["redondo"] = 90.f;  //float com valor inteiro continua float
+    script.args["pulos"] = 3;
+    script.args["duplo"] = true;
+    script.args["som"] = std::string{"pulo.wav"};
+    obj.scripts.push_back(script);
+    obj.scripts.push_back({"girar", "Girar"});  //sem args mudados
+
+    std::string path = tempScenePath("ge_test_script_args.json");
+    saveScene(original, path);
+    CrsScene loaded = loadScene(path, noModel);
+
+    CrsGameObject *loadedObj = loaded.findGameObjectById(obj.getId());
+    REQUIRE(loadedObj != nullptr);
+    REQUIRE(loadedObj->scripts.size() == 2);
+    const auto &args = loadedObj->scripts[0].args;
+    REQUIRE(args.size() == 5);
+    CHECK(std::get<float>(args.at("altura")) == doctest::Approx(2.5f));
+    CHECK(std::get<float>(args.at("redondo")) == doctest::Approx(90.f));
+    CHECK(std::get<int>(args.at("pulos")) == 3);
+    CHECK(std::get<bool>(args.at("duplo")) == true);
+    CHECK(std::get<std::string>(args.at("som")) == "pulo.wav");
+    CHECK(loadedObj->scripts[1].args.empty());
+
+    std::filesystem::remove(path);
+}

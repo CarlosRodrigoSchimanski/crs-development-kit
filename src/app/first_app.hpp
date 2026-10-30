@@ -71,6 +71,12 @@ namespace crsdk {
             void importModelDialog();
             //cria um objeto do menu Adicionar no ponto que a câmera do editor olha
             void addObject(AddKind kind);
+            //lê de novo as classes de componente da pasta (o que o Add Component lista)
+            void refreshComponents();
+            //Generate Component: cria o .py com o modelo e prende no objeto selecionado
+            void generateComponent(const std::string &className);
+            //erros dos componentes Python: no console e na janela de stats
+            void showScriptErrors();
             //cena que está valendo (Play ou editor)
             CrsScene& activeScene();
             //janela de Stats (FPS e modo)
@@ -138,6 +144,8 @@ namespace crsdk {
             CrsScene crsScene;
             //resultado do último salvar (mostrado na janela de stats)
             std::string sceneFileStatus{};
+            //as classes de componente de assets/components (lidas ao abrir, ao parar o Play e no Add Component)
+            std::vector<ComponentInfo> componentCatalog{};
             //arquivo da cena aberta no editor (Salvar grava nele)
             std::string sceneFile{};
             //cópia da cena durante o Play (vazio = editor)

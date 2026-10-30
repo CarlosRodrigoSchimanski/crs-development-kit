@@ -248,6 +248,23 @@ namespace crsdk {
         bindMath(m);
         bindScene(m);
         bindInput(m);
+        
+        //a classe base dos componentes, escrita em Python mesmo: o script herda dela como de qualquer classe
+        py::exec(R"(
+class Component:
+    """Base dos componentes: herde dela, preencha args e escreva start(args) e update()."""
+    args = {}
+
+    def __init__(self, obj):
+        self.object = obj
+
+    def start(self, args):
+        pass
+
+    def update(self):
+        pass
+)", m.attr("__dict__"));
+
 
         //crsdk.scene / crsdk.input / crsdk.window: lidos na hora (a cena muda ao entrar e sair do Play)
         m.def("__getattr__", [](const std::string &name) -> py::object {
@@ -259,6 +276,7 @@ namespace crsdk {
             if (name == "scene") return take(context.scene);
             if (name == "input") return take(context.input);
             if (name == "window") return take(context.window);
+            if (name == "deltaTime") return py::float_(context.deltaTime);
             throw py::attribute_error("module 'crsdk' has no attribute '" + name + "'");
         });
     }

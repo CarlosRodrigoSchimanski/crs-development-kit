@@ -3,6 +3,7 @@
 #include "engine/core/crs_input.hpp"
 #include "engine/rendering/crs_camera.hpp"
 #include "engine/scene/crs_scene.hpp"
+#include "engine/scripting/crs_scripting.hpp"
 #include "editor/orbit_camera_controller.hpp"
 
 #include <optional>
@@ -25,6 +26,10 @@ namespace crsdk {
         bool importModel = false;
         AddKind add = AddKind::None;
         bool quit = false;
+        //ler a pasta dos componentes de novo (o Add Component foi aberto: pode ter arquivo novo ou editado)
+        bool refreshComponents = false;
+        //Generate Component: o nome da classe nova (vazio = nada pedido)
+        std::string generateComponent{};
     };
 
     //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
@@ -53,7 +58,9 @@ namespace crsdk {
             //pedaço da tela que sobra pra cena, abaixo do menu e ao lado do painel
             VkRect2D sceneArea(VkExtent2D screen) const;
             //toda a interface do editor do frame: menu, painel, setas e gizmo de navegação
-            EditorRequests drawUi(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea);
+            //(components: as classes achadas em assets/components, pro Add Component e os args)
+            EditorRequests drawUi(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea,
+                                  const std::vector<ComponentInfo> &components);
 
         private:
             //barra de menu no topo da janela (Arquivo...), como no Blender
@@ -61,9 +68,11 @@ namespace crsdk {
             //itens do Adicionar: os mesmos na barra de menu e no Shift+A
             void drawAddMenuItems(EditorRequests &requests);
             //painel lateral preso à direita (outliner e propriedades)
-            void drawSidePanel(CrsScene &scene);
+            void drawSidePanel(CrsScene &scene, const std::vector<ComponentInfo> &components, EditorRequests &requests);
             //escolha da animação que o objeto toca
             void drawAnimatorProperties(CrsGameObject &obj);
+            //componentes Python do objeto: args, remover, Add Component e Generate Component
+            void drawComponentProperties(CrsGameObject &obj, const std::vector<ComponentInfo> &components, EditorRequests &requests);
             //setas de mover/girar/escalar no objeto selecionado (ImGuizmo)
             void drawTransformGizmo(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea);
             //bolinhas dos eixos no canto da cena, como no Blender: clicar põe a câmera daquele lado
@@ -77,6 +86,8 @@ namespace crsdk {
             GizmoMode gizmoMode = GizmoMode::Move;
             //Shift+A apertado: o menu abre no próximo drawUi (só dá pra abrir dentro do frame do ImGui)
             bool addMenuRequested = false;
+            //o nome sendo digitado no Generate Component
+            std::string newComponentName{};
             //filhos de cada objeto
             using ChildrenMap = std::map<CrsGameObject::id_t, std::vector<CrsGameObject::id_t>>;
             //lista de objetos da cena em árvore

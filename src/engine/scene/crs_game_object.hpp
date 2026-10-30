@@ -2,10 +2,12 @@
 
 #include "engine/rendering/crs_model.hpp"
 
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include <glm/gtc/constants.hpp>
@@ -94,6 +96,19 @@ namespace crsdk {
         float fadeTime = 0.2f;   //duração da transição (segundos)
     };
 
+    //valor de um arg de componente que o editor sabe mostrar (no Python vira bool, int, float ou str)
+    using ScriptArg = std::variant<bool, int, float, std::string>;
+
+    //um componente Python preso ao objeto: a classe className do arquivo assets/components/<module>.py
+    //(no Play a engine cria a classe, chama start(args) uma vez e update() todo frame)
+    struct ScriptComponent {
+        std::string module{};      //nome do arquivo, sem o .py (subpasta com ponto: "comum.pulo")
+        std::string className{};   //a classe dentro dele
+        //args mudados neste objeto; o que não está aqui fica com o padrão da classe
+        std::map<std::string, ScriptArg> args{};
+    };
+    
+
     struct TransformComponent {
         glm::vec3 translation{};
         glm::vec3 scale{1.f,1.f,1.f};
@@ -146,7 +161,8 @@ namespace crsdk {
             std::optional<CameraRigComponent> cameraRig{};
             std::optional<FaceMovementComponent> faceMovement{};
             std::optional<AnimatorComponent> animator{};
-        std::optional<CharacterAnimationComponent> characterAnimation{};
+            std::optional<CharacterAnimationComponent> characterAnimation{};
+            std::vector<ScriptComponent> scripts{};
 
 
         private:

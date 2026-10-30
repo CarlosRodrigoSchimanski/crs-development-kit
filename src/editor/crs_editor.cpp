@@ -1,6 +1,7 @@
 #include "editor/crs_editor.hpp"
 
 #include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
 #include <cstdint>
 #include <algorithm>
 #include <cmath>
@@ -127,7 +128,7 @@ namespace crsdk {
         return selectedId ? scene.findGameObjectById(*selectedId) : nullptr;
     }
 
-    void CrsEditor::drawSidePanel(CrsScene &scene) {
+    void CrsEditor::drawSidePanel(CrsScene &scene, const std::vector<ComponentInfo> &components, EditorRequests &requests) {
         //a direita da janela
         const ImGuiViewport* screen = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(ImVec2(screen->WorkPos.x + screen->WorkSize.x - SIDE_PANEL_WIDTH, screen->WorkPos.y));
@@ -166,6 +167,8 @@ namespace crsdk {
                     ImGui::Separator();
                     drawAnimatorProperties(*selected);
                 }
+
+                drawComponentProperties(*selected, components, requests);
             } else {
                 ImGui::TextDisabled("Nada Selecionado");
             }
@@ -196,6 +199,89 @@ namespace crsdk {
                 ImGui::PopID();
             }
             ImGui::EndCombo();
+        }
+    }
+
+    //a classe do catálogo com esse arquivo e nome (nullptr = o .py sumiu, foi renomeado ou está com erro)
+    static const ComponentInfo* findComponentInfo(const std::vector<ComponentInfo> &components, const ScriptComponent &script) {
+        for (const ComponentInfo &info : components) {
+            if (info.module == script.module && info.className == script.className) return &info;
+        }
+        return nullptr;
+    }
+
+    //o campo de um arg, do tipo do valor; true = mudou neste frame
+    static bool drawArgField(const std::string &label, ScriptArg &value) {
+        if (auto *b = std::get_if<bool>(&value)) return ImGui::Checkbox(label.c_str(), b);
+        if (auto *i = std::get_if<int>(&value)) return ImGui::DragInt(label.c_str(), i);
+        if (auto *f = std::get_if<float>(&value)) return ImGui::DragFloat(label.c_str(), f, 0.05f);
+        return ImGui::InputText(label.c_str(), &std::get<std::string>(value));
+    }
+
+    void CrsEditor::drawComponentProperties(CrsGameObject &obj, const std::vector<ComponentInfo> &components, EditorRequests &requests) {
+        ImGui::SeparatorText("Componentes");
+
+        std::optional<size_t> toRemove{};
+        for (size_t i = 0; i < obj.scripts.size(); i++) {
+            ScriptComponent &script = obj.scripts[i];
+            ImGui::PushID(static_cast<int>(i));
+            if (ImGui::TreeNodeEx("##componente", ImGuiTreeNodeFlags_DefaultOpen, "%s (%s)", script.className.c_str(), script.module.c_str())) {
+                const ComponentInfo *info = findComponentInfo(components, script);
+                if (info == nullptr) {
+                    ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f), "não achado em assets/components");
+                } else {
+                    if (!info->description.empty()) ImGui::TextDisabled("%s", info->description.c_str());
+                    for (const ComponentArgInfo &arg : info->args) {
+                        //o valor mudado neste objeto, ou o padrão da classe
+                        //(tipo diferente do padrão = o .py mudou o tipo do arg: vale o padrão)
+                        auto it = script.args.find(arg.name);
+                        bool changed = it != script.args.end() && it->second.index() == arg.defaultValue.index();
+                        ScriptArg value = changed ? it->second : arg.defaultValue;
+                        if (drawArgField(arg.name, value)) script.args[arg.name] = value;
+                        if (changed) {
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton(("padrão##" + arg.name).c_str())) script.args.erase(arg.name);
+                            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Voltar ao valor do .py");
+                        }
+                    }
+                }
+                if (ImGui::SmallButton("Remover")) toRemove = i;
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+        }
+        //depois do for: apagar no meio dele pularia o próximo componente
+        if (toRemove) obj.scripts.erase(obj.scripts.begin() + static_cast<std::ptrdiff_t>(*toRemove));
+
+        if (ImGui::Button("Add Component")) {
+            requests.refreshComponents = true;
+            ImGui::OpenPopup("AddComponent");
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Generate Component")) {
+            newComponentName.clear();
+            ImGui::OpenPopup("GenerateComponent");
+        }
+
+        if (ImGui::BeginPopup("AddComponent")) {
+            if (components.empty()) ImGui::TextDisabled("nenhum componente em assets/components");
+            for (const ComponentInfo &info : components) {
+                std::string label = info.className + " (" + info.module + ")";
+                if (ImGui::Selectable(label.c_str())) obj.scripts.push_back({info.module, info.className});
+                if (!info.description.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", info.description.c_str());
+            }
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::BeginPopup("GenerateComponent")) {
+            ImGui::Text("Nome da classe (ex: PuloDuplo):");
+            if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+            bool enter = ImGui::InputText("##nome", &newComponentName, ImGuiInputTextFlags_EnterReturnsTrue);
+            if ((ImGui::Button("Criar") || enter) && !newComponentName.empty()) {
+                requests.generateComponent = newComponentName;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
         }
     }
 
@@ -334,7 +420,8 @@ namespace crsdk {
         if (ImGui::MenuItem("Luz pontual")) requests.add = AddKind::PointLight;
     }
 
-    EditorRequests CrsEditor::drawUi(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea) {
+    EditorRequests CrsEditor::drawUi(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea,
+                                     const std::vector<ComponentInfo> &components) {
         //menu primeiro: o painel lateral começa embaixo dele
         EditorRequests requests = drawMenuBar();
         //Shift+A: o mesmo menu Adicionar, aberto onde está o mouse
@@ -347,7 +434,7 @@ namespace crsdk {
             drawAddMenuItems(requests);
             ImGui::EndPopup();
         }
-        drawSidePanel(scene);
+        drawSidePanel(scene, components, requests);
         drawRelationshipLines(scene, camera, sceneArea);
         drawTransformGizmo(scene, camera, sceneArea);
         drawNavigationGizmo(camera, sceneArea);

@@ -5,6 +5,7 @@
         {
             "id": 0,
             "name": "cube",
+            "scripts": [{"module": "girar", "class": "Girar"}],
             "model": "assets/models/iron_cube.glb",
             "editorOnly": false,
             "color": [

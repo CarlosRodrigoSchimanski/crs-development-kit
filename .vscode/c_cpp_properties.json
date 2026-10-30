@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/build/_deps/glfw-src/include",
-                "C:/VulkanSDK/1.4.357.0/Include"
+                "C:/VulkanSDK/1.4.357.0/Include",
+                "C:/Users/carlos/AppData/Local/Programs/Python/Python312/Include"
             ],
             "defines": [
                 "_DEBUG",

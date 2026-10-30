@@ -480,6 +480,21 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    applyRotation local/global e os outros componentes (rigidBody, camera, luz).
    Próximo (passo 3): script como componente do objeto, classe com start(args)/update() rodando
    no Play, args editáveis no painel do editor, e o tempo gasto por script.
+3.4.3. Passo 3 feito (2026-10-30): componentes Python.
+   - crsdk.Component (classe base em Python: self.object, args, start(args), update()) e crsdk.deltaTime;
+     ScriptComponent no objeto (arquivo + classe + args mudados), salvo na cena ("scripts");
+   - imports: assets/components e assets/scripts no sys.path; o Play esquece os módulos do projeto
+     (edição vale sem fechar a engine); sem .pyc/__pycache__;
+   - erro num componente aparece uma vez (console + janela de stats) e tira só ele do Play;
+   - editor: seção Componentes no painel (args por tipo: bool/int/float/texto, botão "padrão",
+     Remover), Add Component (lista as classes achadas na pasta, lida de novo ao abrir) e
+     Generate Component (cria o .py com o modelo e prende no objeto; recusa nome que esconderia
+     um módulo do Python, ex: random.py);
+   - tempo do update() de cada componente na janela de stats durante o Play.
+   Testes: o Python é UM só pros testes também (religar o interpretador a cada teste corrompia a
+   memória depois de várias voltas); cada teste limpa o que ligou e esquece os módulos.
+   Ainda provisório: o ola.py rodando ao abrir a engine (passo 2). Falta na API: CharacterInput.
+   >> Próximo marco: release 0.1 (ver Fase 4, itens 16 e 17, e o Python embutido do 3.4.1).
    Pedido do usuário pro passo 3 (2026-10-30):
    - pasta própria dos componentes: assets/components/ (um .py pode ter um ou mais componentes);
    - no painel do objeto selecionado: "Add Component" (lista as classes achadas na pasta) e

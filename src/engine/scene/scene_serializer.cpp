@@ -37,6 +37,21 @@ namespace crsdk {
         return j.contains(key) ? vec3FromJson(j.at(key)) : fallback;
     }
 
+    //arg de componente Python: o tipo do JSON diz qual dos quatro tipos é
+    static json argToJson(const ScriptArg &value) {
+        if (auto *b = std::get_if<bool>(&value)) return *b;
+        if (auto *i = std::get_if<int>(&value)) return *i;
+        if (auto *f = std::get_if<float>(&value)) return rounded(*f);
+        return std::get<std::string>(value);
+    }
+
+    static ScriptArg argFromJson(const json &j) {
+        if (j.is_boolean()) return j.get<bool>();
+        if (j.is_number_integer()) return j.get<int>();
+        if (j.is_number()) return j.get<float>();
+        return j.get<std::string>();
+    }
+
     //os componentes do objeto: só as configurações (velocidade, tempo da animação... recomeçam ao carregar)
     static void componentsToJson(json &j, const CrsGameObject &obj) {
         if (obj.pointLight) {
@@ -94,6 +109,20 @@ namespace crsdk {
                 {"speed", rounded(obj.animator->speed)},
                 {"loop", obj.animator->loop},
             };
+        }
+        //componentes Python: o arquivo, a classe e os args mudados (o que eles guardam em self some ao parar o Play)
+        if (!obj.scripts.empty()) {
+            json scripts = json::array();
+            for (const ScriptComponent &script : obj.scripts) {
+                json entry = {{"module", script.module}, {"class", script.className}};
+                if (!script.args.empty()) {
+                    json args = json::object();
+                    for (const auto &[name, value] : script.args) args[name] = argToJson(value);
+                    entry["args"] = args;
+                }
+                scripts.push_back(entry);
+            }
+            j["scripts"] = scripts;
         }
     }
 
@@ -164,6 +193,17 @@ namespace crsdk {
             animator.speed = c.value("speed", animator.speed);
             animator.loop = c.value("loop", animator.loop);
             obj.animator = animator;
+        }
+        if (j.contains("scripts")) {
+            for (const json &c : j.at("scripts")) {
+                ScriptComponent script{};
+                script.module = c.value("module", script.module);
+                script.className = c.value("class", script.className);
+                if (c.contains("args")) {
+                    for (auto &item : c.at("args").items()) script.args[item.key()] = argFromJson(item.value());
+                }
+                obj.scripts.push_back(script);
+            }
         }
     }
 

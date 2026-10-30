@@ -11,6 +11,7 @@ namespace crsdk {
         CrsScene *scene = nullptr;
         const CrsInput *input = nullptr;
         const CrsWindow *window = nullptr;
+        float deltaTime = 0.f;
     };
 
     //um só pro programa inteiro (o Python também é um só)
