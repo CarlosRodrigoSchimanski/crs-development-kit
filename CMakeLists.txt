@@ -72,6 +72,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nfd)
 #----------------------------------------------------------#
 
+#Python embutido (scripts dos objetos): o 3.12 instalado no sistema, e o pybind11 pra ligar C++ <-> Python.
+#Fixo no 3.12: o pybind11 2.13 é estável com ele (o 3.14 também instalado é novo demais)
+find_package(Python 3.12 EXACT REQUIRED COMPONENTS Interpreter Development.Embed)
+set(PYBIND11_FINDPYTHON ON)
+FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG v2.13.6
+)
+FetchContent_MakeAvailable(pybind11)
+#----------------------------------------------------------#
+
 #incluir stb_image (carregamento de arquivos de imagem pra textura)
 FetchContent_Declare(
     stb
@@ -193,6 +205,7 @@ set(ENGINE_SOURCES
     src/engine/gameplay/character_controller_system.cpp
     src/engine/gameplay/camera_rig_system.cpp
     src/engine/gameplay/character_animation_system.cpp
+    src/engine/scripting/lve_scripting.cpp
     src/engine/animation/lve_animation.cpp
     src/engine/animation/lve_gltf_animation.cpp
     src/engine/animation/lve_animation_file.cpp
@@ -233,6 +246,8 @@ add_library(ge_engine STATIC ${ENGINE_SOURCES} src/engine/third_party_impl.cpp)
 target_include_directories(ge_engine PUBLIC src PRIVATE ${stb_SOURCE_DIR} ${cgltf_SOURCE_DIR})
 target_link_libraries(ge_engine PUBLIC glfw Vulkan::Vulkan glm::glm GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(ge_engine PRIVATE nlohmann_json::nlohmann_json)
+#o Python fica escondido dentro da engine: quem usa só vê o LveScripting
+target_link_libraries(ge_engine PRIVATE pybind11::embed)
 #configuração do glm definida UMA vez: profundidade 0..1 como o Vulkan espera (o padrão do glm é
 #-1..1, do OpenGL). PUBLIC: quem usa a engine tem que enxergar o glm do mesmo jeito
 target_compile_definitions(ge_engine PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
@@ -271,6 +286,7 @@ set(TEST_SOURCES
     tests/test_camera_rig.cpp
     tests/test_animation.cpp
     tests/test_animation_file.cpp
+    tests/test_scripting.cpp
 )
 add_executable(G_E_Youtube_tests ${TEST_SOURCES})
 if(MSVC)

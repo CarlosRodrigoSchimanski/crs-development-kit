@@ -139,6 +139,13 @@ namespace lve {
             loadGameObjects();
             sceneFile = SCENE_FILE;
         }
+
+        //provisório (passo 1 do Python): mostra no console que o Python roda dentro da engine
+        try {
+            scripting.runFile("assets/scripts/ola.py");
+        } catch (const std::exception &e) {
+            sceneFileStatus = e.what();
+        }
     }
 
     void FirstApp::run() {

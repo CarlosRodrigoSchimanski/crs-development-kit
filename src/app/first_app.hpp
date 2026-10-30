@@ -20,6 +20,7 @@
 #include "engine/gameplay/character_animation_system.hpp"
 #include "engine/animation/lve_animator_system.hpp"
 #include "engine/animation/lve_animation_library.hpp"
+#include "engine/scripting/lve_scripting.hpp"
 #include "engine/physics/lve_physics_system.hpp"
 #include "editor/lve_editor.hpp"
 #include "editor/lve_imgui.hpp"
@@ -99,6 +100,8 @@ namespace lve {
             LveRenderer lveRenderer{lveWindow, lveDevice};
             //animações de arquivo (o SkinningSystem usa: criada antes dele)
             LveAnimationLibrary animationLibrary{};
+            //Python embutido (scripts dos objetos)
+            LveScripting scripting{};
             //pool dos descriptor sets globais
             std::unique_ptr<LveDescriptorPool> globalPool{};
             //formato dos dados globais: 0 = UBO, 1 = shadow map, 2 = luzes

@@ -465,6 +465,10 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    - personagem: CharacterInput (moveDirection, jump, run) = a intenção que o script/IA manda
    - cena: createGameObject(), findGameObjectById(), raycast(raio, distância, ignorar), worldMatrix()
    - objeto: name, transform (translation, rotation, scale), parentId, componentes opcionais
+3.4.1. Passo 1 feito (2026-10-30): Python 3.12 embutido com pybind11 2.13.6 (engine/scripting,
+   LveScripting::runFile). Hoje usa o Python instalado no Windows (python312.dll achado pelo PATH).
+   PENDENTE pra distribuir o jogo: levar junto o "embeddable Python" (zip oficial) ao lado do .exe,
+   senão não abre em PC sem Python 3.12. Subir de versão do Python = subir o pybind11 junto.
 3.4. Scripts Python como componentes de objeto (anotado 2026-10-25, pedido do usuário) — o
    mesmo modelo do KX_PythonComponent do UPBGE: uma classe Python presa a um objeto, com
    start(args) e update(), e os "args" (sensibilidade do mouse, inverter eixo, limitar
