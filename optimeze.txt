@@ -469,6 +469,17 @@ legal fazer primeiro" — mas está tudo aberto a mudar conforme o projeto for a
    CrsScripting::runFile). Hoje usa o Python instalado no Windows (python312.dll achado pelo PATH).
    PENDENTE pra distribuir o jogo: levar junto o "embeddable Python" (zip oficial) ao lado do .exe,
    senão não abre em PC sem Python 3.12. Subir de versão do Python = subir o pybind11 junto.
+3.4.2. Passo 2 feito (2026-10-30): API Python = módulo embutido "crsdk" (engine/scripting/
+   crs_python_api.cpp), nomes em camelCase como no C++ (escolha do usuário). Tem: Vec2/Vec3,
+   Transform, GameObject (name, id, transform, parent/parentId, children, worldPosition, animator),
+   Animator (lista do 3.4.0), Scene (objects, find, findById, createObject, raycast, activeCamera),
+   Input (isDown, wasPressed, wasReleased, mouse, mouseDelta), Window, crsdk.keys e crsdk.mouse.
+   crsdk.scene/input/window são lidos na hora (o app troca a cena ao entrar/sair do Play).
+   Referência pro VS Code: assets/scripts/crsdk/*.pyi (mantida à mão junto com o .cpp).
+   Falta na API: CharacterInput (a intenção de movimento: hoje o app monta ela no C++),
+   applyRotation local/global e os outros componentes (rigidBody, camera, luz).
+   Próximo (passo 3): script como componente do objeto, classe com start(args)/update() rodando
+   no Play, args editáveis no painel do editor, e o tempo gasto por script.
 3.4. Scripts Python como componentes de objeto (anotado 2026-10-25, pedido do usuário) — o
    mesmo modelo do KX_PythonComponent do UPBGE: uma classe Python presa a um objeto, com
    start(args) e update(), e os "args" (sensibilidade do mouse, inverter eixo, limitar

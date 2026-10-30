@@ -140,7 +140,12 @@ namespace crsdk {
             sceneFile = SCENE_FILE;
         }
 
-        //provisório (passo 1 do Python): mostra no console que o Python roda dentro da engine
+        //o que os scripts Python enxergam pelo módulo crsdk (a cena troca no Play)
+        scripting.setScene(&crsScene);
+        scripting.setInput(&crsInput);
+        scripting.setWindow(&crsWindow);
+
+        //provisório (passo 2 do Python): mostra no console a API crsdk lendo a cena
         try {
             scripting.runFile("assets/scripts/ola.py");
         } catch (const std::exception &e) {
@@ -263,11 +268,13 @@ namespace crsdk {
     void FirstApp::startPlay() {
         //a cena do editor fica intacta
         playScene = crsScene;
+        scripting.setScene(&*playScene);
         crsWindow.setCursorMode(PLAY_CURSOR);
         crsInput.skipNextMouseDelta();
     }
 
     void FirstApp::stopPlay() {
+        scripting.setScene(&crsScene);
         playScene.reset();
         crsWindow.setCursorMode(CursorMode::Visible);
         crsInput.skipNextMouseDelta();

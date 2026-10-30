@@ -206,6 +206,7 @@ set(ENGINE_SOURCES
     src/engine/gameplay/camera_rig_system.cpp
     src/engine/gameplay/character_animation_system.cpp
     src/engine/scripting/crs_scripting.cpp
+    src/engine/scripting/crs_python_api.cpp
     src/engine/animation/crs_animation.cpp
     src/engine/animation/crs_gltf_animation.cpp
     src/engine/animation/crs_animation_file.cpp
