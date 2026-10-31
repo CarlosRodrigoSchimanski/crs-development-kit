@@ -29,6 +29,7 @@ namespace crsdk {
             for (int tileX = 0; tileX < keep; tileX++) {
                 TerrainTile &target = result.tileData[static_cast<size_t>(tileZ * result.tiles + tileX)];
                 target.heights = tile(tileX, tileZ).heights;
+                target.weights = tile(tileX, tileZ).weights;
             }
         }
         //pedaço novo encostado num antigo: a borda compartilhada tem que ter a altura do antigo
@@ -36,22 +37,63 @@ namespace crsdk {
             for (int x = 0; x < result.samplesPerSide(); x++) {
                 const bool inOld = x < samplesPerSide() && z < samplesPerSide();
                 const bool onKeptEdge = x == keep * TERRAIN_TILE_CELLS || z == keep * TERRAIN_TILE_CELLS;
-                if (inOld && onKeptEdge) result.setSample(x, z, sample(x, z));
+                if (inOld && onKeptEdge) {
+                    result.setSample(x, z, sample(x, z));
+                    result.setWeights(x, z, weights(x, z));
+                }
             }
         }
         return result;
     }
 
-    float TerrainData::sample(int x, int z) const {
+    size_t TerrainData::sampleIndex(int &x, int &z, int &tileIndex) const {
         const int last = samplesPerSide() - 1;
         x = std::clamp(x, 0, last);
         z = std::clamp(z, 0, last);
-        //o pedaço que começa na amostra (o último pedaço fica com a borda final)
         const int tileX = std::min(x / TERRAIN_TILE_CELLS, tiles - 1);
         const int tileZ = std::min(z / TERRAIN_TILE_CELLS, tiles - 1);
-        const int localX = x - tileX * TERRAIN_TILE_CELLS;
-        const int localZ = z - tileZ * TERRAIN_TILE_CELLS;
-        return tile(tileX, tileZ).heights[static_cast<size_t>(localZ * TERRAIN_TILE_SAMPLES + localX)];
+        tileIndex = tileZ * tiles + tileX;
+        return static_cast<size_t>((z - tileZ * TERRAIN_TILE_CELLS) * TERRAIN_TILE_SAMPLES + (x - tileX * TERRAIN_TILE_CELLS));
+    }
+
+    float TerrainData::sample(int x, int z) const {
+        int tileIndex = 0;
+        const size_t index = sampleIndex(x, z, tileIndex);
+        return tileData[static_cast<size_t>(tileIndex)].heights[index];
+    }
+
+    float TerrainData::weight(int x, int z, int layer) const {
+        if (layer < 0 || layer >= TERRAIN_MAX_LAYERS) return 0.f;
+        int tileIndex = 0;
+        const size_t index = sampleIndex(x, z, tileIndex);
+        return tileData[static_cast<size_t>(tileIndex)].weights[index * TERRAIN_MAX_LAYERS + static_cast<size_t>(layer)];
+    }
+
+    std::array<float, TERRAIN_MAX_LAYERS> TerrainData::weights(int x, int z) const {
+        int tileIndex = 0;
+        const size_t index = sampleIndex(x, z, tileIndex) * TERRAIN_MAX_LAYERS;
+        std::array<float, TERRAIN_MAX_LAYERS> values{};
+        const std::vector<float> &w = tileData[static_cast<size_t>(tileIndex)].weights;
+        std::copy(w.begin() + static_cast<std::ptrdiff_t>(index), w.begin() + static_cast<std::ptrdiff_t>(index + TERRAIN_MAX_LAYERS), values.begin());
+        return values;
+    }
+
+    void TerrainData::setWeights(int x, int z, const std::array<float, TERRAIN_MAX_LAYERS> &values) {
+        const int last = samplesPerSide() - 1;
+        if (x < 0 || z < 0 || x > last || z > last) return;
+        //mesma regra do setSample: na divisa grava em todo pedaço que tem a amostra
+        for (int tileZ = (z - 1) / TERRAIN_TILE_CELLS; tileZ <= z / TERRAIN_TILE_CELLS; tileZ++) {
+            for (int tileX = (x - 1) / TERRAIN_TILE_CELLS; tileX <= x / TERRAIN_TILE_CELLS; tileX++) {
+                if (tileX < 0 || tileZ < 0 || tileX >= tiles || tileZ >= tiles) continue;
+                const int localX = x - tileX * TERRAIN_TILE_CELLS;
+                const int localZ = z - tileZ * TERRAIN_TILE_CELLS;
+                if (localX < 0 || localZ < 0 || localX > TERRAIN_TILE_CELLS || localZ > TERRAIN_TILE_CELLS) continue;
+                TerrainTile &t = tileData[static_cast<size_t>(tileZ * tiles + tileX)];
+                const size_t index = static_cast<size_t>(localZ * TERRAIN_TILE_SAMPLES + localX) * TERRAIN_MAX_LAYERS;
+                std::copy(values.begin(), values.end(), t.weights.begin() + static_cast<std::ptrdiff_t>(index));
+                t.version++;
+            }
+        }
     }
 
     void TerrainData::setSample(int x, int z, float height) {
@@ -168,8 +210,53 @@ namespace crsdk {
         });
     }
 
+    void TerrainData::paint(glm::vec2 center, float radius, int layer, float amount) {
+        if (layer < 0 || layer >= TERRAIN_MAX_LAYERS) return;
+        //o pincel decide só quanto a camada ganha/perde em cada ponto; as outras se ajustam pra somar 1
+        struct Result { int x, z; std::array<float, TERRAIN_MAX_LAYERS> values; };
+        std::vector<Result> results;
+        applyBrush(center, radius, [&](int x, int z, float height, float brush) {
+            std::array<float, TERRAIN_MAX_LAYERS> w = weights(x, z);
+            const float before = w[static_cast<size_t>(layer)];
+            const float after = std::clamp(before + amount * brush, 0.f, 1.f);
+            const float others = 1.f - before;
+            if (others > 1e-4f) {
+                //as outras encolhem/crescem juntas, na mesma proporção que tinham entre si
+                const float scale = (1.f - after) / others;
+                for (int i = 0; i < TERRAIN_MAX_LAYERS; i++) {
+                    if (i != layer) w[static_cast<size_t>(i)] *= scale;
+                }
+            } else if (layer != 0) {
+                w[0] = 1.f - after;  //só tinha ela: o que sai vira chão base
+            } else {
+                return height;  //apagar o chão base onde só tem ele: não tem pra onde ir
+            }
+            w[static_cast<size_t>(layer)] = after;
+            results.push_back({x, z, w});
+            return height;  //a altura não muda
+        });
+        for (const Result &r : results) setWeights(r.x, r.z, r.values);
+    }
+
+    void TerrainData::removeLayer(int layer) {
+        if (layer <= 0 || layer >= TERRAIN_MAX_LAYERS) return;  //o chão base não sai
+        for (TerrainTile &t : tileData) {
+            for (size_t i = 0; i < t.weights.size(); i += TERRAIN_MAX_LAYERS) {
+                float *w = &t.weights[i];
+                w[0] += w[layer];
+                for (int j = layer; j < TERRAIN_MAX_LAYERS - 1; j++) w[j] = w[j + 1];
+                w[TERRAIN_MAX_LAYERS - 1] = 0.f;
+            }
+            t.version++;
+        }
+    }
+
     static std::filesystem::path tilePath(const std::string &folder, int tileX, int tileZ) {
         return std::filesystem::path{folder} / ("tile_" + std::to_string(tileX) + "_" + std::to_string(tileZ) + ".bin");
+    }
+
+    static std::filesystem::path paintPath(const std::string &folder, int tileX, int tileZ) {
+        return std::filesystem::path{folder} / ("paint_" + std::to_string(tileX) + "_" + std::to_string(tileZ) + ".bin");
     }
 
     void TerrainData::save(const std::string &folder) const {
@@ -178,7 +265,8 @@ namespace crsdk {
         std::vector<std::filesystem::path> old;  //juntados antes: apagar no meio da listagem não é seguro
         for (const auto &entry : std::filesystem::directory_iterator{folder}) {
             const std::string name = entry.path().filename().string();
-            if (name.rfind("tile_", 0) == 0 && entry.path().extension() == ".bin") old.push_back(entry.path());
+            const bool tileFile = name.rfind("tile_", 0) == 0 || name.rfind("paint_", 0) == 0;
+            if (tileFile && entry.path().extension() == ".bin") old.push_back(entry.path());
         }
         for (const auto &path : old) std::filesystem::remove(path);
         const uint32_t samples = TERRAIN_TILE_SAMPLES;
@@ -190,6 +278,18 @@ namespace crsdk {
                 out.write(TILE_MAGIC, sizeof(TILE_MAGIC));
                 out.write(reinterpret_cast<const char *>(&samples), sizeof(samples));
                 out.write(reinterpret_cast<const char *>(heights.data()), static_cast<std::streamsize>(heights.size() * sizeof(float)));
+
+                //camadas em 1 byte cada (0..255): um quarto do tamanho, e a pintura não precisa de mais
+                const std::vector<float> &w = tile(tileX, tileZ).weights;
+                std::vector<uint8_t> bytes(w.size());
+                for (size_t i = 0; i < w.size(); i++) bytes[i] = static_cast<uint8_t>(std::lround(std::clamp(w[i], 0.f, 1.f) * 255.f));
+                std::ofstream paintOut{paintPath(folder, tileX, tileZ), std::ios::binary};
+                if (!paintOut) throw std::runtime_error("não deu pra gravar a pintura do terreno em " + folder);
+                const uint32_t layers = TERRAIN_MAX_LAYERS;
+                paintOut.write(TILE_MAGIC, sizeof(TILE_MAGIC));
+                paintOut.write(reinterpret_cast<const char *>(&samples), sizeof(samples));
+                paintOut.write(reinterpret_cast<const char *>(&layers), sizeof(layers));
+                paintOut.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
             }
         }
     }
@@ -210,6 +310,22 @@ namespace crsdk {
                 std::vector<float> &heights = terrain.tileData[static_cast<size_t>(tileZ * terrain.tiles + tileX)].heights;
                 in.read(reinterpret_cast<char *>(heights.data()), static_cast<std::streamsize>(heights.size() * sizeof(float)));
                 if (!in) throw std::runtime_error("arquivo de terreno incompleto: " + tilePath(folder, tileX, tileZ).string());
+
+                //pintura (opcional: terreno salvo antes das camadas não tem)
+                std::ifstream paintIn{paintPath(folder, tileX, tileZ), std::ios::binary};
+                if (!paintIn) continue;
+                uint32_t layers = 0;
+                paintIn.read(magic, sizeof(magic));
+                paintIn.read(reinterpret_cast<char *>(&samples), sizeof(samples));
+                paintIn.read(reinterpret_cast<char *>(&layers), sizeof(layers));
+                if (std::memcmp(magic, TILE_MAGIC, sizeof(magic)) != 0 || samples != TERRAIN_TILE_SAMPLES || layers != TERRAIN_MAX_LAYERS) {
+                    throw std::runtime_error("pintura de terreno inválida: " + paintPath(folder, tileX, tileZ).string());
+                }
+                std::vector<float> &w = terrain.tileData[static_cast<size_t>(tileZ * terrain.tiles + tileX)].weights;
+                std::vector<uint8_t> bytes(w.size());
+                paintIn.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+                if (!paintIn) throw std::runtime_error("pintura de terreno incompleta: " + paintPath(folder, tileX, tileZ).string());
+                for (size_t i = 0; i < w.size(); i++) w[i] = static_cast<float>(bytes[i]) / 255.f;
             }
         }
         return terrain;

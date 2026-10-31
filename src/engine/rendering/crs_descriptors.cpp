@@ -109,21 +109,21 @@ namespace crsdk {
     CrsDescriptorWriter::CrsDescriptorWriter(CrsDescriptorSetLayout &setLayout, CrsDescriptorPool &pool)
         : setLayout{setLayout}, pool{pool} {}
     
-    VkWriteDescriptorSet CrsDescriptorWriter::makeWrite(uint32_t binding) const {
+    VkWriteDescriptorSet CrsDescriptorWriter::makeWrite(uint32_t binding, uint32_t count) const {
         assert(setLayout.bindings.count(binding) == 1 && "Layout does not contain specified binding");
         //.at() e não [] : o [] CRIA a entrada se ela não existir, e o assert acima some no build de
         //release; o .at() lança exceção nos dois builds
         const auto &bindingDescription = setLayout.bindings.at(binding);
 
         assert(
-            bindingDescription.descriptorCount == 1 &&
-            "Binding single descriptor info, but binding expects multiple");
+            bindingDescription.descriptorCount == count &&
+            "Number of descriptor infos doesn't match the binding's descriptor count");
 
         VkWriteDescriptorSet write{};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.descriptorType = bindingDescription.descriptorType;
         write.dstBinding = binding;
-        write.descriptorCount = 1;
+        write.descriptorCount = count;
         return write;
     }
 
@@ -131,6 +131,14 @@ namespace crsdk {
         uint32_t binding, VkDescriptorImageInfo *imageInfo) {
         VkWriteDescriptorSet write = makeWrite(binding);
         write.pImageInfo = imageInfo;
+        writes.push_back(write);
+        return *this;
+    }
+
+    CrsDescriptorWriter &CrsDescriptorWriter::writeImages(
+        uint32_t binding, VkDescriptorImageInfo *imageInfos, uint32_t count) {
+        VkWriteDescriptorSet write = makeWrite(binding, count);
+        write.pImageInfo = imageInfos;
         writes.push_back(write);
         return *this;
     }

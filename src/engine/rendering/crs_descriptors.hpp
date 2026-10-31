@@ -78,6 +78,8 @@ namespace crsdk {
             CrsDescriptorWriter(CrsDescriptorSetLayout &setLayout, CrsDescriptorPool &pool);
 
             CrsDescriptorWriter &writeImage(uint32_t binding, VkDescriptorImageInfo *imageInfo);
+            //binding que é um array (sampler2D mapas[8]): 'count' imagens seguidas, todas de uma vez
+            CrsDescriptorWriter &writeImages(uint32_t binding, VkDescriptorImageInfo *imageInfos, uint32_t count);
             CrsDescriptorWriter &writeBuffer(uint32_t binding, VkDescriptorBufferInfo *bufferInfo);
 
             bool build(VkDescriptorSet &set);
@@ -85,7 +87,7 @@ namespace crsdk {
 
         private:
             //parte comum de writeImage/writeBuffer: valida o binding e monta o VkWriteDescriptorSet
-            VkWriteDescriptorSet makeWrite(uint32_t binding) const;
+            VkWriteDescriptorSet makeWrite(uint32_t binding, uint32_t count = 1) const;
 
             CrsDescriptorSetLayout &setLayout;
             CrsDescriptorPool &pool;

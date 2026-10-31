@@ -260,3 +260,128 @@ TEST_CASE("terreno: salvar depois de diminuir apaga os arquivos dos pedaços que
     CHECK_FALSE(std::filesystem::exists(folder / "tile_1_1.bin"));
     std::filesystem::remove_all(folder);
 }
+
+//as 8 camadas de uma amostra somam 1
+static float weightSum(const TerrainData &terrain, int x, int z) {
+    float sum = 0.f;
+    for (float w : terrain.weights(x, z)) sum += w;
+    return sum;
+}
+
+TEST_CASE("pintura: começa tudo no chão base e pintar põe a camada no meio do pincel") {
+    TerrainData terrain{1};
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(1.f));
+
+    terrain.paint({50.f, 50.f}, 6.f, 2, 1.f);
+
+    CHECK(terrain.weight(50, 50, 2) == doctest::Approx(1.f));
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(0.f));
+    CHECK(terrain.weight(53, 50, 2) > 0.f);
+    CHECK(terrain.weight(53, 50, 2) < 1.f);
+    CHECK(weightSum(terrain, 53, 50) == doctest::Approx(1.f));
+    CHECK(terrain.weight(60, 50, 2) == doctest::Approx(0.f));  //fora do pincel
+}
+
+TEST_CASE("pintura: pintar outra camada por cima divide o espaço, e apagar devolve pras outras") {
+    TerrainData terrain{1};
+    terrain.paint({50.f, 50.f}, 6.f, 1, 0.5f);  //metade camada 1, metade chão
+    terrain.paint({50.f, 50.f}, 6.f, 2, 0.5f);  //a 2 ganha metade; as outras encolhem juntas
+
+    CHECK(terrain.weight(50, 50, 2) == doctest::Approx(0.5f));
+    CHECK(terrain.weight(50, 50, 1) == doctest::Approx(0.25f));
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(0.25f));
+
+    terrain.paint({50.f, 50.f}, 6.f, 2, -1.f);  //Shift: apaga a 2
+    CHECK(terrain.weight(50, 50, 2) == doctest::Approx(0.f));
+    CHECK(terrain.weight(50, 50, 1) == doctest::Approx(0.5f));
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(0.5f));
+}
+
+TEST_CASE("pintura: apagar onde só tinha a camada volta pro chão base") {
+    TerrainData terrain{1};
+    terrain.paint({50.f, 50.f}, 6.f, 3, 1.f);
+    terrain.paint({50.f, 50.f}, 6.f, 3, -1.f);
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(1.f));
+    CHECK(weightSum(terrain, 50, 50) == doctest::Approx(1.f));
+}
+
+TEST_CASE("pintura: na divisa grava nos dois pedaços e muda a versão deles") {
+    TerrainData terrain{2};
+    const uint64_t before = terrain.tile(1, 0).version;
+    terrain.paint({256.f, 40.f}, 4.f, 1, 1.f);
+    const size_t index = static_cast<size_t>(40 * TERRAIN_TILE_SAMPLES) * TERRAIN_MAX_LAYERS;
+    CHECK(terrain.tile(0, 0).weights[index + static_cast<size_t>(TERRAIN_TILE_CELLS) * TERRAIN_MAX_LAYERS + 1] == doctest::Approx(1.f));
+    CHECK(terrain.tile(1, 0).weights[index + 1] == doctest::Approx(1.f));
+    CHECK(terrain.tile(1, 0).version > before);
+}
+
+TEST_CASE("pintura: tirar uma camada devolve o que ela tinha pro chão base e desce as de cima") {
+    TerrainData terrain{1};
+    terrain.paint({50.f, 50.f}, 6.f, 1, 1.f);
+    terrain.paint({100.f, 100.f}, 6.f, 2, 1.f);
+
+    terrain.removeLayer(1);
+
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(1.f));    //era da 1: voltou pro chão
+    CHECK(terrain.weight(100, 100, 1) == doctest::Approx(1.f));  //a 2 virou a 1
+    CHECK(terrain.weight(100, 100, 2) == doctest::Approx(0.f));
+    terrain.removeLayer(0);  //o chão base não sai
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(1.f));
+}
+
+TEST_CASE("pintura: salvar e carregar devolve as camadas (com a precisão de 1 byte)") {
+    const auto folder = std::filesystem::temp_directory_path() / "crs_test_pintura";
+    std::filesystem::remove_all(folder);
+    TerrainData terrain{2};
+    terrain.paint({300.f, 200.f}, 8.f, 4, 1.f);
+    terrain.paint({300.f, 200.f}, 8.f, 1, 0.3f);
+    terrain.save(folder.string());
+
+    CHECK(std::filesystem::exists(folder / "paint_1_0.bin"));
+    TerrainData loaded = TerrainData::load(folder.string(), 2);
+    for (int layer = 0; layer < TERRAIN_MAX_LAYERS; layer++) {
+        CHECK(loaded.weight(300, 200, layer) == doctest::Approx(terrain.weight(300, 200, layer)).epsilon(0.01));
+        CHECK(loaded.weight(304, 203, layer) == doctest::Approx(terrain.weight(304, 203, layer)).epsilon(0.01));
+    }
+    //terreno salvo antes das camadas (sem paint_*.bin): tudo no chão base
+    std::filesystem::remove(folder / "paint_1_0.bin");
+    CHECK(TerrainData::load(folder.string(), 2).weight(300, 200, 0) == doctest::Approx(1.f));
+    std::filesystem::remove_all(folder);
+}
+
+TEST_CASE("pintura: aumentar o terreno mantém o que foi pintado") {
+    TerrainData terrain{1};
+    terrain.paint({100.f, 100.f}, 6.f, 2, 1.f);
+    TerrainData bigger = terrain.resized(2);
+    CHECK(bigger.weight(100, 100, 2) == doctest::Approx(1.f));
+    CHECK(bigger.weight(400, 400, 0) == doctest::Approx(1.f));
+}
+
+TEST_CASE("cena: as camadas voltam na ordem, e a cena antiga (um material só) vira o chão base") {
+    const auto root = std::filesystem::temp_directory_path() / "crs_test_camadas";
+    std::filesystem::remove_all(root);
+    const auto scenePath = root / "scenes" / "mundo.json";
+    CrsScene scene;
+    CrsGameObject &obj = scene.createGameObject();
+    obj.terrain.emplace();
+    obj.terrain->layers = {{"assets/materials/a", 4.f}, {"assets/materials/b", 2.5f}};
+    saveScene(scene, scenePath.string());
+
+    CrsScene loaded = loadScene(scenePath.string(), [](const std::string &) { return nullptr; });
+    const auto &layers = loaded.findGameObjectById(obj.getId())->terrain->layers;
+    REQUIRE(layers.size() == 2);
+    CHECK(layers[1].material == "assets/materials/b");
+    CHECK(layers[1].textureSize == doctest::Approx(2.5f));
+
+    {
+        std::ofstream out{scenePath};
+        out << R"({"version": 2, "objects": [{"id": 0, "transform": {"translation": [0,0,0], "rotation": [0,0,0], "scale": [1,1,1]},
+                   "terrain": {"tiles": 1, "folder": "../terrains/x", "material": "assets/materials/velho", "textureSize": 3.0}}]})";
+    }
+    CrsScene old = loadScene(scenePath.string(), [](const std::string &) { return nullptr; });
+    const auto &oldLayers = old.findGameObjectById(0)->terrain->layers;
+    REQUIRE(oldLayers.size() == 1);
+    CHECK(oldLayers[0].material == "assets/materials/velho");
+    CHECK(oldLayers[0].textureSize == doctest::Approx(3.f));
+    std::filesystem::remove_all(root);
+}

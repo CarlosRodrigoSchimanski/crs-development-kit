@@ -256,8 +256,12 @@
             "terrain": {
                 "tiles": 1,
                 "folder": "../terrains/main_5",
-                "material": "assets/materials/checkered_pavement_tiles",
-                "textureSize": 4.0
+                "layers": [
+                    {
+                        "material": "assets/materials/checkered_pavement_tiles",
+                        "textureSize": 4.0
+                    }
+                ]
             }
         }
     ]

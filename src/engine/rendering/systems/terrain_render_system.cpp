@@ -7,50 +7,58 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 
 namespace crsdk {
-    //tem que bater com o terrain_push.glsl (96 bytes: cabe nos 128 que toda GPU garante)
+    //tem que bater com o terrain_push.glsl (128 bytes: exatamente o que toda GPU garante)
     struct TerrainPushConstants {
         glm::mat4 modelMatrix{1.f};
         glm::vec4 brush{0.f};
         glm::vec4 options{0.f};
+        glm::vec4 layerScales[2]{};  //1 / tamanho da textura de cada camada, em metros
     };
+    static_assert(sizeof(TerrainPushConstants) <= 128, "push constant do terreno passou dos 128 bytes");
 
     struct TerrainVertex {
         glm::vec3 position;
         glm::vec3 normal;
+        uint8_t weights[TERRAIN_MAX_LAYERS];  //quanto de cada camada (0..255): o shader recebe 0..1
     };
 
     constexpr uint32_t TILE_VERTEX_COUNT = TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES;
     //malha que ninguém desenhou por esses frames é apagada (já saiu de todo frame em voo)
     constexpr uint64_t FORGET_AFTER_FRAMES = CrsSwapChain::MAX_FRAMES_IN_FLIGHT + 1;
-    //quantos materiais diferentes de terreno cabem no pool (+1 do neutro)
-    constexpr uint32_t MAX_TERRAIN_MATERIALS = 32;
+    //quantas combinações diferentes de camadas cabem no pool
+    constexpr uint32_t MAX_LAYER_SETS = 64;
+    //os mapas de cada camada, um binding por tipo, cada um um array de 8 (um por camada)
+    constexpr uint32_t MAP_KINDS = 5;  //cor, normal, roughness, AO, displacement
 
     TerrainRenderSystem::TerrainRenderSystem(CrsDevice &device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout)
         : crsDevice{device} {
-        //set 1: os quatro mapas do material (cor, normal, roughness, AO)
-        materialSetLayout = CrsDescriptorSetLayout::Builder{crsDevice}
-            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-            .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-            .addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-            .addBinding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-            .build();
+        //set 1: cinco arrays de 8 texturas (binding 0 = as 8 cores, 1 = os 8 normal maps...)
+        CrsDescriptorSetLayout::Builder layout{crsDevice};
+        for (uint32_t kind = 0; kind < MAP_KINDS; kind++) {
+            layout.addBinding(kind, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, TERRAIN_MAX_LAYERS);
+        }
+        materialSetLayout = layout.build();
         materialPool = CrsDescriptorPool::Builder{crsDevice}
-            .setMaxSets(MAX_TERRAIN_MATERIALS + 1)
-            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (MAX_TERRAIN_MATERIALS + 1) * 4)
+            .setMaxSets(MAX_LAYER_SETS)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_LAYER_SETS * MAP_KINDS * TERRAIN_MAX_LAYERS)
             .build();
+
         const unsigned char white[4] = {255, 255, 255, 255};
         const unsigned char flat[4] = {128, 128, 255, 255};
+        const unsigned char mid[4] = {128, 128, 128, 255};
         CrsUploadBatch upload{crsDevice};
-        whiteTexture = std::make_unique<CrsTexture>(crsDevice, 1, 1, white, upload, TextureKind::Data);
+        whiteColor = std::make_unique<CrsTexture>(crsDevice, 1, 1, white, upload, TextureKind::Color);
+        whiteData = std::make_unique<CrsTexture>(crsDevice, 1, 1, white, upload, TextureKind::Data);
         flatNormal = std::make_unique<CrsTexture>(crsDevice, 1, 1, flat, upload, TextureKind::Data);
+        midHeight = std::make_unique<CrsTexture>(crsDevice, 1, 1, mid, upload, TextureKind::Data);
         upload.submit();
-        neutralSet = makeMaterialSet(*whiteTexture, *flatNormal, *whiteTexture, *whiteTexture);
 
-        //set 0 global (câmera, luzes, sombra) + set 1 material; a push constant é lida pelos dois shaders
+        //set 0 global (câmera, luzes, sombra) + set 1 camadas; a push constant é lida pelos dois shaders
         pipelineLayout = CrsPipeline::createPipelineLayout(
             crsDevice, {globalSetLayout, materialSetLayout->getDescriptorSetLayout()},
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(TerrainPushConstants));
@@ -66,6 +74,9 @@ namespace crsdk {
         config.attributeDescriptions = {
             {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(TerrainVertex, position)},
             {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(TerrainVertex, normal)},
+            //as 8 camadas em dois grupos de 4 bytes; UNORM: o shader recebe 0..1
+            {2, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(TerrainVertex, weights)},
+            {3, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(TerrainVertex, weights) + 4},
         };
         config.colorAttachmentFormats = {colorFormat};
         config.depthAttachmentFormat = depthFormat;
@@ -94,49 +105,67 @@ namespace crsdk {
         indexBuffer->unmap();
     }
 
-    VkDescriptorSet TerrainRenderSystem::makeMaterialSet(const CrsTexture &albedo, const CrsTexture &normal,
-                                                         const CrsTexture &roughness, const CrsTexture &ao) {
-        const CrsTexture *maps[4] = {&albedo, &normal, &roughness, &ao};
-        VkDescriptorImageInfo infos[4]{};
-        CrsDescriptorWriter writer{*materialSetLayout, *materialPool};
-        for (uint32_t i = 0; i < 4; i++) {
-            infos[i] = {maps[i]->getSampler(), maps[i]->getImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-            writer.writeImage(i, &infos[i]);
-        }
-        VkDescriptorSet set = VK_NULL_HANDLE;
-        if (!writer.build(set)) throw std::runtime_error("pool de materiais do terreno cheio");
-        return set;
-    }
-
     const TerrainRenderSystem::Material &TerrainRenderSystem::getMaterial(const std::string &folder) {
         auto found = materials.find(folder);
         if (found != materials.end()) return found->second;
 
         Material &material = materials[folder];
         const MaterialFiles files = findMaterialFiles(folder);
-        if (files.albedo.empty() || materials.size() > MAX_TERRAIN_MATERIALS) return material;
+        if (files.albedo.empty()) return material;
         try {
-            //cada mapa que existe vira textura; o que falta usa o neutro (cor é sRGB, o resto é dado)
+            //cada mapa que existe vira textura; o que falta fica com o neutro (cor é sRGB, o resto é dado)
             CrsUploadBatch upload{crsDevice};
             auto load = [&](const std::string &path, TextureKind kind) -> const CrsTexture * {
                 if (path.empty()) return nullptr;
                 material.textures.push_back(std::make_unique<CrsTexture>(crsDevice, path, upload, kind));
                 return material.textures.back().get();
             };
-            const CrsTexture *albedo = load(files.albedo, TextureKind::Color);
-            const CrsTexture *normal = load(files.normal, TextureKind::Data);
-            const CrsTexture *roughness = load(files.roughness, TextureKind::Data);
-            const CrsTexture *ao = load(files.ao, TextureKind::Data);
+            material.albedo = load(files.albedo, TextureKind::Color);
+            material.normal = load(files.normal, TextureKind::Data);
+            material.roughness = load(files.roughness, TextureKind::Data);
+            material.ao = load(files.ao, TextureKind::Data);
+            material.displacement = load(files.displacement, TextureKind::Data);
             upload.submit();
-            material.set = makeMaterialSet(*albedo, normal ? *normal : *flatNormal,
-                roughness ? *roughness : *whiteTexture, ao ? *ao : *whiteTexture);
             material.loaded = true;
         } catch (const std::exception &e) {
-            //arquivo com defeito: avisa uma vez e o terreno fica com a cor provisória
+            //arquivo com defeito: avisa uma vez e a camada fica com os mapas neutros
             std::cerr << "material do terreno " << folder << ": " << e.what() << std::endl;
-            material.textures.clear();
+            material = Material{};
         }
         return material;
+    }
+
+    VkDescriptorSet TerrainRenderSystem::getLayerSet(const std::vector<TerrainLayer> &layers) {
+        //a mesma lista de pastas usa o mesmo set (o tamanho da repetição vai na push constant)
+        std::string key;
+        for (const TerrainLayer &layer : layers) key += layer.material + '|';
+        auto found = layerSets.find(key);
+        if (found != layerSets.end()) return found->second;
+        if (layerSets.size() >= MAX_LAYER_SETS) return layerSets.begin()->second;  //pool cheio: reaproveita um
+
+        //posição sem camada ou sem material: os neutros (o peso dela é 0 de qualquer jeito)
+        VkDescriptorImageInfo infos[MAP_KINDS][TERRAIN_MAX_LAYERS]{};
+        for (int i = 0; i < TERRAIN_MAX_LAYERS; i++) {
+            const Material *material = i < static_cast<int>(layers.size()) && !layers[static_cast<size_t>(i)].material.empty()
+                ? &getMaterial(layers[static_cast<size_t>(i)].material) : nullptr;
+            const bool ok = material && material->loaded;
+            const CrsTexture *maps[MAP_KINDS] = {
+                ok ? material->albedo : whiteColor.get(),
+                ok && material->normal ? material->normal : flatNormal.get(),
+                ok && material->roughness ? material->roughness : whiteData.get(),
+                ok && material->ao ? material->ao : whiteData.get(),
+                ok && material->displacement ? material->displacement : midHeight.get(),
+            };
+            for (uint32_t kind = 0; kind < MAP_KINDS; kind++) {
+                infos[kind][i] = {maps[kind]->getSampler(), maps[kind]->getImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            }
+        }
+        CrsDescriptorWriter writer{*materialSetLayout, *materialPool};
+        for (uint32_t kind = 0; kind < MAP_KINDS; kind++) writer.writeImages(kind, infos[kind], TERRAIN_MAX_LAYERS);
+        VkDescriptorSet set = VK_NULL_HANDLE;
+        if (!writer.build(set)) throw std::runtime_error("pool de camadas do terreno cheio");
+        layerSets.emplace(key, set);
+        return set;
     }
 
     void TerrainRenderSystem::writeTile(const TerrainData &data, int tileX, int tileZ, CrsBuffer &buffer) {
@@ -150,6 +179,10 @@ namespace crsdk {
                 v.position = {static_cast<float>(sampleX) * TERRAIN_CELL_SIZE, data.sample(sampleX, sampleZ),
                               static_cast<float>(sampleZ) * TERRAIN_CELL_SIZE};
                 v.normal = data.normalAt(sampleX, sampleZ);
+                const std::array<float, TERRAIN_MAX_LAYERS> w = data.weights(sampleX, sampleZ);
+                for (int i = 0; i < TERRAIN_MAX_LAYERS; i++) {
+                    v.weights[i] = static_cast<uint8_t>(std::lround(std::clamp(w[static_cast<size_t>(i)], 0.f, 1.f) * 255.f));
+                }
             }
         }
         buffer.writeToBuffer(vertices.data());
@@ -180,19 +213,26 @@ namespace crsdk {
                 bound = true;
             }
 
-            //material deste terreno (ou o neutro, com a cor provisória)
-            const Material *material = obj.terrain->material.empty() ? nullptr : &getMaterial(obj.terrain->material);
-            const bool hasMaterial = material && material->loaded;
-            VkDescriptorSet materialSet = hasMaterial ? material->set : neutralSet;
+            //as camadas deste terreno; sem nenhuma com material: a cor provisória
+            const std::vector<TerrainLayer> &layers = obj.terrain->layers;
+            const int layerCount = std::min(static_cast<int>(layers.size()), TERRAIN_MAX_LAYERS);
+            bool anyMaterial = false;
+            for (int i = 0; i < layerCount; i++) {
+                const std::string &folder = layers[static_cast<size_t>(i)].material;
+                if (!folder.empty() && getMaterial(folder).loaded) anyMaterial = true;
+            }
+            VkDescriptorSet layerSet = getLayerSet(layers);
             vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout.get(),
-                1, 1, &materialSet, 0, nullptr);
+                1, 1, &layerSet, 0, nullptr);
 
             TerrainPushConstants push{};
             push.modelMatrix = glm::translate(glm::mat4{1.f}, obj.terrain->corner(obj.transform.translation));
             push.brush = glm::vec4{overlay.brushCenter, overlay.brushRadius};
             push.options.x = overlay.contourInterval;
-            push.options.y = 1.f / std::max(obj.terrain->textureSize, 0.01f);
-            push.options.z = hasMaterial ? 1.f : 0.f;
+            push.options.y = anyMaterial ? static_cast<float>(layerCount) : 0.f;
+            for (int i = 0; i < layerCount; i++) {
+                push.layerScales[i / 4][i % 4] = 1.f / std::max(layers[static_cast<size_t>(i)].textureSize, 0.01f);
+            }
             vkCmdPushConstants(frameInfo.commandBuffer, pipelineLayout.get(),
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);
 
@@ -205,7 +245,7 @@ namespace crsdk {
                             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
                         buffer->map();
                     }
-                    //o buffer deste frame está atrasado (pedaço esculpido depois que ele foi escrito)
+                    //o buffer deste frame está atrasado (pedaço esculpido/pintado depois que ele foi escrito)
                     const uint64_t version = data.tile(tileX, tileZ).version;
                     if (!tile.written[frame] || tile.versions[frame] != version) {
                         writeTile(data, tileX, tileZ, *buffer);

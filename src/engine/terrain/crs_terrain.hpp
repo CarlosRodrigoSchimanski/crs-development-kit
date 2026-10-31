@@ -18,12 +18,23 @@ namespace crsdk {
     //o tamanho é sempre um número inteiro de pedaços por lado (256 m, 512 m, 768 m...), até este máximo
     //(2048 m: sem culling por pedaço, mais que isso gasta memória de vídeo demais)
     constexpr int TERRAIN_MAX_TILES = 8;
+    //camadas de material pintadas por cima do chão (a 0 é o chão base): até 8 por terreno
+    constexpr int TERRAIN_MAX_LAYERS = 8;
 
     struct TerrainTile {
         //alturas em metros, linha por linha: a altura (x, z) do pedaço fica em [z * 257 + x]
         std::vector<float> heights = std::vector<float>(TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES, 0.f);
+        //quanto de cada camada em cada amostra (0..1, somando 1): 8 números por amostra, na mesma ordem
+        //das alturas. Começa tudo no chão base (camada 0)
+        std::vector<float> weights = baseWeights();
         //muda a cada edição: quem guarda uma cópia (malha na GPU, corpo na física) sabe que tem que refazer
         uint64_t version = 0;
+
+        static std::vector<float> baseWeights() {
+            std::vector<float> w(static_cast<size_t>(TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES * TERRAIN_MAX_LAYERS), 0.f);
+            for (size_t i = 0; i < w.size(); i += TERRAIN_MAX_LAYERS) w[i] = 1.f;
+            return w;
+        }
     };
 
     //o relevo do terreno: as alturas, divididas em pedaços. Coordenadas "locais" = metros a partir do
@@ -48,6 +59,10 @@ namespace crsdk {
             float sample(int x, int z) const;
             //muda uma amostra em todo pedaço que tem ela (1, ou 2 na divisa, ou 4 no canto)
             void setSample(int x, int z, float height);
+            //quanto da camada numa amostra (0..1) e as 8 de uma vez; mudar grava em todo pedaço que tem a amostra
+            float weight(int x, int z, int layer) const;
+            std::array<float, TERRAIN_MAX_LAYERS> weights(int x, int z) const;
+            void setWeights(int x, int z, const std::array<float, TERRAIN_MAX_LAYERS> &values);
             //normal da superfície numa amostra (pelos vizinhos: sem costura na divisa dos pedaços)
             glm::vec3 normalAt(int x, int z) const;
 
@@ -63,9 +78,15 @@ namespace crsdk {
             void raise(glm::vec2 center, float radius, float amount);  //amount < 0 abaixa
             void smooth(glm::vec2 center, float radius, float strength);  //strength 0..1 por chamada
             void flatten(glm::vec2 center, float radius, float height, float strength);
+            //pinta a camada (amount 0..1 por chamada no meio do pincel); amount < 0 apaga ela, e o que
+            //sai volta pras outras camadas daquele ponto (ou pro chão base, se só tinha ela)
+            void paint(glm::vec2 center, float radius, int layer, float amount);
+            //tira a camada de todo o terreno: o que estava pintado com ela volta pro chão base, e as de
+            //cima descem uma posição (a lista de materiais do terreno tem que acompanhar)
+            void removeLayer(int layer);
 
-            //um arquivo por pedaço (tile_x_z.bin) na pasta (os de um tamanho antigo maior são apagados);
-            //carregar: pedaço sem arquivo fica plano
+            //dois arquivos por pedaço na pasta: tile_x_z.bin (alturas) e paint_x_z.bin (camadas, 1 byte por
+            //camada); os de um tamanho antigo maior são apagados. Carregar: o que não tem arquivo fica plano/sem pintura
             void save(const std::string &folder) const;
             static TerrainData load(const std::string &folder, int tilesPerSide);
 
@@ -73,6 +94,8 @@ namespace crsdk {
             //chama change(alturaAtual, peso) pra cada amostra dentro do círculo e grava o resultado
             template <typename Change>
             void applyBrush(glm::vec2 center, float radius, Change change);
+            //o pedaço que guarda a amostra (o último pedaço fica com a borda final) e o índice nele
+            size_t sampleIndex(int &x, int &z, int &tileIndex) const;
 
             int tiles;
             std::vector<TerrainTile> tileData;  //linha por linha: o pedaço (x, z) fica em [z * tiles + x]

@@ -20,7 +20,7 @@ namespace crsdk {
     enum class AddKind {None, Empty, Camera, PointLight};
 
     //ferramenta de esculpir do terreno (None = o clique volta a selecionar)
-    enum class TerrainTool {None, Raise, Smooth, Flatten};
+    enum class TerrainTool {None, Raise, Smooth, Flatten, Paint};
 
     //o que foi pedido pelo menu neste frame (quem executa é o FirstApp)
     struct EditorRequests {
@@ -96,6 +96,8 @@ namespace crsdk {
             void drawColliders(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea);
             //card do terreno: tamanho, ferramentas de esculpir, pincel e curvas de nível
             void drawTerrainCard(CrsGameObject &obj);
+            //card das camadas: os materiais pintados (o [0] é o chão base) e o pincel Pintar
+            void drawTerrainLayersCard(CrsGameObject &obj);
             //terreno selecionado e uma ferramenta escolhida: o clique esculpe
             bool sculptMode(CrsScene &scene) const;
 
@@ -120,6 +122,8 @@ namespace crsdk {
             bool sculpting = false;
             //Nivelar: a altura (do terreno) onde o clique começou
             float flattenHeight = 0.f;
+            //Pintar: a camada que o pincel pinta (índice na lista de camadas do terreno)
+            int paintLayer = 0;
             //filhos de cada objeto
             using ChildrenMap = std::map<CrsGameObject::id_t, std::vector<CrsGameObject::id_t>>;
             //lista de objetos da cena em árvore

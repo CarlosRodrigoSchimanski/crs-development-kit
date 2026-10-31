@@ -265,7 +265,7 @@ namespace crsdk {
         auto& ground = crsScene.createGameObject();
         ground.name = "Terreno";
         ground.terrain.emplace();
-        ground.terrain->material = DEFAULT_TERRAIN_MATERIAL;
+        ground.terrain->layers = {{DEFAULT_TERRAIN_MATERIAL}};
     }
 
     void FirstApp::startPlay() {
@@ -445,7 +445,7 @@ namespace crsdk {
         obj.name = "Terreno";
         obj.terrain.emplace();
         obj.terrain->data = std::make_shared<TerrainData>(tiles);
-        obj.terrain->material = DEFAULT_TERRAIN_MATERIAL;
+        obj.terrain->layers = {{DEFAULT_TERRAIN_MATERIAL}};
         editor.select(obj.getId());
     }
 

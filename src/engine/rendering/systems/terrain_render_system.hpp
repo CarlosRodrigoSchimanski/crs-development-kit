@@ -22,9 +22,11 @@ namespace crsdk {
         glm::vec3 brushCenter{0.f};   //no mundo
     };
 
-    //desenha os objetos com TerrainComponent: uma malha por pedaço (257 x 257 vértices). A malha mora
-    //num buffer que a CPU escreve; esculpir muda a versão do pedaço, e cada frame em voo reescreve o
-    //buffer dele quando está atrasado (o da GPU desenhando agora nunca é tocado)
+    //desenha os objetos com TerrainComponent: uma malha por pedaço (257 x 257 vértices, cada um com a
+    //altura, a normal e quanto tem de cada camada pintada). A malha mora num buffer que a CPU escreve;
+    //esculpir/pintar muda a versão do pedaço, e cada frame em voo reescreve o buffer dele quando está
+    //atrasado (o da GPU desenhando agora nunca é tocado). As camadas são misturadas no shader pela
+    //altura de cada material (displacement): onde se encontram, o mais alto aparece por cima
     class TerrainRenderSystem {
         public:
             TerrainRenderSystem(CrsDevice &device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
@@ -49,30 +51,35 @@ namespace crsdk {
                 std::vector<TileMesh> tiles;
                 uint64_t lastUsedFrame = 0;
             };
-            //preenche o buffer deste frame com as alturas atuais do pedaço
+            //preenche o buffer deste frame com as alturas e a pintura atuais do pedaço
             void writeTile(const TerrainData &data, int tileX, int tileZ, CrsBuffer &buffer);
 
-            //um material carregado: os mapas na GPU e o descriptor set (set 1) que aponta pra eles
+            //os mapas de um material na GPU (o que falta aponta pra um neutro); carregado uma vez por pasta
             struct Material {
                 std::vector<std::unique_ptr<CrsTexture>> textures;
-                VkDescriptorSet set = VK_NULL_HANDLE;
-                bool loaded = false;  //false = pasta sem a cor ou arquivo com erro: usa a cor provisória
+                const CrsTexture *albedo = nullptr;
+                const CrsTexture *normal = nullptr;
+                const CrsTexture *roughness = nullptr;
+                const CrsTexture *ao = nullptr;
+                const CrsTexture *displacement = nullptr;
+                bool loaded = false;  //false = pasta sem a cor ou arquivo com erro
             };
-            //o material da pasta, carregado na primeira vez que aparece (depois fica guardado)
             const Material &getMaterial(const std::string &folder);
-            VkDescriptorSet makeMaterialSet(const CrsTexture &albedo, const CrsTexture &normal,
-                                            const CrsTexture &roughness, const CrsTexture &ao);
+            //o set 1 de uma lista de camadas (os mapas das 8 posições); guardado pela lista de pastas
+            VkDescriptorSet getLayerSet(const std::vector<TerrainLayer> &layers);
 
             CrsDevice &crsDevice;
             CrsPipelineLayout pipelineLayout;
             std::unique_ptr<CrsPipeline> pipeline;
             std::unique_ptr<CrsDescriptorSetLayout> materialSetLayout;
             std::unique_ptr<CrsDescriptorPool> materialPool;
-            //mapas neutros de 1 pixel pro que o material não tem (e o set do "sem material")
-            std::unique_ptr<CrsTexture> whiteTexture;   //cor branca; AO 1 (sem fresta); roughness 1 (áspero)
-            std::unique_ptr<CrsTexture> flatNormal;     //normal map reto (128, 128, 255): sem relevo
-            VkDescriptorSet neutralSet = VK_NULL_HANDLE;
+            //mapas neutros de 1 pixel: posição sem material, ou mapa que o material não tem
+            std::unique_ptr<CrsTexture> whiteColor;   //cor branca
+            std::unique_ptr<CrsTexture> whiteData;    //roughness 1 (áspero), AO 1 (sem fresta)
+            std::unique_ptr<CrsTexture> flatNormal;   //normal map reto (128, 128, 255): sem relevo
+            std::unique_ptr<CrsTexture> midHeight;    //displacement no meio (0.5)
             std::unordered_map<std::string, Material> materials;
+            std::unordered_map<std::string, VkDescriptorSet> layerSets;
 
             //os triângulos são iguais em todo pedaço: um índice só pra todos
             std::unique_ptr<CrsBuffer> indexBuffer;

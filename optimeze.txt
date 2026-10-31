@@ -80,6 +80,12 @@ Roadmap:
           e "repetir a cada N m"; padrão de todo terreno novo: checkered_pavement_tiles (Poly Haven).
           Texturas: mipmaps gerados na GPU, filtro anisotrópico, e cor (sRGB) separada de dado (UNORM).
           Curvas de nível em azul (aparecem em cima de textura clara e escura)
+  ✅ 4.2  Pintura de camadas (2026-10-31): card "Camadas" no terreno com até 8 materiais (o 1º é o chão
+          base), cada um com a própria repetição; botão Pintar (Shift apaga, o que sai volta pras
+          outras camadas); a pintura fica nos vértices (1 por metro, 8 pesos por amostra, borda
+          compartilhada) e a mistura no shader é pela altura (displacement) de cada material: na
+          borda o mais alto aparece primeiro (a lama entra nas frestas da pedra). Salva em
+          paint_x_z.bin (1 byte por camada); tirar uma camada devolve a pintura dela pro chão base
   ✅ 5    Animação esquelética (skinning na GPU) com transição entre clipes
   ✅ 5.1  Eixos iguais ao glTF/Blender (Y pra cima, câmera olha pro -Z, frente = +Z)
   ✅ 5.0  Salvar/carregar cena em JSON (scene_serializer), ids estáveis, menu Arquivo,
@@ -192,7 +198,12 @@ Pendências pequenas do que já foi feito:
    4.2. Pintura de camadas (texture splatting): splat map RGBA por pedaço (4 camadas por imagem:
         terra, grama, estrada...), pincel no editor, shader mistura pelas cores. Mesma regra de
         divisa do 4.1. Python: terrain.layerAt(x, z) (som de passo, poeira).
-   4.3. Grama procedural (scattering): mapa de densidade pintado; folhas espalhadas pela engine
+   4.3. Grama procedural (scattering): mapa de densidade pintado — uma CAMADA INVISÍVEL, separada da
+        pintura de textura do 4.2 (esclarecido pelo usuário, 2026-10-31): no editor, com ela
+        selecionada, a área pintada aparece num tom semitransparente por cima do terreno só pra ver
+        onde está; no jogo ela nunca aparece como cor (vira a malha da grama perto e o ruído longe).
+        Textura de grama sem grama 3D, ou grama 3D em cima de terra: as duas coisas se combinam livre.
+        Nomes: "detail layer" / "foliage density map" (Unity: Paint Details; Unreal: Grass Type); folhas espalhadas pela engine
         com instancing (milhares numa chamada) e vento no vertex shader. Perto: folhas de verdade.
         LONGE (ideia do usuário): troca as folhas por um ruído/tom de grama no próprio shader do
         terreno, onde a densidade diz que tem grama — mantém a aparência sem o peso dos objetos;
@@ -220,6 +231,10 @@ Pendências pequenas do que já foi feito:
      céu da cena + luz/reflexo de ambiente (IBL). Os objetos (simple_shader) passarem pro PBR
    - mapas de 1 canal (rough, AO) sobem como RGBA: 4x a memória; juntar em uma textura (ARM)
    - o material carrega na primeira vez que aparece (trava uns milissegundos): carregar com a cena
+   - pintura com 1 ponto por metro: se a borda de um caminho precisar ser mais fina, passar a
+     pintura pra uma imagem por pedaço (2+ pontos por metro) sem mudar o editor
+   - Python: terrain.layerAt(x, z) (som de passo, poeira) e pintar por script
+   - instalador cresce ~8 MB por material de 2K
 
 6. Sistema de equipamento via skinning compartilhado (arma/roupa como malha separada, rigged no
    mesmo esqueleto do personagem, deformada pela mesma paleta de matrizes de osso por frame).

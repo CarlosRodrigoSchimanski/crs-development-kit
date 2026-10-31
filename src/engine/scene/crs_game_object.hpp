@@ -154,16 +154,21 @@ namespace crsdk {
         void setRotationMatrix(const glm::mat3 &rotationMatrix);
     };
 
+    //um material pintado no terreno
+    struct TerrainLayer {
+        std::string material{};    //pasta do material PBR (assets/materials/...; vazio = cor provisória)
+        float textureSize = 4.f;   //a textura se repete a cada tantos metros (o tamanho de "uma foto" no chão)
+    };
+
     //terreno em pedaços (ver crs_terrain.hpp). O objeto fica no MEIO do terreno; sem pai, sem girar
     //nem escalar (só a posição dele vale)
     struct TerrainComponent {
         //as alturas: compartilhadas entre a cena do editor e a cópia do Play (o Play não esculpe)
         //(os pedaços são salvos em assets/terrains/<nome da cena>_<id>: quem decide é o salvar da cena)
         std::shared_ptr<TerrainData> data = std::make_shared<TerrainData>(1);
-        //pasta do material PBR que cobre o terreno (assets/materials/...; vazio = a cor provisória)
-        std::string material{};
-        //a textura se repete a cada tantos metros (o tamanho de "uma foto" do material no chão)
-        float textureSize = 4.f;
+        //os materiais, na ordem das camadas da pintura: o [0] é o chão base (onde nada foi pintado);
+        //até TERRAIN_MAX_LAYERS. Sem nenhum: a cor provisória
+        std::vector<TerrainLayer> layers{};
 
         //canto do terreno no mundo, pra um objeto em 'position': as coordenadas locais começam nele
         glm::vec3 corner(const glm::vec3 &position) const {

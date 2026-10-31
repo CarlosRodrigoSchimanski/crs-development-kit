@@ -281,8 +281,11 @@ namespace crsdk {
             if (obj->terrain) {
                 const std::string folder = terrainFolder(path, obj->getId());
                 obj->terrain->data->save(resolveFromScene(path, folder));
-                j["terrain"] = {{"tiles", obj->terrain->data->tilesPerSide()}, {"folder", folder},
-                                {"material", obj->terrain->material}, {"textureSize", rounded(obj->terrain->textureSize)}};
+                json layers = json::array();
+                for (const TerrainLayer &layer : obj->terrain->layers) {
+                    layers.push_back({{"material", layer.material}, {"textureSize", rounded(layer.textureSize)}});
+                }
+                j["terrain"] = {{"tiles", obj->terrain->data->tilesPerSide()}, {"folder", folder}, {"layers", layers}};
             }
             objects.push_back(j);
         }
@@ -349,8 +352,17 @@ namespace crsdk {
                 obj.terrain.emplace();
                 const std::string folder = resolveFromScene(filepath, c.value("folder", std::string{}));
                 obj.terrain->data = std::make_shared<TerrainData>(TerrainData::load(folder, c.value("tiles", 1)));
-                obj.terrain->material = c.value("material", std::string{});
-                obj.terrain->textureSize = c.value("textureSize", obj.terrain->textureSize);
+                if (c.contains("layers")) {
+                    for (const json &l : c.at("layers")) {
+                        TerrainLayer layer{};
+                        layer.material = l.value("material", std::string{});
+                        layer.textureSize = l.value("textureSize", layer.textureSize);
+                        obj.terrain->layers.push_back(layer);
+                    }
+                } else if (c.contains("material")) {
+                    //cena de antes das camadas: um material só, que vira o chão base
+                    obj.terrain->layers.push_back({c.value("material", std::string{}), c.value("textureSize", 4.f)});
+                }
             }
         }
         if (file.contains("activeCamera")) {
