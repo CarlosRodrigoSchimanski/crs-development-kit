@@ -65,16 +65,31 @@ namespace crsdk {
         const glm::mat3 turn = delta.rotationMatrix();
         //local: o giro vem depois da rotação atual (eixos do objeto). Mundo: o giro vem antes, visto de
         //dentro do pai (a inversa de uma rotação pura é a transposta)
-        const glm::mat3 rotated = local ? current * turn : glm::transpose(parentRotation) * turn * parentRotation * current;
+        setRotationMatrix(local ? current * turn : glm::transpose(parentRotation) * turn * parentRotation * current);
+    }
 
+    void TransformComponent::setRotationMatrix(const glm::mat3 &rotationMatrix) {
         //de volta pros três ângulos, mantendo posição e escala
         glm::mat4 m{1.f};
-        m[0] = glm::vec4{rotated[0] * scale.x, 0.f};
-        m[1] = glm::vec4{rotated[1] * scale.y, 0.f};
-        m[2] = glm::vec4{rotated[2] * scale.z, 0.f};
+        m[0] = glm::vec4{rotationMatrix[0] * scale.x, 0.f};
+        m[1] = glm::vec4{rotationMatrix[1] * scale.y, 0.f};
+        m[2] = glm::vec4{rotationMatrix[2] * scale.z, 0.f};
         m[3] = glm::vec4{translation, 1.f};
         setFromMatrix(m);
     }
+
+    //meia medida da caixa que envolve a forma
+    static glm::vec3 shapeHalfSize(const RigidBodyComponent &body) {
+        switch (body.shape) {
+            case ColliderShape::Sphere: return glm::vec3{body.radius};
+            case ColliderShape::Capsule: return {body.radius, glm::max(body.height * 0.5f, body.radius), body.radius};
+            case ColliderShape::Box: break;
+        }
+        return body.halfExtents;
+    }
+
+    glm::vec3 RigidBodyComponent::boundsMin() const { return center - shapeHalfSize(*this); }
+    glm::vec3 RigidBodyComponent::boundsMax() const { return center + shapeHalfSize(*this); }
 
     void AnimatorComponent::play(const std::string &name, float fadeSeconds, bool loopClip) {
         if (name == clip) {

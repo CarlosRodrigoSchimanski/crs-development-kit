@@ -21,13 +21,26 @@ namespace crsdk {
     };
 
     enum class BodyType {Static, Dynamic};
+    //forma de colisão do corpo (a malha do modelo, pra cenário estático, vem depois)
+    enum class ColliderShape {Box, Sphere, Capsule};
     struct RigidBodyComponent{
         BodyType type = BodyType::Dynamic;
-        glm::vec3 velocity{0.f};
-        glm::vec3 halfExtents{1.f};
-        //centro da caixa em relação à origem, antes da escala (personagem com origem nos pés: acima dela)
+        ColliderShape shape = ColliderShape::Box;
+        //tamanhos antes da escala do objeto (a escala do transform multiplica):
+        glm::vec3 halfExtents{1.f};  //caixa: metade da largura, altura e profundidade
+        float radius = 0.5f;         //esfera e cápsula
+        float height = 2.f;          //cápsula: altura total, de ponta a ponta (de pé, no eixo Y)
+        //centro da forma em relação à origem, antes da escala (personagem com origem nos pés: acima dela)
         glm::vec3 center{0.f};
+        float mass = 10.f;           //kg (só dinâmico): quanto mais pesado, mais difícil de empurrar
+
+        //estado do momento (a física preenche; não é salvo)
+        glm::vec3 velocity{0.f};
         bool onGround = false;
+
+        //caixa que envolve a forma, em volta da origem do objeto (antes da escala): raycast e clique
+        glm::vec3 boundsMin() const;
+        glm::vec3 boundsMax() const;
     };
 
     //o que quem controla o personagem (componente Python do jogador, IA) quer fazer neste frame
@@ -135,6 +148,9 @@ namespace crsdk {
         //local = em volta dos eixos do próprio objeto; senão, dos eixos do mundo. Pra um filho,
         //parentRotation é a rotação do pai no mundo (sem escala); pra um objeto raiz, a identidade
         void applyRotation(const glm::vec3 &radians, bool local = true, const glm::mat3 &parentRotation = glm::mat3{1.f});
+
+        //troca a rotação por uma matriz de rotação pura (sem escala), mantendo posição e escala
+        void setRotationMatrix(const glm::mat3 &rotationMatrix);
     };
 
     struct PointLightComponent {

@@ -8,6 +8,7 @@
 #include <cmath>
 #include <iterator>
 #include <ImGuizmo.h>
+#include <glm/gtc/constants.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <nlohmann/json.hpp>
 
@@ -174,6 +175,8 @@ namespace crsdk {
                 theme::endCard();
             }
 
+            drawRigidBodyCard(*selected);
+
             drawComponentProperties(*selected, components, requests);
         } else {
             theme::beginCard("NothingSelectedCard");
@@ -207,6 +210,141 @@ namespace crsdk {
                 ImGui::PopID();
             }
             ImGui::EndCombo();
+        }
+    }
+
+    static const char *shapeLabel(ColliderShape shape) {
+        switch (shape) {
+            case ColliderShape::Sphere: return "Esfera";
+            case ColliderShape::Capsule: return "Cápsula";
+            case ColliderShape::Box: break;
+        }
+        return "Caixa";
+    }
+
+    void CrsEditor::drawRigidBodyCard(CrsGameObject &obj) {
+        //sem física: só o botão de pôr (o card aparece quando tem)
+        if (!obj.rigidBody) {
+            if (ImGui::Button("Adicionar física", ImVec2(-1.f, 0.f))) obj.rigidBody.emplace();
+            return;
+        }
+
+        RigidBodyComponent &body = *obj.rigidBody;
+        theme::beginCard("RigidBodyCard");
+        bool open = theme::cardHeader("Física", shapeLabel(body.shape));
+        float removeWidth = ImGui::CalcTextSize("Remover").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - removeWidth);
+        bool remove = ImGui::SmallButton("Remover##fisica");
+
+        if (open) {
+            int type = body.type == BodyType::Static ? 0 : 1;
+            theme::fieldLabel("Tipo");
+            if (ImGui::Combo("##tipo", &type, "Estático\0Dinâmico\0")) {
+                body.type = type == 0 ? BodyType::Static : BodyType::Dynamic;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Estático: parado (chão, parede)\nDinâmico: cai, tomba e é empurrado");
+
+            int shape = static_cast<int>(body.shape);
+            theme::fieldLabel("Forma");
+            if (ImGui::Combo("##forma", &shape, "Caixa\0Esfera\0Cápsula\0")) {
+                body.shape = static_cast<ColliderShape>(shape);
+            }
+
+            //só os tamanhos da forma escolhida (antes da escala do objeto)
+            if (body.shape == ColliderShape::Box) {
+                theme::fieldLabel("Meio tam.");
+                ImGui::DragFloat3("##meio", &body.halfExtents.x, 0.01f, 0.f, 1000.f);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Metade da largura, altura e profundidade");
+            } else {
+                theme::fieldLabel("Raio");
+                ImGui::DragFloat("##raio", &body.radius, 0.01f, 0.01f, 1000.f);
+            }
+            if (body.shape == ColliderShape::Capsule) {
+                theme::fieldLabel("Altura");
+                ImGui::DragFloat("##altura", &body.height, 0.01f, 0.01f, 1000.f);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Altura total, de ponta a ponta");
+            }
+            theme::fieldLabel("Centro");
+            ImGui::DragFloat3("##centro", &body.center.x, 0.01f);
+            if (body.type == BodyType::Dynamic) {
+                theme::fieldLabel("Massa (kg)");
+                ImGui::DragFloat("##massa", &body.mass, 0.1f, 0.01f, 100000.f);
+            }
+        }
+        theme::endCard();
+        if (remove) obj.rigidBody.reset();
+    }
+
+    void CrsEditor::drawColliders(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea) {
+        glm::mat4 viewProjection = camera.getProjection() * camera.getView();
+        ImDrawList *draw = ImGui::GetBackgroundDrawList();
+        const CrsGameObject *selected = getSelected(scene);
+
+        for (auto &kv : scene.getGameObjects()) {
+            CrsGameObject &obj = kv.second;
+            if (!obj.rigidBody) continue;
+            const RigidBodyComponent &body = *obj.rigidBody;
+            //verde como nas outras engines; o selecionado mais forte
+            const ImU32 color = &obj == selected ? IM_COL32(80, 255, 120, 255) : IM_COL32(80, 220, 120, 110);
+
+            //a física usa posição e rotação do objeto, e a escala só nos tamanhos (sem distorcer a forma)
+            const glm::mat4 world = scene.worldMatrix(obj);
+            const glm::mat3 rotation{glm::normalize(glm::vec3{world[0]}), glm::normalize(glm::vec3{world[1]}),
+                                     glm::normalize(glm::vec3{world[2]})};
+            const glm::vec3 scale = glm::abs(obj.transform.scale);
+            const glm::vec3 center = glm::vec3{world[3]} + rotation * (body.center * scale);
+            auto line = [&](glm::vec3 a, glm::vec3 b) {
+                auto from = worldToScreen(center + rotation * a, viewProjection, sceneArea);
+                auto to = worldToScreen(center + rotation * b, viewProjection, sceneArea);
+                if (from && to) draw->AddLine(*from, *to, color, 1.f);
+            };
+            //arco de um círculo no plano de dois eixos (de 0 a 'turn' voltas), em volta de offset
+            auto arc = [&](glm::vec3 axisA, glm::vec3 axisB, float radius, glm::vec3 offset, float turn) {
+                constexpr int SIDES = 24;
+                for (int i = 0; i < SIDES; i++) {
+                    float a0 = glm::two_pi<float>() * turn * static_cast<float>(i) / SIDES;
+                    float a1 = glm::two_pi<float>() * turn * static_cast<float>(i + 1) / SIDES;
+                    line(offset + (axisA * std::cos(a0) + axisB * std::sin(a0)) * radius,
+                         offset + (axisA * std::cos(a1) + axisB * std::sin(a1)) * radius);
+                }
+            };
+            const glm::vec3 X{1.f, 0.f, 0.f}, Y{0.f, 1.f, 0.f}, Z{0.f, 0.f, 1.f};
+
+            switch (body.shape) {
+                case ColliderShape::Box: {
+                    const glm::vec3 h = body.halfExtents * scale;
+                    for (int i = 0; i < 4; i++) {
+                        //as 4 arestas de cada direção: os sinais das outras duas medidas
+                        float s1 = (i & 1) ? 1.f : -1.f, s2 = (i & 2) ? 1.f : -1.f;
+                        line({-h.x, s1 * h.y, s2 * h.z}, {h.x, s1 * h.y, s2 * h.z});
+                        line({s1 * h.x, -h.y, s2 * h.z}, {s1 * h.x, h.y, s2 * h.z});
+                        line({s1 * h.x, s2 * h.y, -h.z}, {s1 * h.x, s2 * h.y, h.z});
+                    }
+                    break;
+                }
+                case ColliderShape::Sphere: {
+                    const float r = body.radius * std::max({scale.x, scale.y, scale.z});
+                    arc(X, Y, r, {}, 1.f);
+                    arc(Y, Z, r, {}, 1.f);
+                    arc(X, Z, r, {}, 1.f);
+                    break;
+                }
+                case ColliderShape::Capsule: {
+                    const float r = body.radius * std::max(scale.x, scale.z);
+                    const float halfStraight = std::max(body.height * 0.5f * scale.y - r, 0.f);
+                    const glm::vec3 top = Y * halfStraight;
+                    arc(X, Z, r, top, 1.f);
+                    arc(X, Z, r, -top, 1.f);
+                    //as laterais e as duas pontas redondas (meia volta em cada plano vertical)
+                    for (glm::vec3 side : {X, Z}) {
+                        line(top + side * r, -top + side * r);
+                        line(top - side * r, -top - side * r);
+                        arc(side, Y, r, top, 0.5f);
+                        arc(side, -Y, r, -top, 0.5f);
+                    }
+                    break;
+                }
+            }
         }
     }
 
@@ -454,6 +592,7 @@ namespace crsdk {
         }
         drawSidePanel(scene, components, requests);
         drawRelationshipLines(scene, camera, sceneArea);
+        drawColliders(scene, camera, sceneArea);
         drawTransformGizmo(scene, camera, sceneArea);
         drawNavigationGizmo(camera, sceneArea);
         return requests;

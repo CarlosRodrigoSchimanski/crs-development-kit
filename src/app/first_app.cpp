@@ -205,8 +205,11 @@ namespace crsdk {
         player.transform.translation = {3.f, 2.f, 0.f};
         player.transform.scale = {1.f, 1.f, 1.f};
         player.rigidBody.emplace();
-        player.rigidBody->halfExtents = {0.5f, 0.87f, 0.49f};  //meia largura, altura e profundidade da cápsula
-        player.rigidBody->center = {0.f, 0.87f, 0.f};  //caixa acima dos pés
+        player.rigidBody->shape = ColliderShape::Capsule;
+        player.rigidBody->radius = 0.4f;
+        player.rigidBody->height = 1.74f;
+        player.rigidBody->center = {0.f, 0.87f, 0.f};  //cápsula acima dos pés
+        player.rigidBody->mass = 70.f;
         player.character.emplace();
         //quem decide pra onde ele anda: o componente Python (WASD relativo à câmera)
         player.scripts.push_back({"controle_jogador", "ControleJogador"});
@@ -270,6 +273,8 @@ namespace crsdk {
     void FirstApp::startPlay() {
         //a cena do editor fica intacta
         playScene = crsScene;
+        //cada Play começa com a física zerada (os corpos do Play anterior eram de outra cópia da cena)
+        physicsSystem.clear();
         scripting.setScene(&*playScene);
         scripting.forgetProjectModules();
         scripting.startComponents(*playScene);

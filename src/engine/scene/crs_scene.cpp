@@ -76,9 +76,8 @@ namespace crsdk {
             if (!obj.rigidBody) continue;
             if (ignoreId && obj.getId() == *ignoreId) continue;
 
-            glm::vec3 boxMin = obj.rigidBody->center - obj.rigidBody->halfExtents;
-            glm::vec3 boxMax = obj.rigidBody->center + obj.rigidBody->halfExtents;
-            auto t = intersectRayObject(ray, worldMatrix(obj), boxMin, boxMax);
+            //esfera e cápsula: pela caixa que envolve a forma (aproximado nas pontas arredondadas)
+            auto t = intersectRayObject(ray, worldMatrix(obj), obj.rigidBody->boundsMin(), obj.rigidBody->boundsMax());
 
             if (t && *t <= maxDistance && (!closest || *t < closest->distance)) {
                 closest = RayCastHit{obj.getId(), *t};

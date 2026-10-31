@@ -5,7 +5,12 @@
         {
             "id": 0,
             "name": "cube",
-            "scripts": [{"module": "girar", "class": "Girar"}],
+            "scripts": [
+                {
+                    "module": "girar",
+                    "class": "Girar"
+                }
+            ],
             "model": "assets/models/iron_cube.glb",
             "editorOnly": false,
             "color": [
@@ -42,13 +47,19 @@
                     0.0,
                     0.0,
                     0.0
-                ]
+                ],
+                "shape": "box"
             }
         },
         {
             "id": 1,
             "name": "Player",
-            "scripts": [{"module": "controle_jogador", "class": "ControleJogador"}],
+            "scripts": [
+                {
+                    "module": "controle_jogador",
+                    "class": "ControleJogador"
+                }
+            ],
             "model": "assets/editor/character.glb",
             "editorOnly": true,
             "color": [
@@ -85,7 +96,11 @@
                     0.0,
                     0.87,
                     0.0
-                ]
+                ],
+                "shape": "capsule",
+                "radius": 0.4,
+                "height": 1.74,
+                "mass": 70.0
             },
             "character": {
                 "moveSpeed": 1.6,
@@ -257,7 +272,8 @@
                     0.0,
                     0.0,
                     0.0
-                ]
+                ],
+                "shape": "box"
             }
         }
     ]

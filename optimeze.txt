@@ -62,6 +62,10 @@ Roadmap:
           CharacterComponent::input; o controlador do C++ executa); API com character, rigidBody,
           camera, pointLight, worldDirection e applyRotation (local e no mundo)
   ✅ 3.5  Editor com tema escuro em cards (Poppins), cards que abrem e fecham pela setinha
+  ✅ 3.6  Física com a Jolt Physics (2026-10-31): formas caixa/esfera/cápsula com massa; corpos
+          dinâmicos tombam e giram; personagem pelo CharacterVirtual (desliza na parede, sobe
+          degrau de 40 cm, para em ladeira > 50°, empurra caixas); card "Física" no editor e a
+          forma em arame verde na cena; Python: shape, radius, height, mass
   ✅ 5    Animação esquelética (skinning na GPU) com transição entre clipes
   ✅ 5.1  Eixos iguais ao glTF/Blender (Y pra cima, câmera olha pro -Z, frente = +Z)
   ✅ 5.0  Salvar/carregar cena em JSON (scene_serializer), ids estáveis, menu Arquivo,
@@ -130,6 +134,13 @@ Pendências pequenas do que já foi feito:
    - Carregar a cena inteira num CrsUploadBatch só; depois, fence no lugar do vkQueueWaitIdle pra
      carregar em segundo plano sem travar.
 
+3.6.1. Física, próximos passos:
+   - forma de malha (os vértices do modelo) pra cenário estático; convexa pra dinâmico
+   - scene.raycast pela Jolt (hoje usa a caixa que envolve a forma: aproximado em esfera/cápsula)
+   - corpo físico em objeto com pai (hoje o transform é tratado como posição no mundo)
+   - atrito e quique (friction/restitution) no card; corpo cinemático (porta, elevador)
+   - eventos de contato e triggers pro Python (onCollision, área que detecta quem entrou)
+
 3.1.1. Gizmos gerados pela engine (decisão do usuário, 2026-10-26): todo objeto de editor (Empty,
    trigger, colisor, luz, ponto de spawn, a câmera) tem a forma GERADA pela engine (caixa, esfera,
    cápsula, cruz de eixos, pirâmide de visão a partir do FOV), sem arquivo; só os modelos do jogo
@@ -150,7 +161,8 @@ Pendências pequenas do que já foi feito:
         257 = 256 + 1); o pincel que passa na divisa escreve nos dois; a normal da borda usa os
         vizinhos (sem costura na luz). Com LOD por pedaço, vizinhos de resoluções diferentes
         precisam de "saias" ou costura pra não abrir rachadura.
-        Colisão: terrain.heightAt(x, z) acha o pedaço e interpola (física + Python).
+        Colisão: cada pedaço vira um HeightFieldShape da Jolt (já instalada); terrain.heightAt(x, z)
+        acha o pedaço e interpola (Python).
    4.2. Pintura de camadas (texture splatting): splat map RGBA por pedaço (4 camadas por imagem:
         terra, grama, estrada...), pincel no editor, shader mistura pelas cores. Mesma regra de
         divisa do 4.1. Python: terrain.layerAt(x, z) (som de passo, poeira).

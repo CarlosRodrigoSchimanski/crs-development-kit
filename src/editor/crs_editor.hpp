@@ -79,6 +79,10 @@ namespace crsdk {
             void drawNavigationGizmo(const CrsCamera &camera, VkRect2D sceneArea);
             //linha tracejada fina de cada filho até o pai (as "relationship lines" do Blender)
             void drawRelationshipLines(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea);
+            //card do RigidBody: tipo, forma e tamanhos (sem física: o botão de pôr)
+            void drawRigidBodyCard(CrsGameObject &obj);
+            //a forma de colisão de cada corpo em arame verde, por cima da cena (só no editor)
+            void drawColliders(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea);
 
             //objeto selecionado (vazio = nenhum)
             std::optional<CrsGameObject::id_t> selectedId;

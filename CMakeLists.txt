@@ -109,6 +109,35 @@ if(WIN32)
 endif()
 #----------------------------------------------------------#
 
+#incluir Jolt Physics (física: corpos com forma de caixa, esfera, cápsula; personagem que desliza na
+#parede e sobe rampa; mais tarde o heightfield do terreno). A de Horizon Forbidden West e do Godot 4.
+#O CMakeLists dela fica na subpasta Build/
+set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)  #mesmo runtime do resto (DLL), senão não linka
+set(ENABLE_ALL_WARNINGS OFF CACHE BOOL "" FORCE)
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)  #o LTO do projeto (lá em cima) já vale pra ela
+#computação na GPU da Jolt (ainda não usada): sem ela não puxa DirectX nem um segundo Vulkan
+set(JPH_USE_DX12 OFF CACHE BOOL "" FORCE)
+set(JPH_USE_VK OFF CACHE BOOL "" FORCE)
+set(JPH_USE_MTL OFF CACHE BOOL "" FORCE)
+set(JPH_USE_CPU_COMPUTE OFF CACHE BOOL "" FORCE)
+#instruções do processador: até SSE4.2 (qualquer PC de 2008 pra cá). AVX/AVX2 dariam um pouco mais de
+#velocidade, mas o .exe fecharia sozinho em processador sem elas (alguns Pentium/Celeron até ~2020)
+set(USE_AVX OFF CACHE BOOL "" FORCE)
+set(USE_AVX2 OFF CACHE BOOL "" FORCE)
+set(USE_LZCNT OFF CACHE BOOL "" FORCE)
+set(USE_TZCNT OFF CACHE BOOL "" FORCE)
+set(USE_F16C OFF CACHE BOOL "" FORCE)
+set(USE_FMADD OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    jolt
+    GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+    GIT_TAG v5.6.0
+    SOURCE_SUBDIR Build
+)
+FetchContent_MakeAvailable(jolt)
+#----------------------------------------------------------#
+
 #incluir stb_image (carregamento de arquivos de imagem pra textura)
 FetchContent_Declare(
     stb
@@ -283,6 +312,8 @@ target_link_libraries(crsdk_engine PUBLIC glfw Vulkan::Vulkan glm::glm GPUOpen::
 target_link_libraries(crsdk_engine PRIVATE nlohmann_json::nlohmann_json)
 #o Python fica escondido dentro da engine: quem usa só vê o CrsScripting
 target_link_libraries(crsdk_engine PRIVATE pybind11::embed)
+#a Jolt também: fica atrás do PhysicsSystem (nenhum header da engine inclui ela)
+target_link_libraries(crsdk_engine PRIVATE Jolt)
 #configuração do glm definida UMA vez: profundidade 0..1 como o Vulkan espera (o padrão do glm é
 #-1..1, do OpenGL). PUBLIC: quem usa a engine tem que enxergar o glm do mesmo jeito
 target_compile_definitions(crsdk_engine PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)

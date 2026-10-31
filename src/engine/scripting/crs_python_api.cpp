@@ -146,13 +146,22 @@ namespace crsdk {
             .def_readwrite("jumpSpeed", &CharacterComponent::jumpSpeed)
             .def_readwrite("input", &CharacterComponent::input);
 
+        py::enum_<ColliderShape>(m, "Shape")
+            .value("Box", ColliderShape::Box)
+            .value("Sphere", ColliderShape::Sphere)
+            .value("Capsule", ColliderShape::Capsule);
+
         py::class_<RigidBodyComponent>(m, "RigidBody")
             .def_property("isStatic",
                 [](const RigidBodyComponent &body) { return body.type == BodyType::Static; },
                 [](RigidBodyComponent &body, bool isStatic) { body.type = isStatic ? BodyType::Static : BodyType::Dynamic; })
             .def_readwrite("velocity", &RigidBodyComponent::velocity)
+            .def_readwrite("shape", &RigidBodyComponent::shape)
             .def_readwrite("halfExtents", &RigidBodyComponent::halfExtents)
+            .def_readwrite("radius", &RigidBodyComponent::radius)
+            .def_readwrite("height", &RigidBodyComponent::height)
             .def_readwrite("center", &RigidBodyComponent::center)
+            .def_readwrite("mass", &RigidBodyComponent::mass)
             //quem decide é a física (encostou em algo embaixo): o script só lê
             .def_readonly("onGround", &RigidBodyComponent::onGround);
 

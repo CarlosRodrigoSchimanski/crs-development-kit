@@ -190,16 +190,32 @@ class Character:
     """A intenção deste frame."""
 
 
+class Shape:
+    """Forma de colisão de um RigidBody."""
+    Box: "Shape"
+    Sphere: "Shape"
+    Capsule: "Shape"
+
+
 class RigidBody:
-    """Corpo físico: caixa de colisão e velocidade."""
+    """Corpo físico: forma de colisão, massa e velocidade."""
 
     isStatic: bool
     """True = parado (chão, parede); False = a gravidade age nele."""
-    velocity: Vec3
+    shape: Shape
+    """Box, Sphere ou Capsule (mudar refaz o corpo na física)."""
     halfExtents: Vec3
-    """Metade do tamanho da caixa em cada eixo (antes da escala do objeto)."""
+    """Caixa: metade do tamanho em cada eixo (antes da escala do objeto)."""
+    radius: float
+    """Esfera e cápsula: o raio."""
+    height: float
+    """Cápsula: altura total, de ponta a ponta (de pé, no eixo Y)."""
     center: Vec3
-    """Centro da caixa em relação à origem do objeto."""
+    """Centro da forma em relação à origem do objeto."""
+    mass: float
+    """Massa em kg (quanto mais pesado, mais difícil de empurrar)."""
+    velocity: Vec3
+    """Velocidade atual; mudar dá um impulso (ex: velocity.y = 5 pula)."""
     onGround: bool
     """Está apoiado em algo (só leitura: quem decide é a física)."""
 

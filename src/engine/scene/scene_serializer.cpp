@@ -37,6 +37,22 @@ namespace crsdk {
         return j.contains(key) ? vec3FromJson(j.at(key)) : fallback;
     }
 
+    //forma de colisão no arquivo: por nome ("box", "sphere", "capsule"); nome desconhecido = caixa
+    static const char *shapeName(ColliderShape shape) {
+        switch (shape) {
+            case ColliderShape::Sphere: return "sphere";
+            case ColliderShape::Capsule: return "capsule";
+            case ColliderShape::Box: break;
+        }
+        return "box";
+    }
+
+    static ColliderShape shapeFromName(const std::string &name) {
+        if (name == "sphere") return ColliderShape::Sphere;
+        if (name == "capsule") return ColliderShape::Capsule;
+        return ColliderShape::Box;
+    }
+
     //arg de componente Python: o tipo do JSON diz qual dos quatro tipos é
     static json argToJson(const ScriptArg &value) {
         if (auto *b = std::get_if<bool>(&value)) return *b;
@@ -67,8 +83,12 @@ namespace crsdk {
         if (obj.rigidBody) {
             j["rigidBody"] = {
                 {"type", obj.rigidBody->type == BodyType::Static ? "static" : "dynamic"},
+                {"shape", shapeName(obj.rigidBody->shape)},
                 {"halfExtents", vec3ToJson(obj.rigidBody->halfExtents)},
+                {"radius", rounded(obj.rigidBody->radius)},
+                {"height", rounded(obj.rigidBody->height)},
                 {"center", vec3ToJson(obj.rigidBody->center)},
+                {"mass", rounded(obj.rigidBody->mass)},
             };
         }
         if (obj.character) {
@@ -146,8 +166,12 @@ namespace crsdk {
             const json &c = j.at("rigidBody");
             RigidBodyComponent body{};
             body.type = c.value("type", std::string{"dynamic"}) == "static" ? BodyType::Static : BodyType::Dynamic;
+            body.shape = shapeFromName(c.value("shape", std::string{"box"}));
             body.halfExtents = vec3Or(c, "halfExtents", body.halfExtents);
+            body.radius = c.value("radius", body.radius);
+            body.height = c.value("height", body.height);
             body.center = vec3Or(c, "center", body.center);
+            body.mass = c.value("mass", body.mass);
             obj.rigidBody = body;
         }
         if (j.contains("character")) {

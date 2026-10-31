@@ -208,7 +208,38 @@ TEST_CASE("cena: campo que falta no arquivo fica com o padrão do componente") {
     REQUIRE(obj.rigidBody.has_value());
     CHECK(obj.rigidBody->type == BodyType::Static);
     CHECK(obj.rigidBody->halfExtents.x == doctest::Approx(1.f));
+    //cena de antes das formas: sem "shape" é caixa
+    CHECK(obj.rigidBody->shape == ColliderShape::Box);
     CHECK(obj.useTexture);
+}
+
+TEST_CASE("cena: a forma de colisão volta com tipo, tamanhos e massa") {
+    CrsScene scene;
+    CrsGameObject &ball = scene.createGameObject();
+    ball.rigidBody.emplace();
+    ball.rigidBody->shape = ColliderShape::Sphere;
+    ball.rigidBody->radius = 0.25f;
+    ball.rigidBody->mass = 3.f;
+    CrsGameObject &player = scene.createGameObject();
+    player.rigidBody.emplace();
+    player.rigidBody->shape = ColliderShape::Capsule;
+    player.rigidBody->radius = 0.4f;
+    player.rigidBody->height = 1.74f;
+    player.rigidBody->center = {0.f, 0.87f, 0.f};
+
+    std::string path = tempScenePath("ge_test_formas.json");
+    saveScene(scene, path);
+    CrsScene loaded = loadScene(path, noModel);
+    std::filesystem::remove(path);
+
+    const RigidBodyComponent &loadedBall = *loaded.findGameObjectById(ball.getId())->rigidBody;
+    CHECK(loadedBall.shape == ColliderShape::Sphere);
+    CHECK(loadedBall.radius == doctest::Approx(0.25f));
+    CHECK(loadedBall.mass == doctest::Approx(3.f));
+    const RigidBodyComponent &loadedPlayer = *loaded.findGameObjectById(player.getId())->rigidBody;
+    CHECK(loadedPlayer.shape == ColliderShape::Capsule);
+    CHECK(loadedPlayer.height == doctest::Approx(1.74f));
+    CHECK(loadedPlayer.center.y == doctest::Approx(0.87f));
 }
 
 TEST_CASE("cena: arquivo de versão antiga é erro (quem chamou decide o que fazer)") {

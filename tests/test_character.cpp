@@ -226,3 +226,88 @@ TEST_CASE("cada personagem anda pela própria intenção, e o pedido de pulo val
     //a direção continua até quem controla mudar
     CHECK(a.character->input.moveDirection.x == doctest::Approx(1.f));
 }
+
+//uma caixa (parede, degrau, caixote) no meio do caminho
+static CrsGameObject &addBox(CrsScene &scene, glm::vec3 center, glm::vec3 half, BodyType type) {
+    CrsGameObject &box = scene.createGameObject();
+    box.transform.translation = center;
+    box.rigidBody.emplace();
+    box.rigidBody->type = type;
+    box.rigidBody->halfExtents = half;
+    return box;
+}
+
+//nesses testes o personagem é a cápsula do jogador (origem nos pés), em pé no chão (y = -1.5)
+static CrsGameObject &addCapsuleCharacter(CrsScene &scene) {
+    CrsGameObject &player = addCharacter(scene);
+    player.transform.translation = {0.f, -1.5f, 0.f};
+    player.rigidBody->shape = ColliderShape::Capsule;
+    player.rigidBody->radius = 0.4f;
+    player.rigidBody->height = 1.74f;
+    player.rigidBody->center = {0.f, 0.87f, 0.f};
+    player.rigidBody->mass = 70.f;
+    return player;
+}
+
+TEST_CASE("personagem não atravessa parede") {
+    CrsScene scene;
+    addFloor(scene);
+    CrsGameObject &player = addCapsuleCharacter(scene);
+    //parede com a face da frente em z = 2.75
+    addBox(scene, {0.f, -0.5f, 3.f}, {3.f, 1.f, 0.25f}, BodyType::Static);
+    CharacterInput input;
+    input.moveDirection = {0.f, 0.f, 1.f};
+    input.run = true;
+
+    simulate(scene, input, 3.f);
+
+    //para encostado: a frente da cápsula (raio 0.4) na face da parede
+    CHECK(player.transform.translation.z < 2.75f - 0.4f + 0.05f);
+    CHECK(player.transform.translation.z > 2.f);
+    //andando contra a parede a velocidade de verdade é zero (a animação fica parada)
+    CHECK(std::abs(player.rigidBody->velocity.z) < 0.1f);
+}
+
+TEST_CASE("andando na diagonal contra a parede, o personagem desliza ao longo dela") {
+    CrsScene scene;
+    addFloor(scene);
+    CrsGameObject &player = addCapsuleCharacter(scene);
+    addBox(scene, {0.f, -0.5f, 1.f}, {10.f, 1.f, 0.25f}, BodyType::Static);
+    CharacterInput input;
+    input.moveDirection = {1.f, 0.f, 1.f};
+
+    simulate(scene, input, 2.f);
+
+    CHECK(player.transform.translation.z < 0.75f - 0.4f + 0.05f);
+    CHECK(player.transform.translation.x > 1.f);  //seguiu de lado
+}
+
+TEST_CASE("personagem empurra a caixa dinâmica") {
+    CrsScene scene;
+    addFloor(scene);
+    CrsGameObject &player = addCapsuleCharacter(scene);
+    CrsGameObject &crate = addBox(scene, {0.f, -1.f, 1.5f}, {0.5f, 0.5f, 0.5f}, BodyType::Dynamic);
+    CharacterInput input;
+    input.moveDirection = {0.f, 0.f, 1.f};
+
+    simulate(scene, input, 3.f);
+
+    CHECK(crate.transform.translation.z > 2.5f);
+    //a caixa foi na frente: o personagem não passou por dentro dela
+    CHECK(player.transform.translation.z < crate.transform.translation.z);
+}
+
+TEST_CASE("personagem sobe degrau baixo (20 cm) andando") {
+    CrsScene scene;
+    addFloor(scene);
+    CrsGameObject &player = addCapsuleCharacter(scene);
+    //degrau de 20 cm, começando em z = 1
+    addBox(scene, {0.f, -1.4f, 3.f}, {3.f, 0.1f, 2.f}, BodyType::Static);
+    CharacterInput input;
+    input.moveDirection = {0.f, 0.f, 1.f};
+
+    simulate(scene, input, 2.f);
+
+    CHECK(player.transform.translation.z > 1.5f);
+    CHECK(player.transform.translation.y == doctest::Approx(-1.3f).epsilon(0.03));
+}
