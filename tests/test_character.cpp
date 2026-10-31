@@ -26,7 +26,11 @@ static void simulate(CrsScene &scene, const CharacterInput &input, float seconds
     //arredonda: 1 / (1/60) dá 59.999... em float, e o static_cast sozinho cortaria pra 59
     int steps = static_cast<int>(std::lround(seconds / DT));
     for (int i = 0; i < steps; i++) {
-        controller.update(scene, input);
+        //no jogo quem preenche é o componente Python, antes do controlador
+        for (auto &kv : scene.getGameObjects()) {
+            if (kv.second.character) kv.second.character->input = input;
+        }
+        controller.update(scene);
         physics.update(scene, DT);
     }
 }
@@ -197,4 +201,28 @@ TEST_CASE("faceMovement: parado, mantém a última direção") {
     controller.faceMovement(scene, DT);
 
     CHECK(visual.transform.rotation.y == doctest::Approx(1.234f));
+}
+
+TEST_CASE("cada personagem anda pela própria intenção, e o pedido de pulo vale um frame só") {
+    CrsScene scene;
+    addFloor(scene);
+    CrsGameObject &a = addCharacter(scene);
+    CrsGameObject &b = addCharacter(scene);
+    a.transform.translation.x = -3.f;
+    b.transform.translation.x = 3.f;
+    CharacterControllerSystem controller;
+    PhysicsSystem physics;
+    for (int i = 0; i < 60; i++) physics.update(scene, DT);  //os dois apoiam no chão
+
+    a.character->input.moveDirection = {1.f, 0.f, 0.f};
+    a.character->input.jump = true;
+    controller.update(scene);
+
+    CHECK(a.rigidBody->velocity.x == doctest::Approx(a.character->moveSpeed));
+    CHECK(b.rigidBody->velocity.x == doctest::Approx(0.f));  //ninguém pediu nada pro b
+    CHECK(a.rigidBody->velocity.y == doctest::Approx(a.character->jumpSpeed));
+    //usou o pulo: no frame seguinte só pula de novo se quem controla pedir de novo
+    CHECK_FALSE(a.character->input.jump);
+    //a direção continua até quem controla mudar
+    CHECK(a.character->input.moveDirection.x == doctest::Approx(1.f));
 }

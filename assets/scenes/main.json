@@ -48,6 +48,7 @@
         {
             "id": 1,
             "name": "Player",
+            "scripts": [{"module": "controle_jogador", "class": "ControleJogador"}],
             "model": "assets/editor/character.glb",
             "editorOnly": true,
             "color": [

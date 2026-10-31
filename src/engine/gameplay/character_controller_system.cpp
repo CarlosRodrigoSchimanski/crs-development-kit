@@ -5,16 +5,16 @@
 
 namespace crsdk {
 
-    void CharacterControllerSystem::update(CrsScene &scene, const CharacterInput &input) {
-        //direção so no chão, e no maximo comprimento 1 (normalinando o vetor)
-        glm::vec3 direction{input.moveDirection.x, 0.f, input.moveDirection.z};
-        float length = glm::length(direction);
-
-        if (length > 1.f) direction /= length;
-
+    void CharacterControllerSystem::update(CrsScene &scene) {
         for (auto &kv : scene.getGameObjects()) {
             auto &obj = kv.second;
             if (!obj.character || !obj.rigidBody) continue;
+            CharacterInput &input = obj.character->input;
+
+            //direção so no chão, e no maximo comprimento 1 (normalinando o vetor)
+            glm::vec3 direction{input.moveDirection.x, 0.f, input.moveDirection.z};
+            float length = glm::length(direction);
+            if (length > 1.f) direction /= length;
 
             //so a velocidade horizontal: a vertical é a gravidade
             float speed = input.run ? obj.character->runSpeed : obj.character->moveSpeed;
@@ -26,7 +26,9 @@ namespace crsdk {
                 obj.rigidBody->velocity.y = obj.character->jumpSpeed;
                 obj.rigidBody->onGround = false;
             }
-        }   
+            //o pedido de pulo vale um frame: quem controla pede de novo no próximo aperto
+            input.jump = false;
+        }
     }
 
     float turnTowards(float current, float target, float maxStep) {

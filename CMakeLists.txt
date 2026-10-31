@@ -154,6 +154,11 @@ set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/gizmo.frag
     ${CMAKE_SOURCE_DIR}/shaders/skinned.vert
     ${CMAKE_SOURCE_DIR}/shaders/shadow_skinned.vert
+    ${CMAKE_SOURCE_DIR}/shaders/selection_mask.vert
+    ${CMAKE_SOURCE_DIR}/shaders/selection_mask_skinned.vert
+    ${CMAKE_SOURCE_DIR}/shaders/selection_mask.frag
+    ${CMAKE_SOURCE_DIR}/shaders/selection_outline.vert
+    ${CMAKE_SOURCE_DIR}/shaders/selection_outline.frag
 )
 #loop para compilar cada shader
 foreach(SHADER ${SHADER_SOURCES})
@@ -198,6 +203,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/systems/point_light_system.cpp
     src/engine/rendering/systems/shadow_render_system.cpp
     src/engine/rendering/systems/gizmo_system.cpp
+    src/engine/rendering/systems/selection_outline_system.cpp
     src/engine/rendering/systems/skinning_system.cpp
     src/engine/scene/crs_game_object.cpp
     src/engine/scene/crs_scene.cpp

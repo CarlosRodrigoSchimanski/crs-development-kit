@@ -58,6 +58,24 @@ namespace crsdk {
         rotation.z = glm::atan(axisX.y, axisY.y);
     }
 
+    void TransformComponent::applyRotation(const glm::vec3 &radians, bool local, const glm::mat3 &parentRotation) {
+        TransformComponent delta{};
+        delta.rotation = radians;
+        const glm::mat3 current = rotationMatrix();
+        const glm::mat3 turn = delta.rotationMatrix();
+        //local: o giro vem depois da rotação atual (eixos do objeto). Mundo: o giro vem antes, visto de
+        //dentro do pai (a inversa de uma rotação pura é a transposta)
+        const glm::mat3 rotated = local ? current * turn : glm::transpose(parentRotation) * turn * parentRotation * current;
+
+        //de volta pros três ângulos, mantendo posição e escala
+        glm::mat4 m{1.f};
+        m[0] = glm::vec4{rotated[0] * scale.x, 0.f};
+        m[1] = glm::vec4{rotated[1] * scale.y, 0.f};
+        m[2] = glm::vec4{rotated[2] * scale.z, 0.f};
+        m[3] = glm::vec4{translation, 1.f};
+        setFromMatrix(m);
+    }
+
     void AnimatorComponent::play(const std::string &name, float fadeSeconds, bool loopClip) {
         if (name == clip) {
             loop = loopClip;

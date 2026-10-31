@@ -111,6 +111,7 @@ namespace crsdk {
         pointLightSystem = std::make_unique<PointLightSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(crsDevice, shadowMap, globalLayout);
         gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
+        selectionOutlineSystem = std::make_unique<SelectionOutlineSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         skinningSystem = std::make_unique<SkinningSystem>(crsDevice, animationLibrary);
         crsImgui = std::make_unique<CrsImgui>(crsWindow, crsDevice, colorFormat, depthFormat, crsRenderer.getImageCount());
 
@@ -150,13 +151,6 @@ namespace crsdk {
         scripting.addImportFolder(COMPONENT_FOLDER);
         scripting.addImportFolder("assets/scripts");
         refreshComponents();
-
-        //provisório (passo 2 do Python): mostra no console a API crsdk lendo a cena
-        try {
-            scripting.runFile("assets/scripts/ola.py");
-        } catch (const std::exception &e) {
-            sceneFileStatus = e.what();
-        }
     }
 
     void FirstApp::run() {
@@ -214,6 +208,8 @@ namespace crsdk {
         player.rigidBody->halfExtents = {0.5f, 0.87f, 0.49f};  //meia largura, altura e profundidade da cápsula
         player.rigidBody->center = {0.f, 0.87f, 0.f};  //caixa acima dos pés
         player.character.emplace();
+        //quem decide pra onde ele anda: o componente Python (WASD relativo à câmera)
+        player.scripts.push_back({"controle_jogador", "ControleJogador"});
 
         //visual do personagem: filho da cápsula (anda junto com ela)
         crsModel = modelCache.load("assets/models/basicFemaleTest.glb");
@@ -498,32 +494,6 @@ namespace crsdk {
         return playScene->findGameObjectById(*id);
     }
 
-    CharacterInput FirstApp::readCharacterInput(CrsGameObject* gameCamera) {
-        CharacterInput input{};
-        //digitando no ImGui: as teclas são texto
-        if (ImGui::GetIO().WantCaptureKeyboard) return input;
-
-        //frente e direita da câmera, achatadas no chão
-        glm::vec3 forward{0.f, 0.f, -1.f};
-        glm::vec3 right{1.f, 0.f, 0.f};
-        if (gameCamera) {
-            glm::mat3 rotation{playScene->worldMatrix(*gameCamera)};
-            glm::vec3 flatForward{-rotation[2].x, 0.f, -rotation[2].z};
-            glm::vec3 flatRight{rotation[0].x, 0.f, rotation[0].z};
-            //câmera olhando reto pra baixo: a frente achatada some, mantém a do mundo
-            if (glm::length(flatForward) > 0.001f) forward = glm::normalize(flatForward);
-            if (glm::length(flatRight) > 0.001f) right = glm::normalize(flatRight);
-        }
-
-        if (crsInput.isDown(GLFW_KEY_W)) input.moveDirection += forward;
-        if (crsInput.isDown(GLFW_KEY_S)) input.moveDirection -= forward;
-        if (crsInput.isDown(GLFW_KEY_D)) input.moveDirection += right;
-        if (crsInput.isDown(GLFW_KEY_A)) input.moveDirection -= right;
-        input.jump = crsInput.wasPressed(GLFW_KEY_SPACE);
-        input.run = crsInput.isDown(GLFW_KEY_LEFT_SHIFT);
-        return input;
-    }
-
     void FirstApp::updateCamera(CrsGameObject* gameCamera, float aspect) {
         if (gameCamera) {
             //Posição e frente no mundo
@@ -556,6 +526,9 @@ namespace crsdk {
     void FirstApp::renderFrame(FrameInfo& frameInfo) {
         //sombra primeiro: o passe principal lê o shadow map
         shadowRenderSystem->renderShadowMap(frameInfo);
+        //máscara do selecionado (fora de qualquer passe, como a sombra); no Play não tem seleção
+        const CrsGameObject *selected = frameInfo.playing ? nullptr : editor.getSelected(crsScene);
+        selectionOutlineSystem->renderMask(frameInfo, selected, crsRenderer.getSwapChainExtent(), sceneArea);
         crsRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
         //a cena fica no retangulo
         crsRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);
@@ -566,6 +539,8 @@ namespace crsdk {
         if (!frameInfo.playing) {
             gizmoRenderSystem->render(frameInfo);
         }
+        //aura por cima da cena e dos gizmos, embaixo da interface
+        selectionOutlineSystem->renderOutline(frameInfo);
 
         crsImgui->render(frameInfo.commandBuffer);
         crsRenderer.endSwapChainRendering(frameInfo.commandBuffer);
@@ -648,7 +623,7 @@ namespace crsdk {
             showScriptErrors();
 
             cameraRigSystem.update(*playScene, crsInput.getMouseDelta());
-            characterController.update(*playScene, readCharacterInput(gameCamera));
+            characterController.update(*playScene);
             physicsSystem.update(*playScene, frameTime);
             characterController.faceMovement(*playScene, frameTime);
             characterAnimationSystem.update(*playScene);

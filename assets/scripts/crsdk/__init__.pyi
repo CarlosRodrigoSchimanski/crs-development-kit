@@ -165,6 +165,57 @@ class Animator:
         """O quadro atual, contando ``fps`` quadros por segundo (o Mixamo usa 30)."""
 
 
+class CharacterInput:
+    """O que quem controla o personagem quer fazer neste frame. Um componente (o do jogador, uma
+    IA) preenche; o controlador da engine executa (velocidade, pulo só no chão, gravidade)."""
+
+    moveDirection: Vec3
+    """Pra onde andar, no mundo (só x e z contam). Tamanho 1 = velocidade cheia; maior que 1 é cortado."""
+    jump: bool
+    """Pular neste frame. A engine apaga depois de usar: peça de novo a cada aperto."""
+    run: bool
+    """Correr (runSpeed) em vez de andar (moveSpeed)."""
+
+
+class Character:
+    """Personagem controlável. Sem ninguém preenchendo o ``input``, ele fica parado."""
+
+    moveSpeed: float
+    """Velocidade andando (unidades por segundo)."""
+    runSpeed: float
+    """Velocidade correndo."""
+    jumpSpeed: float
+    """Velocidade inicial do pulo."""
+    input: CharacterInput
+    """A intenção deste frame."""
+
+
+class RigidBody:
+    """Corpo físico: caixa de colisão e velocidade."""
+
+    isStatic: bool
+    """True = parado (chão, parede); False = a gravidade age nele."""
+    velocity: Vec3
+    halfExtents: Vec3
+    """Metade do tamanho da caixa em cada eixo (antes da escala do objeto)."""
+    center: Vec3
+    """Centro da caixa em relação à origem do objeto."""
+    onGround: bool
+    """Está apoiado em algo (só leitura: quem decide é a física)."""
+
+
+class Camera:
+    fovY: float
+    """Ângulo de visão vertical, em radianos."""
+    nearPlane: float
+    farPlane: float
+
+
+class PointLight:
+    intensity: float
+    """Força da luz (a cor é o ``color`` do objeto)."""
+
+
 class GameObject:
     """Um objeto da cena. Não se cria direto: use ``crsdk.scene.createObject()``."""
 
@@ -185,6 +236,21 @@ class GameObject:
     """Posição no mundo, somando os pais (só leitura)."""
     animator: Optional[Animator]
     """O tocador de animações, ou None se o objeto não tem."""
+    character: Optional[Character]
+    """O personagem controlável, ou None."""
+    rigidBody: Optional[RigidBody]
+    """O corpo físico, ou None."""
+    camera: Optional[Camera]
+    """A lente, se o objeto é uma câmera, ou None."""
+    pointLight: Optional[PointLight]
+    """A luz pontual, ou None."""
+
+    def worldDirection(self, local: Vec3) -> Vec3:
+        """Uma direção do objeto vista no mundo, com tamanho 1. Ex: numa câmera,
+        ``worldDirection(Vec3(0, 0, -1))`` é pra onde ela olha."""
+    def applyRotation(self, radians: Vec3, local: bool = True) -> None:
+        """Gira mais um tanto (radianos em cada eixo). ``local=True`` gira em volta dos eixos do
+        próprio objeto; ``False``, dos eixos do mundo (num filho também)."""
 
 
 class RayHit:

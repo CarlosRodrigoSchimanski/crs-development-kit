@@ -8,6 +8,7 @@
 #include "engine/rendering/systems/point_light_system.hpp"
 #include "engine/rendering/systems/shadow_render_system.hpp"
 #include "engine/rendering/systems/gizmo_system.hpp"
+#include "engine/rendering/systems/selection_outline_system.hpp"
 #include "engine/rendering/systems/skinning_system.hpp"
 #include "engine/rendering/crs_model_cache.hpp"
 #include "engine/rendering/crs_descriptors.hpp"
@@ -85,8 +86,6 @@ namespace crsdk {
             VkRect2D computeSceneArea() const;
             //câmera ativa da cena do Play
             CrsGameObject* findGameCamera();
-            //WASD vira intenção de movimento, relativa à câmera de jogo
-            CharacterInput readCharacterInput(CrsGameObject* gameCamera);
             //posiciona a câmera do render (orbital ou de jogo)
             void updateCamera(CrsGameObject* gameCamera, float aspect);
             //sombra apenas para o que a câmera mostra
@@ -122,6 +121,8 @@ namespace crsdk {
             std::unique_ptr<PointLightSystem> pointLightSystem{};
             std::unique_ptr<ShadowRenderSystem> shadowRenderSystem{};
             std::unique_ptr<GizmoRenderSystem> gizmoRenderSystem{};
+            //aura laranja do selecionado (só no editor)
+            std::unique_ptr<SelectionOutlineSystem> selectionOutlineSystem{};
             //matrizes dos ossos dos objetos animados (dono do buffer do binding 3)
             std::unique_ptr<SkinningSystem> skinningSystem{};
 

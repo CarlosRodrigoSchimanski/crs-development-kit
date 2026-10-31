@@ -48,6 +48,22 @@ namespace crsdk {
         return py::str("{:.6g}").format(value).cast<std::string>();
     }
 
+    //componente opcional como ponteiro: o Python recebe o componente de verdade, ou None se o objeto não tem
+    template <typename Component>
+    static Component* optionalRef(std::optional<Component> &component) {
+        return component ? &*component : nullptr;
+    }
+
+    //a rotação do objeto no mundo, sem a escala (só os eixos, cada um com tamanho 1)
+    static glm::mat3 worldRotation(const CrsGameObject &obj) {
+        glm::mat3 m{currentScene().worldMatrix(obj)};
+        for (int i = 0; i < 3; i++) {
+            float length = glm::length(m[i]);
+            if (length > 0.f) m[i] /= length;
+        }
+        return m;
+    }
+
     //o que o raycast do Python devolve: o objeto, a distância e o ponto do impacto
     struct ScriptRayHit {
         CrsGameObject *object;
@@ -119,6 +135,35 @@ namespace crsdk {
             .def_readwrite("speed", &AnimatorComponent::speed)
             .def_readwrite("loop", &AnimatorComponent::loop);
 
+        py::class_<CharacterInput>(m, "CharacterInput")
+            .def_readwrite("moveDirection", &CharacterInput::moveDirection)
+            .def_readwrite("jump", &CharacterInput::jump)
+            .def_readwrite("run", &CharacterInput::run);
+
+        py::class_<CharacterComponent>(m, "Character")
+            .def_readwrite("moveSpeed", &CharacterComponent::moveSpeed)
+            .def_readwrite("runSpeed", &CharacterComponent::runSpeed)
+            .def_readwrite("jumpSpeed", &CharacterComponent::jumpSpeed)
+            .def_readwrite("input", &CharacterComponent::input);
+
+        py::class_<RigidBodyComponent>(m, "RigidBody")
+            .def_property("isStatic",
+                [](const RigidBodyComponent &body) { return body.type == BodyType::Static; },
+                [](RigidBodyComponent &body, bool isStatic) { body.type = isStatic ? BodyType::Static : BodyType::Dynamic; })
+            .def_readwrite("velocity", &RigidBodyComponent::velocity)
+            .def_readwrite("halfExtents", &RigidBodyComponent::halfExtents)
+            .def_readwrite("center", &RigidBodyComponent::center)
+            //quem decide é a física (encostou em algo embaixo): o script só lê
+            .def_readonly("onGround", &RigidBodyComponent::onGround);
+
+        py::class_<CameraComponent>(m, "Camera")
+            .def_readwrite("fovY", &CameraComponent::fovY)
+            .def_readwrite("nearPlane", &CameraComponent::nearPlane)
+            .def_readwrite("farPlane", &CameraComponent::farPlane);
+
+        py::class_<PointLightComponent>(m, "PointLight")
+            .def_readwrite("intensity", &PointLightComponent::lightIntensity);
+
         py::class_<CrsGameObject>(m, "GameObject")
             .def_property_readonly("id", &CrsGameObject::getId)
             .def_readwrite("name", &CrsGameObject::name)
@@ -148,9 +193,30 @@ namespace crsdk {
             .def_property_readonly("worldPosition", [](const CrsGameObject &obj) {
                 return glm::vec3{currentScene().worldMatrix(obj)[3]};
             })
-            .def_property_readonly("animator", [](CrsGameObject &obj) -> AnimatorComponent* {
-                return obj.animator ? &*obj.animator : nullptr;
-            }, py::return_value_policy::reference_internal)
+            //uma direção do objeto (ex: Vec3(0, 0, -1), pra onde a câmera olha) vista no mundo, com tamanho 1
+            .def("worldDirection", [](const CrsGameObject &obj, glm::vec3 local) {
+                glm::vec3 direction = worldRotation(obj) * local;
+                float length = glm::length(direction);
+                return length > 0.f ? direction / length : direction;
+            }, py::arg("local"))
+            .def("applyRotation", [](CrsGameObject &obj, glm::vec3 radians, bool local) {
+                //no mundo, um filho precisa da rotação do pai pra saber onde ficam os eixos do mundo
+                glm::mat3 parentRotation{1.f};
+                if (!local && obj.parentId) {
+                    if (CrsGameObject *parent = currentScene().findGameObjectById(*obj.parentId)) parentRotation = worldRotation(*parent);
+                }
+                obj.transform.applyRotation(radians, local, parentRotation);
+            }, py::arg("radians"), py::arg("local") = true)
+            .def_property_readonly("animator", [](CrsGameObject &obj) { return optionalRef(obj.animator); },
+                py::return_value_policy::reference_internal)
+            .def_property_readonly("character", [](CrsGameObject &obj) { return optionalRef(obj.character); },
+                py::return_value_policy::reference_internal)
+            .def_property_readonly("rigidBody", [](CrsGameObject &obj) { return optionalRef(obj.rigidBody); },
+                py::return_value_policy::reference_internal)
+            .def_property_readonly("camera", [](CrsGameObject &obj) { return optionalRef(obj.camera); },
+                py::return_value_policy::reference_internal)
+            .def_property_readonly("pointLight", [](CrsGameObject &obj) { return optionalRef(obj.pointLight); },
+                py::return_value_policy::reference_internal)
             .def("__eq__", [](const CrsGameObject &a, const CrsGameObject &b) { return a.getId() == b.getId(); })
             .def("__hash__", [](const CrsGameObject &obj) { return obj.getId(); })
             .def("__repr__", [](const CrsGameObject &obj) {

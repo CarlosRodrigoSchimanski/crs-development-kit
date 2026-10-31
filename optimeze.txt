@@ -11,7 +11,6 @@ O ciclo completo já existe (editor -> componentes Python -> Play). Falta pra 0.
     instalado no Windows e não abre em PC sem ele. Subir o Python = subir o pybind11 junto.
   - Pasta de saída (install do CMake): .exe + assets/ + shaders/ compilados + Python
   - Teste num PC limpo (sem Python e sem Vulkan SDK)
-  - Antes: tirar o provisório que sobrou (o assets/scripts/ola.py rodando ao abrir a engine)
 
 ===============================================================================
 FEITO (resumo)
@@ -37,7 +36,8 @@ Roadmap:
   ✅ 2.2  Revisão completa antes do Play (as Fases 0-3 acima)
   ✅ 3    Cena (CrsScene), câmera de jogo como objeto, Play no editor (P / tecla à esquerda do 1),
           física simples com gravidade e colisão de caixa
-  ✅ 3.1  Seleção por clique, setas de mover/girar/escalar (ImGuizmo), outliner, painel de propriedades
+  ✅ 3.1  Seleção por clique, setas de mover/girar/escalar (ImGuizmo), outliner, painel de propriedades;
+          aura laranja no selecionado como a do Blender (máscara + borda com brilho, inclusive animado)
   ✅ 3.2  Cursor capturado no Play
   ✅ 3.3  Câmera em terceira pessoa (rig personagem -> pivô -> câmera, colisão com paredes e chão),
           visual do personagem virando pra direção do movimento, animação idle/andar/correr/cair
@@ -46,7 +46,11 @@ Roadmap:
           cena com args por objeto; imports entre arquivos funcionando (assets/components e
           assets/scripts no sys.path, Play esquece os módulos); erro tira só o componente;
           editor com Add/Generate Component, args no painel e tempo de cada componente.
-          Nos testes, o Python é um só (religar o interpretador corrompia a memória)
+          Nos testes, o Python é um só (religar o interpretador corrompia a memória).
+          O movimento do personagem é decidido por componente (controle_jogador.py preenche o
+          CharacterComponent::input; o controlador do C++ executa); API com character, rigidBody,
+          camera, pointLight, worldDirection e applyRotation (local e no mundo)
+  ✅ 3.5  Editor com tema escuro em cards (Poppins), cards que abrem e fecham pela setinha
   ✅ 5    Animação esquelética (skinning na GPU) com transição entre clipes
   ✅ 5.1  Eixos iguais ao glTF/Blender (Y pra cima, câmera olha pro -Z, frente = +Z)
   ✅ 5.0  Salvar/carregar cena em JSON (scene_serializer), ids estáveis, menu Arquivo,
@@ -102,11 +106,14 @@ Pendências pequenas do que já foi feito:
     triângulos. No PBR: o especular hoje é tingido pela cor do objeto (fisicamente errado).
   - Sombra: cascaded shadow maps (mundo aberto), PCSS (penumbra variável), sombra de point light
   - Cena: lembrar a última cena aberta ao iniciar
-  - Python: CharacterInput na API (hoje o app monta o movimento em C++), applyRotation
-    local/global, os outros componentes (rigidBody, camera, luz). Ideias do template Character
-    Controller pro controlador: pulo duplo (número máximo de pulos), pulo com direção travada,
-    suavização do movimento (lerp da velocidade). Direção relativa à câmera (terceira pessoa) ou
-    à rotação do personagem (primeira pessoa): os dois modos, o script escolhe
+  - Python: o rig da câmera (CameraRigSystem: mouse girando o pivô) ainda é C++; pode virar
+    componente também. Ideias do template Character Controller pro controlador: pulo duplo
+    (número máximo de pulos), pulo com direção travada, suavização do movimento (lerp da
+    velocidade). Direção relativa à câmera (terceira pessoa) ou à rotação do personagem
+    (primeira pessoa): os dois modos, o script escolhe
+  - Aura da seleção: hoje aparece por cima do que estiver na frente (a máscara não usa a
+    profundidade da cena); se incomodar, testar a profundidade pra esconder a parte coberta.
+    Painel crescendo aos poucos: definir pai, escolher modelo/textura
 
 2.3. Scene manager (carregar/descarregar cenas):
    - DONO DO DESCRIPTOR SET DE TEXTURA/MATERIAL (ver Fase 3, item 11): material como objeto dono
@@ -114,11 +121,6 @@ Pendências pequenas do que já foi feito:
      compartilhados entre cenas? Descarregar uma cena tem que invalidar e liberar os sets dela.
    - Carregar a cena inteira num CrsUploadBatch só; depois, fence no lugar do vkQueueWaitIdle pra
      carregar em segundo plano sem travar.
-
-3.1. Destaque do selecionado como o do Blender: uma aura/contorno laranja leve em volta (efeito
-   de emissão), não troca de cor do modelo; vale pra objetos e gizmos. Jeito comum: desenhar o
-   selecionado numa máscara à parte e, num passe final, pintar de laranja a borda da máscara com
-   um leve desfoque. Painel crescendo aos poucos: definir pai, escolher modelo/textura.
 
 3.1.1. Gizmos gerados pela engine (decisão do usuário, 2026-10-26): todo objeto de editor (Empty,
    trigger, colisor, luz, ponto de spawn, a câmera) tem a forma GERADA pela engine (caixa, esfera,

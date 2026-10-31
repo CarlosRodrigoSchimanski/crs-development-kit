@@ -1,4 +1,5 @@
 #include "engine/scripting/crs_scripting.hpp"
+#include "engine/gameplay/character_controller_system.hpp"
 #include "engine/core/crs_input.hpp"
 #include "engine/scene/crs_scene.hpp"
 
@@ -545,4 +546,100 @@ TEST_CASE_FIXTURE(PythonTest, "Componente: o tempo do update de cada componente 
     scripting.stopComponents();
     CHECK(scripting.componentTimings().empty());
     std::filesystem::remove_all(folder);
+}
+
+TEST_CASE_FIXTURE(PythonTest, "API Python: o componente preenche a intenção do personagem e o controlador do C++ executa") {
+    std::string folder = componentFolder("crsdk_teste_comp_personagem");
+    writeText(folder + "/ia_teste.py",
+        "import crsdk\n"
+        "from crsdk import Vec3\n"
+        "class AndaPraFrente(crsdk.Component):\n"
+        "    def update(self):\n"
+        "        entrada = self.object.character.input\n"
+        "        entrada.moveDirection = Vec3(0, 0, 1)\n"
+        "        entrada.run = True\n");
+    scripting.addImportFolder(folder);
+
+    CrsScene scene;
+    auto &npc = scene.createGameObject();
+    npc.rigidBody.emplace();
+    npc.character.emplace();
+    npc.scripts.push_back({"ia_teste", "AndaPraFrente"});
+    scripting.setScene(&scene);
+    scripting.startComponents(scene);
+
+    //a ordem do jogo: componentes Python, depois o controlador
+    scripting.updateComponents(0.016f);
+    CharacterControllerSystem{}.update(scene);
+
+    CHECK(scripting.takeErrors().empty());
+    CHECK(npc.rigidBody->velocity.z == doctest::Approx(npc.character->runSpeed));
+    std::filesystem::remove_all(folder);
+}
+
+TEST_CASE_FIXTURE(PythonTest, "API Python: rigidBody, camera, pointLight e character, ou None quando o objeto não tem") {
+    CrsScene scene;
+    auto &box = scene.createGameObject();
+    box.name = "Caixa";
+    box.rigidBody.emplace();
+    box.rigidBody->onGround = true;
+    auto &cam = scene.createGameObject();
+    cam.name = "Cam";
+    cam.camera.emplace();
+    auto &lamp = scene.createGameObject();
+    lamp.name = "Luz";
+    lamp.pointLight.emplace();
+    scripting.setScene(&scene);
+
+    scripting.runString(
+        "import crsdk\n"
+        "from crsdk import Vec3\n"
+        "caixa = crsdk.scene.find('Caixa')\n"
+        "assert caixa.camera is None and caixa.pointLight is None and caixa.character is None\n"
+        "corpo = caixa.rigidBody\n"
+        "assert corpo.onGround\n"
+        "corpo.isStatic = True\n"
+        "corpo.halfExtents = Vec3(2, 0.5, 2)\n"
+        "corpo.velocity.y = 3\n"
+        "try:\n"
+        "    corpo.onGround = False\n"
+        "    raise AssertionError('onGround deveria ser só leitura')\n"
+        "except AttributeError:\n"
+        "    pass\n"
+        "crsdk.scene.find('Cam').camera.fovY = 1.0\n"
+        "crsdk.scene.find('Luz').pointLight.intensity = 4.5\n");
+
+    CHECK(box.rigidBody->type == BodyType::Static);
+    CHECK(box.rigidBody->halfExtents.x == doctest::Approx(2.f));
+    CHECK(box.rigidBody->velocity.y == doctest::Approx(3.f));
+    CHECK(cam.camera->fovY == doctest::Approx(1.f));
+    CHECK(lamp.pointLight->lightIntensity == doctest::Approx(4.5f));
+}
+
+TEST_CASE_FIXTURE(PythonTest, "API Python: worldDirection e applyRotation (local e no mundo) num filho") {
+    CrsScene scene;
+    auto &pivot = scene.createGameObject();
+    pivot.name = "Pivo";
+    pivot.transform.rotation.y = glm::radians(90.f);
+    pivot.transform.scale = {3.f, 3.f, 3.f};  //a escala do pai não entra na direção
+    auto &cam = scene.createGameObject();
+    cam.name = "Cam";
+    cam.parentId = pivot.getId();
+    scripting.setScene(&scene);
+
+    CHECK_NOTHROW(scripting.runString(
+        "import crsdk, math\n"
+        "from crsdk import Vec3\n"
+        "def perto(a, b):\n"
+        "    return (a - b).length() < 1e-4\n"
+        "cam = crsdk.scene.find('Cam')\n"
+        "# o pai virado 90 graus em Y: a frente da câmera (-Z) aponta pro -X do mundo\n"
+        "assert perto(cam.worldDirection(Vec3(0, 0, -1)), Vec3(-1, 0, 0))\n"
+        "# girar 90 graus em volta do Y do mundo leva a frente de -X pra +Z\n"
+        "cam.applyRotation(Vec3(0, math.radians(90), 0), local=False)\n"
+        "assert perto(cam.worldDirection(Vec3(0, 0, -1)), Vec3(0, 0, 1))\n"
+        "# local: inclina em volta do próprio X; a direita dele (X) não muda\n"
+        "direita = cam.worldDirection(Vec3(1, 0, 0))\n"
+        "cam.applyRotation(Vec3(math.radians(30), 0, 0))\n"
+        "assert perto(cam.worldDirection(Vec3(1, 0, 0)), direita)\n"));
 }

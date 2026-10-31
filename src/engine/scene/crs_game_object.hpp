@@ -30,12 +30,22 @@ namespace crsdk {
         bool onGround = false;
     };
 
+    //o que quem controla o personagem (componente Python do jogador, IA) quer fazer neste frame
+    struct CharacterInput {
+        glm::vec3 moveDirection{0.f}; //no mundo; só x e z contam (o chao)
+        bool jump = false;  //pula neste frame (o controlador apaga depois de usar: um pulo por pedido)
+        bool run = false;  //corre (runSpeed) em vez de andar (moveSpeed)
+    };
+
     //personagem controlavel: anda pela intenção de movimento
     struct CharacterComponent
     {
         float moveSpeed = 1.6f; //andando (unidade por segundo)
         float runSpeed = 5.f;   //correndo (Shift)
         float jumpSpeed = 5.f; //velocidade inicial do pulo
+        //a intenção deste frame: quem preenche é um componente Python (ex: controle_jogador.py);
+        //sem ninguém preenchendo, o personagem fica parado (estado do momento: não é salvo)
+        CharacterInput input{};
     };
 
     struct CameraRigComponent {
@@ -120,6 +130,11 @@ namespace crsdk {
 
         //preenche posição, rotação e escala a partir de uma matriz (o caminho inverso do mat4)
         void setFromMatrix(const glm::mat4 &matrix);
+
+        //gira mais um tanto (radianos em cada eixo, na mesma ordem Y, X, Z da rotation).
+        //local = em volta dos eixos do próprio objeto; senão, dos eixos do mundo. Pra um filho,
+        //parentRotation é a rotação do pai no mundo (sem escala); pra um objeto raiz, a identidade
+        void applyRotation(const glm::vec3 &radians, bool local = true, const glm::mat3 &parentRotation = glm::mat3{1.f});
     };
 
     struct PointLightComponent {
