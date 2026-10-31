@@ -3,6 +3,20 @@ Itens feitos ficam numa linha só (os detalhes estão no git). Pendentes mantêm
 completa, porque guardam decisões que ainda valem. Os números dos itens não mudam.
 
 ===============================================================================
+>>> PRÓXIMO MARCO: versão 1.0 (definido pelo usuário em 2026-10-31) <<<
+===============================================================================
+A 1.0 fecha quando der pra montar um level de verdade: importar o kit do cenário (parede, chão,
+mesa, cadeira...), duplicar à vontade e espalhar pelo mapa sem pesar. Falta, nesta ordem:
+  1. 4.2.2 — ajuste da pintura do terreno (card limpo, 4 por trecho com aura, Checar...)
+  2. 4.0.1 — INSTANCING: todos os objetos com o MESMO modelo desenhados numa chamada só (uma
+     lista de matrizes num buffer; a GPU desenha todas as cópias de uma vez), inclusive na
+     sombra e na aura de seleção. Pra quem usa nada muda: cada cópia continua um objeto normal
+     (move, gira, apaga, tem componentes); a engine agrupa sozinha na hora de desenhar.
+     Ctrl+D duplica o selecionado (com os filhos), como no Blender. É a mesma base da grama.
+  3. 4.3 — grama 3D (usa o instancing do item 2 e o pincel/Checar do item 1)
+  Depois da 1.0: Asset Manager (3.7), HDRI/reflexos, streaming do terreno, Ctrl+Z.
+
+===============================================================================
 >>> RELEASE 0.1 PRONTA <<<
 ===============================================================================
 Pacote pronto (2026-10-31): cmake --build build --config Release --target installer
@@ -244,8 +258,9 @@ Pendências pequenas do que já foi feito:
         - folhas entram crescendo do chão (escala 0 -> 1) ou por dither, nunca de uma vez;
         - quanto mais longe, menos folhas e mais largas (afinar a densidade com a distância);
         - a distância de troca depende da resolução/qualidade gráfica (4K pede mais longe).
-   Ordem: 4.1 -> 4.2 -> 4.2.2 (ajuste da pintura) -> 4.3 (a grama usa o mesmo pincel, o card
-   limpo e o Checar). O Asset Manager (3.7) entra depois e só acrescenta o arrastar no card.
+   Ordem: 4.1 -> 4.2 -> 4.2.2 (ajuste da pintura) -> 4.0.1 (instancing, ver o marco 1.0 no topo)
+   -> 4.3 (a grama usa o instancing, o mesmo pincel, o card limpo e o Checar). O Asset Manager
+   (3.7) entra depois e só acrescenta o arrastar no card.
    Pendências do 4.1 (feito o básico):
    - desfazer (Ctrl+Z) das pinceladas: guardar as alturas do pedaço antes de cada pincelada
    - o terreno ainda não faz sombra (só recebe); a câmera do sol cobre pouco de um terreno grande
