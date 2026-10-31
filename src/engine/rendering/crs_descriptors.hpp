@@ -49,22 +49,28 @@ namespace crsdk {
 
                     Builder &addPoolSize(VkDescriptorType descriptorType, uint32_t count);
                     Builder &setMaxSets(uint32_t count);
+                    //permite devolver sets um a um (freeDescriptor); sem isso, só o pool inteiro
+                    Builder &allowFreeingSets();
                     std::unique_ptr<CrsDescriptorPool> build() const;
 
                 private:
                     CrsDevice &crsDevice;
                     std::vector<VkDescriptorPoolSize> poolSizes{};
                     uint32_t maxSets = 1000;
+                    VkDescriptorPoolCreateFlags flags = 0;
             };
 
             CrsDescriptorPool(
                 CrsDevice &crsDevice,
                 uint32_t maxSets,
-                const std::vector<VkDescriptorPoolSize> &poolSizes);
+                const std::vector<VkDescriptorPoolSize> &poolSizes,
+                VkDescriptorPoolCreateFlags flags = 0);
             CrsDescriptorPool(const CrsDescriptorPool &) = delete;
             CrsDescriptorPool &operator=(const CrsDescriptorPool &) = delete;
 
             bool allocateDescriptor(VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const;
+            //devolve um set pro pool (só em pool criado com allowFreeingSets; nenhum frame em voo pode usar ele)
+            void freeDescriptor(VkDescriptorSet descriptor) const;
 
         private:
             CrsDevice &crsDevice;

@@ -67,8 +67,13 @@ namespace crsdk {
         return *this;
     }
 
+    CrsDescriptorPool::Builder &CrsDescriptorPool::Builder::allowFreeingSets() {
+        flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        return *this;
+    }
+
     std::unique_ptr<CrsDescriptorPool> CrsDescriptorPool::Builder::build() const {
-        return std::make_unique<CrsDescriptorPool>(crsDevice, maxSets, poolSizes);
+        return std::make_unique<CrsDescriptorPool>(crsDevice, maxSets, poolSizes, flags);
     }
 
     // *************** Descriptor Pool *********************
@@ -76,10 +81,12 @@ namespace crsdk {
     CrsDescriptorPool::CrsDescriptorPool(
         CrsDevice &crsDevice,
         uint32_t maxSets,
-        const std::vector<VkDescriptorPoolSize> &poolSizes)
+        const std::vector<VkDescriptorPoolSize> &poolSizes,
+        VkDescriptorPoolCreateFlags flags)
         : crsDevice{crsDevice} {
         VkDescriptorPoolCreateInfo descriptorPoolInfo{};
         descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        descriptorPoolInfo.flags = flags;
         descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         descriptorPoolInfo.pPoolSizes = poolSizes.data();
         descriptorPoolInfo.maxSets = maxSets;
@@ -102,6 +109,10 @@ namespace crsdk {
         //poderia criar uma classe "DescriptorPoolManager" pra esse caso, que cria um novo pool
         //quando um pool antigo enche, mas isso está fora do escopo atual
         return vkAllocateDescriptorSets(crsDevice.device(), &allocInfo, &descriptor) == VK_SUCCESS;
+    }
+
+    void CrsDescriptorPool::freeDescriptor(VkDescriptorSet descriptor) const {
+        vkFreeDescriptorSets(crsDevice.device(), descriptorPool.get(), 1, &descriptor);
     }
 
     // *************** Descriptor Writer *********************

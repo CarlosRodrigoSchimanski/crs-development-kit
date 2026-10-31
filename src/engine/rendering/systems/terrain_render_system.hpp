@@ -22,11 +22,13 @@ namespace crsdk {
         glm::vec3 brushCenter{0.f};   //no mundo
     };
 
-    //desenha os objetos com TerrainComponent: uma malha por pedaço (257 x 257 vértices, cada um com a
-    //altura, a normal e quanto tem de cada camada pintada). A malha mora num buffer que a CPU escreve;
-    //esculpir/pintar muda a versão do pedaço, e cada frame em voo reescreve o buffer dele quando está
-    //atrasado (o da GPU desenhando agora nunca é tocado). As camadas são misturadas no shader pela
-    //altura de cada material (displacement): onde se encontram, o mais alto aparece por cima
+    //desenha os objetos com TerrainComponent, em quadradinhos de 32 m (64 por pedaço), como o WoW:
+    //cada quadradinho sabe quais materiais da paleta aparecem nele e só pede esses. Um material só é
+    //carregado quando algum quadradinho desenhado precisa dele, e sai da memória de vídeo quando nenhum
+    //usa mais (pintou por cima até ele sumir, ou tirou da paleta).
+    //A malha mora num buffer que a CPU escreve; esculpir/pintar muda a versão do pedaço, e cada frame em
+    //voo reescreve o buffer dele quando está atrasado (o da GPU desenhando agora nunca é tocado).
+    //As camadas são misturadas no shader pela altura de cada material (displacement)
     class TerrainRenderSystem {
         public:
             TerrainRenderSystem(CrsDevice &device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout);
@@ -36,14 +38,21 @@ namespace crsdk {
 
             void render(FrameInfo &frameInfo, const TerrainOverlay &overlay);
 
+            //quantos materiais estão na memória de vídeo agora (pro painel de estatísticas)
+            size_t loadedMaterialCount() const;
+
         private:
             void createPipeline(VkFormat colorFormat, VkFormat depthFormat);
             void createIndexBuffer();
 
+            //os materiais de cada quadradinho (índices na paleta, na ordem das posições do shader)
+            using ChunkLayers = std::array<std::vector<uint8_t>, TERRAIN_CHUNKS_PER_TILE * TERRAIN_CHUNKS_PER_TILE>;
             struct TileMesh {
                 std::array<std::unique_ptr<CrsBuffer>, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> vertices{};
                 std::array<uint64_t, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> versions{};
                 std::array<bool, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> written{};
+                //a lista de cada quadradinho junto com o buffer do mesmo frame (os pesos do vértice seguem ela)
+                std::array<ChunkLayers, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> layers{};
             };
             struct TerrainMesh {
                 //segura as alturas vivas enquanto a malha existir (o endereço não pode ser reaproveitado)
@@ -51,8 +60,8 @@ namespace crsdk {
                 std::vector<TileMesh> tiles;
                 uint64_t lastUsedFrame = 0;
             };
-            //preenche o buffer deste frame com as alturas e a pintura atuais do pedaço
-            void writeTile(const TerrainData &data, int tileX, int tileZ, CrsBuffer &buffer);
+            //preenche o buffer deste frame com as alturas e a pintura atuais do pedaço (e a lista de cada quadradinho)
+            void writeTile(const TerrainData &data, int tileX, int tileZ, CrsBuffer &buffer, ChunkLayers &layers);
 
             //os mapas de um material na GPU (o que falta aponta pra um neutro); carregado uma vez por pasta
             struct Material {
@@ -63,10 +72,18 @@ namespace crsdk {
                 const CrsTexture *ao = nullptr;
                 const CrsTexture *displacement = nullptr;
                 bool loaded = false;  //false = pasta sem a cor ou arquivo com erro
+                uint64_t lastUsedFrame = 0;
             };
-            const Material &getMaterial(const std::string &folder);
-            //o set 1 de uma lista de camadas (os mapas das 8 posições); guardado pela lista de pastas
-            VkDescriptorSet getLayerSet(const std::vector<TerrainLayer> &layers);
+            Material &getMaterial(const std::string &folder);
+            //o set 1 de uma lista de materiais (até 8 posições); guardado pela lista de pastas
+            struct LayerSet {
+                VkDescriptorSet set = VK_NULL_HANDLE;
+                std::vector<std::string> folders;
+                uint64_t lastUsedFrame = 0;
+            };
+            VkDescriptorSet getLayerSet(const std::vector<std::string> &folders);
+            //solta da memória os sets e materiais que ninguém desenhou faz tempo
+            void releaseUnused();
 
             CrsDevice &crsDevice;
             CrsPipelineLayout pipelineLayout;
@@ -79,9 +96,9 @@ namespace crsdk {
             std::unique_ptr<CrsTexture> flatNormal;   //normal map reto (128, 128, 255): sem relevo
             std::unique_ptr<CrsTexture> midHeight;    //displacement no meio (0.5)
             std::unordered_map<std::string, Material> materials;
-            std::unordered_map<std::string, VkDescriptorSet> layerSets;
+            std::unordered_map<std::string, LayerSet> layerSets;
 
-            //os triângulos são iguais em todo pedaço: um índice só pra todos
+            //os triângulos são iguais em todo quadradinho: um índice só pra todos
             std::unique_ptr<CrsBuffer> indexBuffer;
             uint32_t indexCount = 0;
 

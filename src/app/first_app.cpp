@@ -490,6 +490,8 @@ namespace crsdk {
         }
 
         ImGui::Text("Mouse delta: %.1f, %.1f", crsInput.getMouseDelta().x, crsInput.getMouseDelta().y);
+        //só os materiais que algum quadradinho do terreno usa ficam na memória de vídeo
+        ImGui::Text("Materiais do terreno na memória: %zu", terrainRenderSystem->loadedMaterialCount());
         //no Play: quanto cada componente Python gasta por frame (pra achar o pesado)
         if (playScene) {
             for (const ComponentTiming &timing : scripting.componentTimings()) {

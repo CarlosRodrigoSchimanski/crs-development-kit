@@ -5,6 +5,7 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -264,7 +265,7 @@ TEST_CASE("terreno: salvar depois de diminuir apaga os arquivos dos pedaços que
 //as 8 camadas de uma amostra somam 1
 static float weightSum(const TerrainData &terrain, int x, int z) {
     float sum = 0.f;
-    for (float w : terrain.weights(x, z)) sum += w;
+    for (float w : terrain.mix(x, z).weights) sum += w;
     return sum;
 }
 
@@ -309,9 +310,18 @@ TEST_CASE("pintura: na divisa grava nos dois pedaços e muda a versão deles") {
     TerrainData terrain{2};
     const uint64_t before = terrain.tile(1, 0).version;
     terrain.paint({256.f, 40.f}, 4.f, 1, 1.f);
-    const size_t index = static_cast<size_t>(40 * TERRAIN_TILE_SAMPLES) * TERRAIN_MAX_LAYERS;
-    CHECK(terrain.tile(0, 0).weights[index + static_cast<size_t>(TERRAIN_TILE_CELLS) * TERRAIN_MAX_LAYERS + 1] == doctest::Approx(1.f));
-    CHECK(terrain.tile(1, 0).weights[index + 1] == doctest::Approx(1.f));
+    const size_t row = static_cast<size_t>(40 * TERRAIN_TILE_SAMPLES);
+    const LayerMix &left = terrain.tile(0, 0).paint[row + TERRAIN_TILE_CELLS];  //última coluna do pedaço da esquerda
+    const LayerMix &right = terrain.tile(1, 0).paint[row];                    //primeira do da direita
+    //quanto do material 1 a amostra tem (ele entra na primeira posição livre, não necessariamente a 0)
+    auto weightOf = [](const LayerMix &m, int layer) {
+        for (size_t i = 0; i < m.ids.size(); i++) {
+            if (m.ids[i] == layer && m.weights[i] > 0.f) return m.weights[i];
+        }
+        return 0.f;
+    };
+    CHECK(weightOf(left, 1) == doctest::Approx(1.f));
+    CHECK(weightOf(right, 1) == doctest::Approx(1.f));
     CHECK(terrain.tile(1, 0).version > before);
 }
 
@@ -339,7 +349,7 @@ TEST_CASE("pintura: salvar e carregar devolve as camadas (com a precisão de 1 b
 
     CHECK(std::filesystem::exists(folder / "paint_1_0.bin"));
     TerrainData loaded = TerrainData::load(folder.string(), 2);
-    for (int layer = 0; layer < TERRAIN_MAX_LAYERS; layer++) {
+    for (int layer = 0; layer < 8; layer++) {
         CHECK(loaded.weight(300, 200, layer) == doctest::Approx(terrain.weight(300, 200, layer)).epsilon(0.01));
         CHECK(loaded.weight(304, 203, layer) == doctest::Approx(terrain.weight(304, 203, layer)).epsilon(0.01));
     }
@@ -384,4 +394,85 @@ TEST_CASE("cena: as camadas voltam na ordem, e a cena antiga (um material só) v
     CHECK(oldLayers[0].material == "assets/materials/velho");
     CHECK(oldLayers[0].textureSize == doctest::Approx(3.f));
     std::filesystem::remove_all(root);
+}
+
+TEST_CASE("pintura: cada ponto guarda no máximo 4 materiais (pintar o 5º tira o mais fraco)") {
+    TerrainData terrain{1};
+    terrain.paint({50.f, 50.f}, 6.f, 1, 0.4f);
+    terrain.paint({50.f, 50.f}, 6.f, 2, 0.4f);
+    terrain.paint({50.f, 50.f}, 6.f, 3, 0.4f);
+    //agora: chão, 1, 2 e 3 no ponto do meio; o 4 entra no lugar do mais fraco
+    LayerMix before = terrain.mix(50, 50);
+    int weakest = 0;
+    for (int i = 1; i < TERRAIN_LAYERS_PER_POINT; i++) {
+        if (before.weights[static_cast<size_t>(i)] < before.weights[static_cast<size_t>(weakest)]) weakest = i;
+    }
+    const int weakestLayer = before.ids[static_cast<size_t>(weakest)];
+
+    terrain.paint({50.f, 50.f}, 6.f, 4, 0.4f);
+
+    CHECK(terrain.weight(50, 50, 4) == doctest::Approx(0.4f));
+    CHECK(terrain.weight(50, 50, weakestLayer) == doctest::Approx(0.f));
+    CHECK(weightSum(terrain, 50, 50) == doctest::Approx(1.f));
+}
+
+TEST_CASE("pintura: resto de pincelada fraca (abaixo de 2%) é zerado e volta pros outros") {
+    TerrainData terrain{1};
+    terrain.paint({50.f, 50.f}, 6.f, 1, 0.5f);
+    terrain.paint({50.f, 50.f}, 6.f, 2, 0.99f);  //a 1 e o chão ficam com 0.5% cada: viram 0
+    CHECK(terrain.weight(50, 50, 2) == doctest::Approx(1.f));
+    CHECK(terrain.weight(50, 50, 1) == doctest::Approx(0.f));
+    CHECK(terrain.weight(50, 50, 0) == doctest::Approx(0.f));
+}
+
+TEST_CASE("pintura: o quadradinho de 32 m só pede os materiais que aparecem nele") {
+    TerrainData terrain{1};
+    terrain.paint({16.f, 16.f}, 6.f, 5, 1.f);    //no quadradinho (0, 0)
+    terrain.paint({100.f, 100.f}, 6.f, 7, 1.f);  //no quadradinho (3, 3)
+
+    auto first = terrain.chunkLayers(0, 0, 0, 0);
+    REQUIRE(first.size() == 2);
+    CHECK(first[0] == 0);  //o chão cobre mais que o 5 (do que mais cobre pro que menos)
+    CHECK(first[1] == 5);
+    auto other = terrain.chunkLayers(0, 0, 3, 3);
+    CHECK(std::find(other.begin(), other.end(), 7) != other.end());
+    CHECK(std::find(other.begin(), other.end(), 5) == other.end());  //o 5 não aparece aqui: não é pedido
+    auto empty = terrain.chunkLayers(0, 0, 7, 7);
+    REQUIRE(empty.size() == 1);
+    CHECK(empty[0] == 0);
+}
+
+TEST_CASE("pintura: pintar por cima até o material sumir tira ele do quadradinho e do uso") {
+    TerrainData terrain{1};
+    terrain.paint({16.f, 16.f}, 8.f, 1, 1.f);
+    terrain.paint({16.f, 16.f}, 30.f, 2, 1.f);  //cobre tudo com o 2, num raio bem maior
+    terrain.paint({16.f, 16.f}, 30.f, 2, 1.f);
+
+    auto layers = terrain.chunkLayers(0, 0, 0, 0);
+    CHECK(std::find(layers.begin(), layers.end(), 1) == layers.end());
+    std::vector<float> usage = terrain.layerUsage(3);
+    CHECK(usage[1] == doctest::Approx(0.f));
+    CHECK(usage[2] > 0.f);
+    CHECK(usage[0] + usage[1] + usage[2] == doctest::Approx(1.f));
+}
+
+TEST_CASE("pintura: arquivo do formato antigo (8 camadas fixas) é lido, ficando os 4 mais fortes") {
+    const auto folder = std::filesystem::temp_directory_path() / "crs_test_pintura_antiga";
+    std::filesystem::remove_all(folder);
+    TerrainData{1}.save(folder.string());
+    {
+        //cabeçalho + 8 bytes por amostra; todas as amostras: 10% no 0, 50% no 3, 40% no 6
+        std::ofstream out{folder / "paint_0_0.bin", std::ios::binary};
+        const uint32_t samples = TERRAIN_TILE_SAMPLES, format = 8;
+        out.write("CRST", 4);
+        out.write(reinterpret_cast<const char *>(&samples), 4);
+        out.write(reinterpret_cast<const char *>(&format), 4);
+        const unsigned char sample[8] = {26, 0, 0, 128, 0, 0, 102, 0};
+        for (int i = 0; i < TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES; i++) out.write(reinterpret_cast<const char *>(sample), 8);
+    }
+    TerrainData loaded = TerrainData::load(folder.string(), 1);
+    CHECK(loaded.weight(10, 10, 3) == doctest::Approx(0.5f).epsilon(0.02));
+    CHECK(loaded.weight(10, 10, 6) == doctest::Approx(0.4f).epsilon(0.02));
+    CHECK(loaded.weight(10, 10, 0) == doctest::Approx(0.1f).epsilon(0.05));
+    std::filesystem::remove_all(folder);
 }

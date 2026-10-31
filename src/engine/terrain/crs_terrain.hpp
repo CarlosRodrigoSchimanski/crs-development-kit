@@ -18,23 +18,33 @@ namespace crsdk {
     //o tamanho é sempre um número inteiro de pedaços por lado (256 m, 512 m, 768 m...), até este máximo
     //(2048 m: sem culling por pedaço, mais que isso gasta memória de vídeo demais)
     constexpr int TERRAIN_MAX_TILES = 8;
-    //camadas de material pintadas por cima do chão (a 0 é o chão base): até 8 por terreno
-    constexpr int TERRAIN_MAX_LAYERS = 8;
+
+    //pintura, como no WoW: o terreno tem uma PALETA de materiais (a lista dos que já foram usados nele,
+    //o [0] é o chão base) e cada ponto guarda só os poucos que tem ali, com quanto de cada um
+    constexpr int TERRAIN_LAYERS_PER_POINT = 4;  //pintar um 5º num ponto tira o mais fraco dele
+    constexpr int TERRAIN_MAX_PALETTE = 255;     //materiais diferentes num terreno
+    //o desenho é feito em quadradinhos de 32 m (64 por pedaço): cada um só pede os materiais que tem
+    constexpr int TERRAIN_CHUNK_CELLS = 32;
+    constexpr int TERRAIN_CHUNKS_PER_TILE = TERRAIN_TILE_CELLS / TERRAIN_CHUNK_CELLS;
+    constexpr int TERRAIN_CHUNK_SAMPLES = TERRAIN_CHUNK_CELLS + 1;
+    //quantos materiais um quadradinho mistura no shader (4 por ponto, mas pontos vizinhos podem ter outros)
+    constexpr int TERRAIN_CHUNK_LAYERS = 8;
+    //o que fica abaixo disso numa pintura é zerado e volta pros outros (resto de pincelada fraca)
+    constexpr float TERRAIN_MIN_WEIGHT = 0.02f;
+
+    //os materiais de um ponto: até 4 (índice na paleta, quanto), somando 1; peso 0 = posição vazia
+    struct LayerMix {
+        std::array<uint8_t, TERRAIN_LAYERS_PER_POINT> ids{};
+        std::array<float, TERRAIN_LAYERS_PER_POINT> weights{1.f, 0.f, 0.f, 0.f};  //começa todo no chão base
+    };
 
     struct TerrainTile {
         //alturas em metros, linha por linha: a altura (x, z) do pedaço fica em [z * 257 + x]
         std::vector<float> heights = std::vector<float>(TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES, 0.f);
-        //quanto de cada camada em cada amostra (0..1, somando 1): 8 números por amostra, na mesma ordem
-        //das alturas. Começa tudo no chão base (camada 0)
-        std::vector<float> weights = baseWeights();
+        //a pintura de cada amostra, na mesma ordem das alturas
+        std::vector<LayerMix> paint = std::vector<LayerMix>(TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES);
         //muda a cada edição: quem guarda uma cópia (malha na GPU, corpo na física) sabe que tem que refazer
         uint64_t version = 0;
-
-        static std::vector<float> baseWeights() {
-            std::vector<float> w(static_cast<size_t>(TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES * TERRAIN_MAX_LAYERS), 0.f);
-            for (size_t i = 0; i < w.size(); i += TERRAIN_MAX_LAYERS) w[i] = 1.f;
-            return w;
-        }
     };
 
     //o relevo do terreno: as alturas, divididas em pedaços. Coordenadas "locais" = metros a partir do
@@ -59,10 +69,11 @@ namespace crsdk {
             float sample(int x, int z) const;
             //muda uma amostra em todo pedaço que tem ela (1, ou 2 na divisa, ou 4 no canto)
             void setSample(int x, int z, float height);
-            //quanto da camada numa amostra (0..1) e as 8 de uma vez; mudar grava em todo pedaço que tem a amostra
+            //a pintura de uma amostra; mudar grava em todo pedaço que tem ela
+            LayerMix mix(int x, int z) const;
+            void setMix(int x, int z, const LayerMix &value);
+            //quanto do material 'layer' (índice na paleta) tem na amostra (0..1)
             float weight(int x, int z, int layer) const;
-            std::array<float, TERRAIN_MAX_LAYERS> weights(int x, int z) const;
-            void setWeights(int x, int z, const std::array<float, TERRAIN_MAX_LAYERS> &values);
             //normal da superfície numa amostra (pelos vizinhos: sem costura na divisa dos pedaços)
             glm::vec3 normalAt(int x, int z) const;
 
@@ -78,15 +89,22 @@ namespace crsdk {
             void raise(glm::vec2 center, float radius, float amount);  //amount < 0 abaixa
             void smooth(glm::vec2 center, float radius, float strength);  //strength 0..1 por chamada
             void flatten(glm::vec2 center, float radius, float height, float strength);
-            //pinta a camada (amount 0..1 por chamada no meio do pincel); amount < 0 apaga ela, e o que
-            //sai volta pras outras camadas daquele ponto (ou pro chão base, se só tinha ela)
+            //pinta o material 'layer' da paleta (amount 0..1 por chamada no meio do pincel); amount < 0
+            //apaga ele, e o que sai volta pros outros daquele ponto (ou pro chão base, se só tinha ele)
             void paint(glm::vec2 center, float radius, int layer, float amount);
-            //tira a camada de todo o terreno: o que estava pintado com ela volta pro chão base, e as de
-            //cima descem uma posição (a lista de materiais do terreno tem que acompanhar)
+            //tira o material da paleta em todo o terreno: o que estava pintado com ele volta pro chão
+            //base, e os de índice maior descem uma posição (a paleta do componente tem que acompanhar)
             void removeLayer(int layer);
 
-            //dois arquivos por pedaço na pasta: tile_x_z.bin (alturas) e paint_x_z.bin (camadas, 1 byte por
-            //camada); os de um tamanho antigo maior são apagados. Carregar: o que não tem arquivo fica plano/sem pintura
+            //quanto do terreno cada material da paleta cobre (0..1, somando 1); 'paletteSize' posições
+            std::vector<float> layerUsage(int paletteSize) const;
+            //os materiais que aparecem num quadradinho de 32 m (com a borda), do que mais cobre pro que
+            //menos, no máximo TERRAIN_CHUNK_LAYERS: é a lista que o desenho daquele quadradinho pede
+            std::vector<uint8_t> chunkLayers(int tileX, int tileZ, int chunkX, int chunkZ) const;
+
+            //dois arquivos por pedaço na pasta: tile_x_z.bin (alturas) e paint_x_z.bin (pintura: 4 índices
+            //e 4 pesos de 1 byte por amostra); os de um tamanho antigo maior são apagados. Carregar: o que
+            //não tem arquivo fica plano/sem pintura (lê também a pintura antiga, de 8 camadas fixas)
             void save(const std::string &folder) const;
             static TerrainData load(const std::string &folder, int tilesPerSide);
 
@@ -96,6 +114,9 @@ namespace crsdk {
             void applyBrush(glm::vec2 center, float radius, Change change);
             //o pedaço que guarda a amostra (o último pedaço fica com a borda final) e o índice nele
             size_t sampleIndex(int &x, int &z, int &tileIndex) const;
+            //chama write(pedaço, índice) pra cada pedaço que tem a amostra (a divisa é de mais de um)
+            template <typename Write>
+            void forEachCopy(int x, int z, Write write);
 
             int tiles;
             std::vector<TerrainTile> tileData;  //linha por linha: o pedaço (x, z) fica em [z * tiles + x]

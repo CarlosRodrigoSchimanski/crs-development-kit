@@ -86,6 +86,14 @@ Roadmap:
           compartilhada) e a mistura no shader é pela altura (displacement) de cada material: na
           borda o mais alto aparece primeiro (a lama entra nas frestas da pedra). Salva em
           paint_x_z.bin (1 byte por camada); tirar uma camada devolve a pintura dela pro chão base
+  ✅ 4.2.1 Pintura como no WoW (2026-10-31, pedido do usuário: todos os materiais no editor, só os
+          necessários carregados no jogo): o terreno tem uma PALETA (os materiais já usados nele, até
+          255; cresce sozinha na 1ª pincelada) e cada ponto guarda até 4 (índice, peso) — o 5º tira o
+          mais fraco; resto abaixo de 2% é zerado. Desenho em quadradinhos de 32 m (64 por pedaço):
+          cada um só pede os materiais que aparecem nele; material que nenhum quadradinho usa sai da
+          memória de vídeo (~2 s depois). Card "Materiais" lista TODOS de assets/materials, com quanto
+          cada um cobre, "Usar como chão base" e "Limpar não usados"; estatística "Materiais do
+          terreno na memória". Lê a pintura antiga (8 camadas fixas)
   ✅ 5    Animação esquelética (skinning na GPU) com transição entre clipes
   ✅ 5.1  Eixos iguais ao glTF/Blender (Y pra cima, câmera olha pro -Z, frente = +Z)
   ✅ 5.0  Salvar/carregar cena em JSON (scene_serializer), ids estáveis, menu Arquivo,
@@ -234,6 +242,8 @@ Pendências pequenas do que já foi feito:
    - pintura com 1 ponto por metro: se a borda de um caminho precisar ser mais fina, passar a
      pintura pra uma imagem por pedaço (2+ pontos por metro) sem mudar o editor
    - Python: terrain.layerAt(x, z) (som de passo, poeira) e pintar por script
+   - com streaming (pedaços longe descarregados), os materiais acompanham sozinhos: o quadradinho
+     que não é desenhado não pede material; exportar o jogo só com os materiais de alguma paleta
    - instalador cresce ~8 MB por material de 2K
 
 6. Sistema de equipamento via skinning compartilhado (arma/roupa como malha separada, rigged no
