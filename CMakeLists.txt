@@ -2,11 +2,23 @@
 cmake_minimum_required(VERSION 3.20)
 
 #nome e linguagem do projeto
-project(CRSDK LANGUAGES CXX)
+#a versão vai pro instalador (CRSDK-0.1.0-setup.exe)
+project(CRSDK VERSION 0.1.0 LANGUAGES CXX)
 
 #versão do c++ a ser utilizada
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+#Release com LTO (o linker otimiza juntando as funções de todos os arquivos, inclusive entre a
+#engine e o app). Só no Release: no Debug deixaria a compilação lenta sem ganho.
+#O Release também define NDEBUG, que desliga as validation layers (crs_device.hpp)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT LTO_SUPPORTED OUTPUT LTO_ERROR)
+if(LTO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+else()
+    message(WARNING "LTO não suportado: ${LTO_ERROR}")
+endif()
 #----------------------------------------------------------#
 
 #incluir glfw
@@ -82,6 +94,19 @@ FetchContent_Declare(
     GIT_TAG v2.13.6
 )
 FetchContent_MakeAvailable(pybind11)
+
+#Python portátil (embeddable) pra ir junto da engine instalada: quem instala não precisa ter Python.
+#Mesma versão do instalado aqui (3.12.10). Ele lê o python312._pth ao lado do python312.dll e usa só
+#a biblioteca padrão de dentro do python312.zip (ignora qualquer Python instalado no PC)
+if(WIN32)
+    FetchContent_Declare(
+        python_embed
+        URL https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip
+        URL_HASH SHA256=4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(python_embed)
+endif()
 #----------------------------------------------------------#
 
 #incluir stb_image (carregamento de arquivos de imagem pra textura)
@@ -306,4 +331,44 @@ else()
 endif()
 target_link_libraries(CRSDK_tests PRIVATE crsdk_engine doctest::doctest)
 add_test(NAME engine_tests COMMAND CRSDK_tests)
+#----------------------------------------------------------#
+
+#instalação: monta a pasta da engine pronta pra distribuir (o .exe acha assets/ e shaders/ ao lado dele).
+#Tudo no componente "engine": as bibliotecas baixadas (glfw, glm...) têm regras de instalação próprias
+#(headers e .lib pra desenvolvedor) que não vão pra quem só usa a engine.
+#  cmake --install build --config Release --component engine --prefix build/install
+install(TARGETS CRSDK RUNTIME DESTINATION . COMPONENT engine)
+install(FILES ${SPIRV_BINARY_FILES} DESTINATION shaders COMPONENT engine)
+#textures/ fica fora: as texturas já vão dentro dos .glb (lá são só os arquivos originais)
+install(DIRECTORY assets/ DESTINATION assets COMPONENT engine
+    PATTERN "textures" EXCLUDE
+    PATTERN "__pycache__" EXCLUDE
+    PATTERN "*.editor.json" EXCLUDE)
+if(WIN32)
+    #Python portátil inteiro na pasta do .exe (o python312.dll tem que ficar junto do CRSDK.exe)
+    install(DIRECTORY ${python_embed_SOURCE_DIR}/ DESTINATION . COMPONENT engine)
+    #runtime do C++ do Visual Studio (msvcp140.dll etc.) junto do .exe: o PC não precisa do VC++ Redistributable
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION .)
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT engine)
+    include(InstallRequiredSystemLibraries)
+endif()
+
+#instalador (Windows, Inno Setup): instala a pasta acima e gera build/installer/CRSDK-<versão>-setup.exe
+#  cmake --build build --config Release --target installer
+find_program(ISCC iscc PATHS "$ENV{LOCALAPPDATA}/Programs/Inno Setup 6" "C:/Program Files (x86)/Inno Setup 6" "$ENV{ProgramFiles}/Inno Setup 6")
+if(WIN32 AND ISCC)
+    add_custom_target(installer
+        #começa de uma pasta limpa: arquivo apagado do projeto não pode sobrar no instalador
+        COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_BINARY_DIR}/install
+        COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR} --config $<CONFIG> --component engine --prefix ${CMAKE_BINARY_DIR}/install
+        COMMAND ${ISCC} /Qp
+            /DAppVersion=${PROJECT_VERSION}
+            /DSourceDir=${CMAKE_BINARY_DIR}/install
+            /DOutputDir=${CMAKE_BINARY_DIR}/installer
+            ${CMAKE_SOURCE_DIR}/installer/crsdk.iss
+        DEPENDS CRSDK
+        COMMENT "Gerando o instalador com o Inno Setup"
+        VERBATIM
+    )
+endif()
 #----------------------------------------------------------#

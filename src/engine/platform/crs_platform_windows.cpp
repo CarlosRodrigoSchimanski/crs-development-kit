@@ -9,6 +9,9 @@
 #include <windows.h>
 #include <timeapi.h>
 
+#include <iterator>
+#include <string>
+
 namespace crsdk::platform {
 
     PlatformScope::PlatformScope() {
@@ -20,4 +23,12 @@ namespace crsdk::platform {
     }
 
     bool needsRedrawDuringResize() { return true; }
+
+    std::filesystem::path executablePath() {
+        //versão W (UTF-16): funciona com acento e qualquer caractere no caminho
+        wchar_t buffer[MAX_PATH * 4];
+        const DWORD size = GetModuleFileNameW(nullptr, buffer, static_cast<DWORD>(std::size(buffer)));
+        if (size == 0 || size == std::size(buffer)) return {};
+        return std::filesystem::path{std::wstring{buffer, size}};
+    }
 }

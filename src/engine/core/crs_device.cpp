@@ -60,8 +60,11 @@ namespace crsdk {
         createCommandPool();    }
 
     void CrsDevice::createInstance() {
-        if (enableValidationLayers && !checkValidationLayerSupport()) {
-            throw std::runtime_error("validation layers requested, but not available!");
+        //if constexpr: a constante decide na compilação (no Release o teste nem existe)
+        if constexpr (enableValidationLayers) {
+            if (!checkValidationLayerSupport()) {
+                throw std::runtime_error("validation layers requested, but not available!");
+            }
         }
 
         VkApplicationInfo appInfo{};

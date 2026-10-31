@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 //camada de plataforma: o que a engine precisa pedir ao sistema operacional, numa interface única.
 //Cada SO tem a sua implementação num .cpp próprio (crs_platform_windows.cpp, crs_platform_generic.cpp...),
 //e quem escolhe qual compilar é o CMake: nada de #ifdef de SO espalhado pelo resto do código.
@@ -22,4 +24,8 @@ namespace crsdk::platform {
     //desenhar de dentro do refresh callback da janela, senão a imagem congela durante o arrasto.
     //Windows: sim (o arrasto da borda roda num loop modal do próprio Windows)
     bool needsRedrawDuringResize();
+
+    //caminho completo do executável rodando (vazio se o SO não souber dizer). Usado pra achar
+    //assets/ e shaders/ ao lado do .exe quando a engine é aberta por um atalho de outra pasta
+    std::filesystem::path executablePath();
 }

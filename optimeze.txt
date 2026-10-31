@@ -3,14 +3,25 @@ Itens feitos ficam numa linha só (os detalhes estão no git). Pendentes mantêm
 completa, porque guardam decisões que ainda valem. Os números dos itens não mudam.
 
 ===============================================================================
->>> PRÓXIMO MARCO: release 0.1 <<<
+>>> RELEASE 0.1 PRONTA <<<
 ===============================================================================
-O ciclo completo já existe (editor -> componentes Python -> Play). Falta pra 0.1:
-  - Build Release com LTO (Fase 4, item 16) e NDEBUG sem validation layers (item 17)
-  - Python 3.12 "embeddable" (zip oficial) ao lado do .exe: hoje a engine usa o Python
-    instalado no Windows e não abre em PC sem ele. Subir o Python = subir o pybind11 junto.
-  - Pasta de saída (install do CMake): .exe + assets/ + shaders/ compilados + Python
-  - Teste num PC limpo (sem Python e sem Vulkan SDK)
+Pacote pronto (2026-10-31): cmake --build build --config Release --target installer
+gera build/installer/CRSDK-0.1.0-setup.exe (Inno Setup, instala só pro usuário, sem admin).
+  ✅ Release com LTO e NDEBUG (sem validation layers)
+  ✅ Python 3.12.10 embeddable baixado pelo CMake e instalado ao lado do .exe (subir o Python
+     = subir o pybind11 junto); runtime do C++ do VS junto (sem VC++ Redistributable)
+  ✅ cmake --install (componente engine): .exe + assets/ (sem textures/) + shaders .spv + Python
+  ✅ o .exe acha assets/ ao lado dele quando aberto por atalho de outra pasta
+  ✅ testado aqui: instalação silenciosa, Play + W com o Python portátil, desinstalação limpa
+  ✅ testado num PC limpo (de um amigo): instalou e funcionou
+  ✅ tag v0.1.0 no git
+Falta: subir o setup.exe numa Release do GitHub (pelo site, na tag v0.1.0)
+Observações pra depois da 0.1:
+  - 182 MB, quase tudo o iron_cube.glb (177 MB): trocar por um modelo leve no exemplo
+  - o console aparece junto da janela (útil pros print/erros do Python); um painel de log no
+    editor permitiria esconder ele
+  - a engine grava na própria pasta (cenas, componentes): quando vier o sistema de projetos
+    (item 11), os projetos vão pra pasta do usuário e a engine instalada fica só leitura
 
 ===============================================================================
 FEITO (resumo)
@@ -88,10 +99,7 @@ Fase 3 — varredura de segurança (repetir no código novo antes de cada releas
     recurso criado sem limpar; entrada não confiável validada.
 14. RAII: todo recurso novo segue o padrão (sem new/malloc solto).
 
-Fase 4 — build de produção (agora vem na release 0.1):
-16. LTO (Link-Time Optimization) no Release: recupera o inlining entre .cpp diferentes, que a
-    separação declaração/.cpp abre mão por padrão.
-17. NDEBUG no Release: desliga as validation layers (enableValidationLayers) e os assert().
+✅ Fase 4 — build de produção: LTO e NDEBUG no Release (feito na release 0.1).
 
 ===============================================================================
 PENDENTE — roadmap (o que construir, rumo ao RPG de ação)
