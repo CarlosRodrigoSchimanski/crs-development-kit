@@ -14,7 +14,8 @@ mesa, cadeira...), duplicar à vontade e espalhar pelo mapa sem pesar. Falta, ne
      (move, gira, apaga, tem componentes); a engine agrupa sozinha na hora de desenhar.
      Ctrl+D duplica o selecionado (com os filhos), como no Blender. É a mesma base da grama.
   3. 4.3 — grama 3D (usa o instancing do item 2 e o pincel/Checar do item 1)
-  Depois da 1.0: Asset Manager (3.7), HDRI/reflexos, streaming do terreno, Ctrl+Z.
+  Depois da 1.0: Asset Manager (3.7), ferramenta de estrada (4.4), HDRI/reflexos, streaming do
+  terreno, Ctrl+Z.
 
 ===============================================================================
 >>> RELEASE 0.1 PRONTA <<<
@@ -258,6 +259,14 @@ Pendências pequenas do que já foi feito:
         - folhas entram crescendo do chão (escala 0 -> 1) ou por dither, nunca de uma vez;
         - quanto mais longe, menos folhas e mais largas (afinar a densidade com a distância);
         - a distância de troca depende da resolução/qualidade gráfica (4K pede mais longe).
+   4.4. Ferramenta de estrada (problema achado pelo usuário em 2026-10-31): material com direção
+        (pedra de calçamento, tijolo) pintado num L fica certo na reta e errado na curva, porque a
+        textura é projetada sempre na mesma direção do mundo. Solução das engines (Unreal Landscape
+        Splines, Cities: Skylines): clicar pontos no terreno -> curva suave (spline) -> a engine gera
+        uma faixa de malha seguindo a curva, com a textura correndo AO LONGO dela (as pedras viram
+        junto). Largura e borda ajustáveis; opção de nivelar o terreno embaixo (a estrada não flutua
+        nem afunda). A pintura fica pra materiais sem direção (terra, grama, areia, rocha, trilha).
+        Carimbos/decals (bueiro, mancha) são outra coisa, pra detalhe solto.
    Ordem: 4.1 -> 4.2 -> 4.2.2 (ajuste da pintura) -> 4.0.1 (instancing, ver o marco 1.0 no topo)
    -> 4.3 (a grama usa o instancing, o mesmo pincel, o card limpo e o Checar). O Asset Manager
    (3.7) entra depois e só acrescenta o arrastar no card.
@@ -269,7 +278,7 @@ Pendências pequenas do que já foi feito:
      aviso no editor ou "assentar no chão"
    - cor provisória (grama/rocha pela inclinação) quando o terreno está sem material
    - material: na encosta a textura estica (projeção só de cima): triplanar (de cima e dos lados,
-     misturado pela inclinação); repetição visível de longe (variar escala/rotação por região)
+     misturado pela inclinação; o usuário aprovou em 2026-10-31, os morros de rocha mostram isso); repetição visível de longe (variar escala/rotação por região)
    - reflexo do ambiente (céu) precisa de um HDRI (Poly Haven > HDRIs, .hdr 2K em assets/hdri):
      céu da cena + luz/reflexo de ambiente (IBL). Os objetos (simple_shader) passarem pro PBR
    - mapas de 1 canal (rough, AO) sobem como RGBA: 4x a memória; juntar em uma textura (ARM)
