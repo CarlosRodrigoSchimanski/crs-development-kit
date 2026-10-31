@@ -9,6 +9,7 @@
 #include "engine/rendering/systems/shadow_render_system.hpp"
 #include "engine/rendering/systems/gizmo_system.hpp"
 #include "engine/rendering/systems/selection_outline_system.hpp"
+#include "engine/rendering/systems/terrain_render_system.hpp"
 #include "engine/rendering/systems/skinning_system.hpp"
 #include "engine/rendering/crs_model_cache.hpp"
 #include "engine/rendering/crs_descriptors.hpp"
@@ -72,6 +73,10 @@ namespace crsdk {
             void importModelDialog();
             //cria um objeto do menu Adicionar no ponto que a câmera do editor olha
             void addObject(AddKind kind);
+            //terreno novo, plano, no meio da cena (tiles = pedaços por lado)
+            void addTerrain(int tiles);
+            //tecla Delete: apaga o objeto selecionado
+            void updateDelete();
             //lê de novo as classes de componente da pasta (o que o Add Component lista)
             void refreshComponents();
             //Generate Component: cria o .py com o modelo e prende no objeto selecionado
@@ -123,6 +128,7 @@ namespace crsdk {
             std::unique_ptr<GizmoRenderSystem> gizmoRenderSystem{};
             //aura laranja do selecionado (só no editor)
             std::unique_ptr<SelectionOutlineSystem> selectionOutlineSystem{};
+            std::unique_ptr<TerrainRenderSystem> terrainRenderSystem{};
             //matrizes dos ossos dos objetos animados (dono do buffer do binding 3)
             std::unique_ptr<SkinningSystem> skinningSystem{};
 

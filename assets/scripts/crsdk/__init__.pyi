@@ -295,7 +295,9 @@ class Scene:
                 ignore: Optional[GameObject] = None) -> Optional[RayHit]:
         """Lança um raio contra as caixas de colisão (objetos com corpo físico) e devolve o
         acerto mais perto até ``maxDistance``, ou None. ``direction`` não precisa ter
-        tamanho 1. ``ignore`` fica de fora (ex: o próprio personagem)."""
+        tamanho 1. ``ignore`` fica de fora (ex: o próprio personagem). Acerta também o terreno."""
+    def terrainHeight(self, x: float, z: float) -> Optional[float]:
+        """Altura do chão do terreno no ponto (x, z) do mundo, ou None fora de qualquer terreno."""
 
 
 class Input:

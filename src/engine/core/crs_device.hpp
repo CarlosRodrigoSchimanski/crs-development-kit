@@ -44,6 +44,8 @@ namespace crsdk {
 
             //propriedades/limites da GPU escolhida (ex: alinhamento mínimo pra uniform buffer)
             VkPhysicalDeviceProperties properties;
+            //a GPU tem filtro anisotrópico (textura nítida vista de lado, como o chão): ligado se tiver
+            bool samplerAnisotropy = false;
 
             VkInstance instance() const;
             VkPhysicalDevice physicalDevice() const;

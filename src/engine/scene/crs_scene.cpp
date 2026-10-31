@@ -35,6 +35,17 @@ namespace crsdk {
         return activeCameraId;
     }
 
+    void CrsScene::destroyGameObject(CrsGameObject::id_t id) {
+        //os filhos primeiro (juntados antes: apagar no meio do for invalidaria o laço)
+        std::vector<CrsGameObject::id_t> children;
+        for (const auto &kv : gameObjects) {
+            if (kv.second.parentId == id) children.push_back(kv.first);
+        }
+        for (CrsGameObject::id_t child : children) destroyGameObject(child);
+        gameObjects.erase(id);
+        if (activeCameraId == id) activeCameraId.reset();
+    }
+
     CrsGameObject* CrsScene::findGameObjectById(CrsGameObject::id_t id) {
         auto it = gameObjects.find(id);
         if (it != gameObjects.end()) {
@@ -83,7 +94,29 @@ namespace crsdk {
                 closest = RayCastHit{obj.getId(), *t};
             }
         }
+        //terrenos: o raio levado pras coordenadas locais (a partir do canto)
+        for (auto &kv : gameObjects) {
+            auto &obj = kv.second;
+            if (!obj.terrain) continue;
+            if (ignoreId && obj.getId() == *ignoreId) continue;
+            const glm::vec3 origin = ray.origin - obj.terrain->corner(obj.transform.translation);
+            auto t = obj.terrain->data->raycast(origin, ray.direction, maxDistance);
+            if (t && (!closest || *t < closest->distance)) closest = RayCastHit{obj.getId(), *t};
+        }
         return closest;
+    }
+
+    std::optional<float> CrsScene::terrainHeightAt(float x, float z) {
+        for (auto &kv : gameObjects) {
+            auto &obj = kv.second;
+            if (!obj.terrain) continue;
+            const glm::vec3 corner = obj.terrain->corner(obj.transform.translation);
+            const float localX = x - corner.x, localZ = z - corner.z;
+            const float size = obj.terrain->data->size();
+            if (localX < 0.f || localZ < 0.f || localX > size || localZ > size) continue;
+            return corner.y + obj.terrain->data->heightAt(localX, localZ);
+        }
+        return std::nullopt;
     }
 
 }

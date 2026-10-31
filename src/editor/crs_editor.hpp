@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/core/crs_input.hpp"
+#include "engine/rendering/systems/terrain_render_system.hpp"
 #include "engine/rendering/crs_camera.hpp"
 #include "engine/scene/crs_scene.hpp"
 #include "engine/scripting/crs_scripting.hpp"
@@ -18,6 +19,9 @@ namespace crsdk {
     //o que dá pra criar pelo menu Adicionar
     enum class AddKind {None, Empty, Camera, PointLight};
 
+    //ferramenta de esculpir do terreno (None = o clique volta a selecionar)
+    enum class TerrainTool {None, Raise, Smooth, Flatten};
+
     //o que foi pedido pelo menu neste frame (quem executa é o FirstApp)
     struct EditorRequests {
         bool openScene = false;
@@ -25,6 +29,8 @@ namespace crsdk {
         bool saveSceneAs = false;
         bool importModel = false;
         AddKind add = AddKind::None;
+        //Adicionar > Terreno: pedaços por lado do terreno novo (0 = nada pedido; o menu pede 1)
+        int addTerrainTiles = 0;
         bool quit = false;
         //ler a pasta dos componentes de novo (o Add Component foi aberto: pode ter arquivo novo ou editado)
         bool refreshComponents = false;
@@ -49,6 +55,11 @@ namespace crsdk {
             void updateShortcuts(const CrsInput &input);
             //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)
             void updateSelection(CrsScene &scene, const CrsInput &input, const CrsCamera &camera, VkRect2D sceneArea);
+            //pincel do terreno: com um terreno selecionado e uma ferramenta escolhida, o botão esquerdo
+            //esculpe onde o mouse aponta (em vez de selecionar). dt = duração do frame
+            void updateTerrainBrush(CrsScene &scene, const CrsInput &input, const CrsCamera &camera, VkRect2D sceneArea, float dt);
+            //o que o terreno desenha por cima neste frame (curvas de nível, círculo do pincel)
+            TerrainOverlay terrainOverlay() const;
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             CrsGameObject* getSelected(CrsScene &scene) const;
             //nada selecionado (ao trocar de cena)
@@ -83,6 +94,10 @@ namespace crsdk {
             void drawRigidBodyCard(CrsGameObject &obj);
             //a forma de colisão de cada corpo em arame verde, por cima da cena (só no editor)
             void drawColliders(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea);
+            //card do terreno: tamanho, ferramentas de esculpir, pincel e curvas de nível
+            void drawTerrainCard(CrsGameObject &obj);
+            //terreno selecionado e uma ferramenta escolhida: o clique esculpe
+            bool sculptMode(CrsScene &scene) const;
 
             //objeto selecionado (vazio = nenhum)
             std::optional<CrsGameObject::id_t> selectedId;
@@ -92,6 +107,19 @@ namespace crsdk {
             bool addMenuRequested = false;
             //o nome sendo digitado no Generate Component
             std::string newComponentName{};
+
+            //terreno: ferramenta, pincel e curvas de nível (valem pra qualquer terreno selecionado)
+            TerrainTool terrainTool = TerrainTool::None;
+            float brushRadius = 10.f;    //metros
+            float brushStrength = 0.5f;  //0..1
+            bool contourLines = true;
+            float contourInterval = 1.f; //metros entre as curvas
+            //onde o mouse aponta no terreno neste frame (vazio = fora dele)
+            std::optional<glm::vec3> brushHit{};
+            //botão segurado começou no terreno: está esculpindo
+            bool sculpting = false;
+            //Nivelar: a altura (do terreno) onde o clique começou
+            float flattenHeight = 0.f;
             //filhos de cada objeto
             using ChildrenMap = std::map<CrsGameObject::id_t, std::vector<CrsGameObject::id_t>>;
             //lista de objetos da cena em árvore

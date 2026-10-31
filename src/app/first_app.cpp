@@ -39,6 +39,8 @@ namespace crsdk {
     constexpr const char *MODEL_FOLDER = "assets/models";
     //componentes Python (os .py que o Add Component lista e o Generate Component cria)
     constexpr const char *COMPONENT_FOLDER = "assets/components";
+    //material de todo terreno novo (o xadrez do Poly Haven: deixa fácil ver escala e relevo)
+    constexpr const char *DEFAULT_TERRAIN_MATERIAL = "assets/materials/checkered_pavement_tiles";
 
     //vista da câmera do editor de uma cena (pessoal: fora do git): main.json -> main.editor.json
     static std::string editorViewFile(const std::string &sceneFile) {
@@ -112,6 +114,7 @@ namespace crsdk {
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(crsDevice, shadowMap, globalLayout);
         gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         selectionOutlineSystem = std::make_unique<SelectionOutlineSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
+        terrainRenderSystem = std::make_unique<TerrainRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         skinningSystem = std::make_unique<SkinningSystem>(crsDevice, animationLibrary);
         crsImgui = std::make_unique<CrsImgui>(crsWindow, crsDevice, colorFormat, depthFormat, crsRenderer.getImageCount());
 
@@ -258,16 +261,11 @@ namespace crsdk {
         gameCamera.camera.emplace();
         crsScene.setActiveCamera(gameCamera.getId());
 
-        //chão (estático)
-        crsModel = modelCache.load("assets/models/plane.glb");
-        auto& floor = crsScene.createGameObject();
-        floor.name = "Floor";
-        floor.model = crsModel;
-        floor.transform.translation = {0.f, 0.f, 0.f};
-        floor.transform.scale = glm::vec3{10.f, 1.f, 10.f};
-        floor.rigidBody.emplace();
-        floor.rigidBody->type = BodyType::Static;
-        floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
+        //chão: um terreno de 256 m, plano, no meio da cena
+        auto& ground = crsScene.createGameObject();
+        ground.name = "Terreno";
+        ground.terrain.emplace();
+        ground.terrain->material = DEFAULT_TERRAIN_MATERIAL;
     }
 
     void FirstApp::startPlay() {
@@ -315,6 +313,16 @@ namespace crsdk {
         for (const std::string &error : scripting.takeErrors()) {
             std::cerr << "[componente] " << error << std::endl;
             sceneFileStatus = "Erro no componente " + error;
+        }
+    }
+
+    void FirstApp::updateDelete() {
+        //Delete apaga o selecionado (e os filhos dele), só no editor e não com um campo de texto ativo
+        //(WantTextInput, não WantCaptureKeyboard: clicar no outliner deixa o foco no painel, e o Delete tem que valer)
+        if (playScene || ImGui::GetIO().WantTextInput || !crsInput.wasPressed(GLFW_KEY_DELETE)) return;
+        if (CrsGameObject *selected = editor.getSelected(crsScene)) {
+            crsScene.destroyGameObject(selected->getId());
+            editor.clearSelection();
         }
     }
 
@@ -432,6 +440,15 @@ namespace crsdk {
         }
     }
 
+    void FirstApp::addTerrain(int tiles) {
+        auto &obj = crsScene.createGameObject();
+        obj.name = "Terreno";
+        obj.terrain.emplace();
+        obj.terrain->data = std::make_shared<TerrainData>(tiles);
+        obj.terrain->material = DEFAULT_TERRAIN_MATERIAL;
+        editor.select(obj.getId());
+    }
+
     void FirstApp::saveSceneAsDialog() {
         try {
             std::string name = std::filesystem::path{sceneFile}.filename().string();
@@ -513,7 +530,8 @@ namespace crsdk {
         if (!playScene) {
             editor.updateCamera(crsWindow, camera);
         }
-        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
+        //far de 4 km: enxerga o terreno inteiro (até 2048 m de lado) de qualquer ponto dele
+        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 4000.f);
     }
 
     glm::mat4 FirstApp::computeLightSpaceMatrix(CrsGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize) {
@@ -538,6 +556,8 @@ namespace crsdk {
         //a cena fica no retangulo
         crsRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);
         simpleRenderSystem->renderGameObjects(frameInfo);
+        //curvas de nível e pincel só no editor
+        terrainRenderSystem->render(frameInfo, frameInfo.playing ? TerrainOverlay{} : editor.terrainOverlay());
         pointLightSystem->render(frameInfo);
 
         //gizmos: transparentes, depois do que é opaco
@@ -612,8 +632,12 @@ namespace crsdk {
         updatePlayMode();
         //Ctrl+S salva a cena
         updateSceneFile();
+        //Delete apaga o selecionado
+        updateDelete();
         //clique seleciona (só no editor)
         if (!playScene) {
+            //pincel antes da seleção: esculpindo, o clique é dele
+            editor.updateTerrainBrush(crsScene, crsInput, camera, sceneArea, frameTime);
             editor.updateSelection(crsScene, crsInput, camera, sceneArea);
             editor.updateShortcuts(crsInput);
         }
@@ -670,6 +694,7 @@ namespace crsdk {
                 if (requests.saveSceneAs) saveSceneAsDialog();
                 if (requests.importModel) importModelDialog();
                 if (requests.add != AddKind::None) addObject(requests.add);
+                if (requests.addTerrainTiles > 0) addTerrain(requests.addTerrainTiles);
                 if (requests.quit) glfwSetWindowShouldClose(crsWindow.getGLFWwindow(), GLFW_TRUE);
             }
 

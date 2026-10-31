@@ -176,6 +176,11 @@ namespace crsdk {
         VkPhysicalDeviceFeatures2 deviceFeatures{};
         deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         deviceFeatures.pNext = &vulkan13Features;
+        //filtro anisotrópico: quase toda GPU tem, mas é opcional no Vulkan (sem ele as texturas só ficam mais borradas de lado)
+        VkPhysicalDeviceFeatures supported{};
+        vkGetPhysicalDeviceFeatures(physicalDevice_, &supported);
+        samplerAnisotropy = supported.samplerAnisotropy == VK_TRUE;
+        deviceFeatures.features.samplerAnisotropy = supported.samplerAnisotropy;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

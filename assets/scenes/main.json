@@ -235,15 +235,7 @@
         },
         {
             "id": 5,
-            "name": "Floor",
-            "model": "assets/models/plane.glb",
-            "editorOnly": false,
-            "color": [
-                0.0,
-                0.0,
-                0.0
-            ],
-            "useTexture": true,
+            "name": "Terreno",
             "transform": {
                 "translation": [
                     0.0,
@@ -256,24 +248,16 @@
                     0.0
                 ],
                 "scale": [
-                    10.0,
                     1.0,
-                    10.0
+                    1.0,
+                    1.0
                 ]
             },
-            "rigidBody": {
-                "type": "static",
-                "halfExtents": [
-                    1.0,
-                    0.0,
-                    1.0
-                ],
-                "center": [
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "shape": "box"
+            "terrain": {
+                "tiles": 1,
+                "folder": "../terrains/main_5",
+                "material": "assets/materials/checkered_pavement_tiles",
+                "textureSize": 4.0
             }
         }
     ]

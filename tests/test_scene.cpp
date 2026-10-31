@@ -155,3 +155,23 @@ TEST_CASE("ids: id repetido é erro") {
     CHECK_THROWS(scene.createGameObject(3));
 }
 
+
+TEST_CASE("apagar um objeto apaga os filhos dele e solta a câmera ativa") {
+    CrsScene scene;
+    CrsGameObject &player = scene.createGameObject();
+    CrsGameObject &pivot = scene.createGameObject();
+    pivot.parentId = player.getId();
+    CrsGameObject &camera = scene.createGameObject();
+    camera.parentId = pivot.getId();
+    CrsGameObject &other = scene.createGameObject();
+    const auto playerId = player.getId(), pivotId = pivot.getId(), cameraId = camera.getId(), otherId = other.getId();
+    scene.setActiveCamera(cameraId);
+
+    scene.destroyGameObject(playerId);
+
+    CHECK(scene.findGameObjectById(playerId) == nullptr);
+    CHECK(scene.findGameObjectById(pivotId) == nullptr);
+    CHECK(scene.findGameObjectById(cameraId) == nullptr);
+    CHECK(scene.findGameObjectById(otherId) != nullptr);
+    CHECK_FALSE(scene.getActiveCamera().has_value());
+}

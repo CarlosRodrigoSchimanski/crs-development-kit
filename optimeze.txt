@@ -66,6 +66,20 @@ Roadmap:
           dinâmicos tombam e giram; personagem pelo CharacterVirtual (desliza na parede, sobe
           degrau de 40 cm, para em ladeira > 50°, empurra caixas); card "Física" no editor e a
           forma em arame verde na cena; Python: shape, radius, height, mass
+  ✅ 4.1  Terreno em pedaços (2026-10-31): Adicionar > Terreno cria 256 m; no card, - e + tiram/põem
+          um pedaço por lado (sempre múltiplo de 256 m, até 2048 m; cresce pra +X/+Z sem mexer no
+          que já foi esculpido); pedaços de 256 m com 257 x 257 alturas e borda compartilhada; pincéis Subir (Shift
+          abaixa), Suavizar e Nivelar com raio e força; curvas de nível e o aro do pincel no
+          shader, só no editor; um heightfield da Jolt por pedaço (anda no Play); salvo em
+          assets/terrains/<cena>_<id>/tile_x_z.bin; scene.raycast e scene.terrainHeight (Python).
+          Delete apaga o objeto selecionado (e os filhos). Luz/sombra num lighting.glsl comum.
+          O plano (Floor/plane.glb) saiu: a cena usa um terreno
+  ✅ 4.1.1 Material PBR no terreno (2026-10-31): pasta em assets/materials/<nome> com os mapas achados
+          pelo nome (_diff, _nor_gl, _rough, _ao, _disp; o _nor_dx fica de fora); shader PBR
+          metallic-roughness (GGX) num pbr.glsl comum; normal map, roughness e AO; no card: material
+          e "repetir a cada N m"; padrão de todo terreno novo: checkered_pavement_tiles (Poly Haven).
+          Texturas: mipmaps gerados na GPU, filtro anisotrópico, e cor (sRGB) separada de dado (UNORM).
+          Curvas de nível em azul (aparecem em cima de textura clara e escura)
   ✅ 5    Animação esquelética (skinning na GPU) com transição entre clipes
   ✅ 5.1  Eixos iguais ao glTF/Blender (Y pra cima, câmera olha pro -Z, frente = +Z)
   ✅ 5.0  Salvar/carregar cena em JSON (scene_serializer), ids estáveis, menu Arquivo,
@@ -141,6 +155,12 @@ Pendências pequenas do que já foi feito:
    - atrito e quique (friction/restitution) no card; corpo cinemático (porta, elevador)
    - eventos de contato e triggers pro Python (onCollision, área que detecta quem entrou)
 
+3.7. Navegador de assets (ideia do usuário, 2026-10-31, como no site do Poly Haven): uma aba
+   "Assets" no editor com as pastas (modelos, materiais, animações, componentes); na pasta de
+   materiais cada um aparece como uma ESFERA com o material aplicado (miniatura renderizada
+   pela própria engine: uma esfera iluminada, desenhada numa imagem pequena e guardada pra não
+   refazer a cada frame). Clicar/arrastar aplica no terreno ou no objeto selecionado.
+
 3.1.1. Gizmos gerados pela engine (decisão do usuário, 2026-10-26): todo objeto de editor (Empty,
    trigger, colisor, luz, ponto de spawn, a câmera) tem a forma GERADA pela engine (caixa, esfera,
    cápsula, cruz de eixos, pirâmide de visão a partir do FOV), sem arquivo; só os modelos do jogo
@@ -163,6 +183,12 @@ Pendências pequenas do que já foi feito:
         precisam de "saias" ou costura pra não abrir rachadura.
         Colisão: cada pedaço vira um HeightFieldShape da Jolt (já instalada); terrain.heightAt(x, z)
         acha o pedaço e interpola (Python).
+        Curvas de nível (ideia do usuário, 2026-10-31, como no Cities: Skylines): linhas de altura
+        desenhadas pelo shader do terreno por cima da textura, SÓ no terreno e SÓ no editor (flag
+        no push constant; no Play não desenha). Uma linha a cada N metros (fract(altura / N)) e
+        uma mais forte a cada 5; espessura constante na tela com fwidth (sem borrar de longe nem
+        sumir de perto). No editor: ligar/desligar e o intervalo. Depois: linhas mais fortes
+        dentro do círculo do pincel; degradê leve de cor por altura (opcional).
    4.2. Pintura de camadas (texture splatting): splat map RGBA por pedaço (4 camadas por imagem:
         terra, grama, estrada...), pincel no editor, shader mistura pelas cores. Mesma regra de
         divisa do 4.1. Python: terrain.layerAt(x, z) (som de passo, poeira).
@@ -181,7 +207,19 @@ Pendências pequenas do que já foi feito:
         - quanto mais longe, menos folhas e mais largas (afinar a densidade com a distância);
         - a distância de troca depende da resolução/qualidade gráfica (4K pede mais longe).
    Ordem: 4.1 -> 4.2 -> 4.3 (a pintura pinta no terreno; a grama usa o pincel e a altura).
-   Combinado: depois da release 0.1.
+   Pendências do 4.1 (feito o básico):
+   - desfazer (Ctrl+Z) das pinceladas: guardar as alturas do pedaço antes de cada pincelada
+   - o terreno ainda não faz sombra (só recebe); a câmera do sol cobre pouco de um terreno grande
+   - culling por pedaço (hoje desenha os 16 de 1024 m sempre) e LOD de longe; streaming
+   - objeto enterrado ao esculpir cai pelo chão no Play (heightfield só segura de cima):
+     aviso no editor ou "assentar no chão"
+   - cor provisória (grama/rocha pela inclinação) quando o terreno está sem material
+   - material: na encosta a textura estica (projeção só de cima): triplanar (de cima e dos lados,
+     misturado pela inclinação); repetição visível de longe (variar escala/rotação por região)
+   - reflexo do ambiente (céu) precisa de um HDRI (Poly Haven > HDRIs, .hdr 2K em assets/hdri):
+     céu da cena + luz/reflexo de ambiente (IBL). Os objetos (simple_shader) passarem pro PBR
+   - mapas de 1 canal (rough, AO) sobem como RGBA: 4x a memória; juntar em uma textura (ARM)
+   - o material carrega na primeira vez que aparece (trava uns milissegundos): carregar com a cena
 
 6. Sistema de equipamento via skinning compartilhado (arma/roupa como malha separada, rigged no
    mesmo esqueleto do personagem, deformada pela mesma paleta de matrizes de osso por frame).

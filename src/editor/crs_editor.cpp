@@ -1,5 +1,6 @@
 #include "editor/crs_editor.hpp"
 #include "editor/crs_editor_theme.hpp"
+#include "engine/rendering/crs_material_files.hpp"
 
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
@@ -88,6 +89,8 @@ namespace crsdk {
         //clique em janela do ImGui ou na seta do gizmo não seleciona
         if (ImGui::GetIO().WantCaptureMouse || ImGuizmo::IsOver()) return;
         if (!input.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) return;
+        //esculpindo o terreno: o clique é do pincel
+        if (sculptMode(scene)) return;
         //clique no gizmo de navegação é dele
         glm::vec2 mouse = input.getMousePosition();
         ImVec2 nav = navGizmoCenter(sceneArea);
@@ -175,6 +178,7 @@ namespace crsdk {
                 theme::endCard();
             }
 
+            if (selected->terrain) drawTerrainCard(*selected);
             drawRigidBodyCard(*selected);
 
             drawComponentProperties(*selected, components, requests);
@@ -348,6 +352,158 @@ namespace crsdk {
         }
     }
 
+    bool CrsEditor::sculptMode(CrsScene &scene) const {
+        CrsGameObject *selected = getSelected(scene);
+        return selected && selected->terrain && terrainTool != TerrainTool::None;
+    }
+
+    void CrsEditor::updateTerrainBrush(CrsScene &scene, const CrsInput &input, const CrsCamera &camera, VkRect2D sceneArea, float dt) {
+        brushHit.reset();
+        if (!input.isMouseDown(GLFW_MOUSE_BUTTON_LEFT)) sculpting = false;
+        if (!sculptMode(scene)) {
+            sculpting = false;
+            return;
+        }
+        //mouse em cima do painel: nem pincel nem esculpir
+        if (ImGui::GetIO().WantCaptureMouse) return;
+
+        CrsGameObject &obj = *getSelected(scene);
+        TerrainData &data = *obj.terrain->data;
+        const glm::vec3 corner = obj.terrain->corner(obj.transform.translation);
+
+        glm::vec2 areaOffset(static_cast<float>(sceneArea.offset.x), static_cast<float>(sceneArea.offset.y));
+        glm::vec2 areaSize(static_cast<float>(sceneArea.extent.width), static_cast<float>(sceneArea.extent.height));
+        Ray ray = screenPointToRay(input.getMousePosition() - areaOffset, areaSize, camera.getProjection(), camera.getView());
+        //o terreno trabalha em coordenadas locais (a partir do canto)
+        const glm::vec3 origin = ray.origin - corner;
+        auto distance = data.raycast(origin, ray.direction, 5000.f);
+        if (!distance) return;
+        const glm::vec3 hit = origin + glm::normalize(ray.direction) * *distance;
+        brushHit = hit + corner;
+
+        if (input.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) {
+            sculpting = true;
+            flattenHeight = hit.y;
+        }
+        if (!sculpting) return;
+
+        //força 1 = 5 m por segundo no meio do pincel (subir); suavizar/nivelar: quanto anda por frame
+        const float rate = brushStrength * 5.f * dt;
+        const glm::vec2 center{hit.x, hit.z};
+        const bool shift = input.isDown(GLFW_KEY_LEFT_SHIFT) || input.isDown(GLFW_KEY_RIGHT_SHIFT);
+        switch (terrainTool) {
+            case TerrainTool::Raise: data.raise(center, brushRadius, shift ? -rate : rate); break;
+            case TerrainTool::Smooth: data.smooth(center, brushRadius, std::min(rate * 2.f, 1.f)); break;
+            case TerrainTool::Flatten: data.flatten(center, brushRadius, flattenHeight, std::min(rate * 2.f, 1.f)); break;
+            case TerrainTool::None: break;
+        }
+    }
+
+    TerrainOverlay CrsEditor::terrainOverlay() const {
+        TerrainOverlay overlay{};
+        if (contourLines) overlay.contourInterval = contourInterval;
+        if (brushHit) {
+            overlay.brushCenter = *brushHit;
+            overlay.brushRadius = brushRadius;
+        }
+        return overlay;
+    }
+
+    //muda o tamanho do terreno mantendo o canto no lugar: o que já foi esculpido não sai do lugar no
+    //mundo, e os pedaços novos entram pra +X e +Z (o objeto fica no meio, então ele anda junto)
+    static void resizeTerrain(CrsGameObject &obj, int tiles) {
+        const glm::vec3 corner = obj.terrain->corner(obj.transform.translation);
+        obj.terrain->data = std::make_shared<TerrainData>(obj.terrain->data->resized(tiles));
+        const float half = obj.terrain->data->size() * 0.5f;
+        obj.transform.translation = corner + glm::vec3{half, 0.f, half};
+    }
+
+    void CrsEditor::drawTerrainCard(CrsGameObject &obj) {
+        const int tilesPerSide = obj.terrain->data->tilesPerSide();
+        const int size = static_cast<int>(obj.terrain->data->size());
+        const std::string sizeText = std::to_string(size) + " x " + std::to_string(size) + " m";
+        theme::beginCard("TerrainCard");
+        if (theme::cardHeader("Terreno", sizeText, true)) {
+            //tamanho: sempre um múltiplo de 256 m; − e + tiram/põem um pedaço por lado
+            const float buttonWidth = ImGui::GetFrameHeight();
+            theme::fieldLabel("Tamanho");
+            ImGui::BeginDisabled(tilesPerSide <= 1);
+            if (ImGui::Button("-", ImVec2(buttonWidth, 0.f))) resizeTerrain(obj, tilesPerSide - 1);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("Tira um pedaço por lado (as bordas +X e +Z somem com o que tinha nelas)");
+            }
+            ImGui::SameLine();
+            const float textWidth = ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x;
+            const float textX = ImGui::GetCursorPosX() + (textWidth - ImGui::CalcTextSize(sizeText.c_str()).x) * 0.5f;
+            ImGui::SetCursorPosX(textX);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(sizeText.c_str());
+            ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::GetStyle().WindowPadding.x - buttonWidth);
+            ImGui::BeginDisabled(tilesPerSide >= TERRAIN_MAX_TILES);
+            if (ImGui::Button("+", ImVec2(buttonWidth, 0.f))) resizeTerrain(obj, tilesPerSide + 1);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("Põe um pedaço de 256 m por lado (entra plano, pra +X e +Z); máximo %d m",
+                                  TERRAIN_MAX_TILES * static_cast<int>(TERRAIN_TILE_SIZE));
+            }
+            const int tiles = tilesPerSide * tilesPerSide;
+            ImGui::TextDisabled("%d %s de 256 m", tiles, tiles == 1 ? "pedaço" : "pedaços");
+
+            //material: as pastas de assets/materials que têm pelo menos a cor (lidas ao abrir a lista)
+            std::string &material = obj.terrain->material;
+            const std::string current = material.empty() ? "(cor provisória)" : std::filesystem::path{material}.filename().string();
+            theme::fieldLabel("Material");
+            if (ImGui::BeginCombo("##material_terreno", current.c_str())) {
+                if (ImGui::Selectable("(cor provisória)", material.empty())) material.clear();
+                for (const std::string &folder : listMaterials()) {
+                    const std::string name = std::filesystem::path{folder}.filename().string();
+                    if (ImGui::Selectable(name.c_str(), folder == material)) material = folder;
+                }
+                ImGui::EndCombo();
+            }
+            if (!material.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", material.c_str());
+            if (!material.empty()) {
+                theme::fieldLabel("Repetir");
+                ImGui::DragFloat("##repetir_textura", &obj.terrain->textureSize, 0.05f, 0.25f, 256.f, "a cada %.2f m");
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tamanho de uma foto do material no chão, em metros");
+            }
+
+            //as ferramentas lado a lado; a escolhida fica com a cor de destaque
+            struct Option { TerrainTool tool; const char *label; const char *tip; };
+            const Option options[] = {
+                {TerrainTool::None, "Nenhum", "O clique volta a selecionar objetos"},
+                {TerrainTool::Raise, "Subir", "Segure o botão esquerdo pra subir; com Shift, abaixa"},
+                {TerrainTool::Smooth, "Suavizar", "Arredonda o relevo (tira os degraus)"},
+                {TerrainTool::Flatten, "Nivelar", "Leva tudo pra altura onde o clique começou"},
+            };
+            const float spacing = ImGui::GetStyle().ItemSpacing.x;
+            const float width = (ImGui::GetContentRegionAvail().x - spacing * 3.f) / 4.f;
+            for (int i = 0; i < 4; i++) {
+                if (i > 0) ImGui::SameLine();
+                const bool active = terrainTool == options[i].tool;
+                if (active) ImGui::PushStyleColor(ImGuiCol_Button, theme::accent());
+                if (ImGui::Button(options[i].label, ImVec2(width, 0.f))) terrainTool = options[i].tool;
+                if (active) ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", options[i].tip);
+            }
+
+            theme::fieldLabel("Raio");
+            ImGui::SliderFloat("##raio_pincel", &brushRadius, 1.f, 64.f, "%.0f m");
+            theme::fieldLabel("Força");
+            ImGui::SliderFloat("##forca_pincel", &brushStrength, 0.05f, 1.f, "%.2f");
+
+            ImGui::Checkbox("Curvas de nível", &contourLines);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Linhas de altura, só no editor (a mais forte a cada 5)");
+            if (contourLines) {
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(-1.f);
+                ImGui::DragFloat("##intervalo", &contourInterval, 0.05f, 0.25f, 50.f, "a cada %.2f m");
+            }
+        }
+        theme::endCard();
+    }
+
     //a classe do catálogo com esse arquivo e nome (nullptr = o .py sumiu, foi renomeado ou está com erro)
     static const ComponentInfo* findComponentInfo(const std::vector<ComponentInfo> &components, const ScriptComponent &script) {
         for (const ComponentInfo &info : components) {
@@ -454,6 +610,8 @@ namespace crsdk {
     void CrsEditor::drawTransformGizmo(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea) {
         CrsGameObject* selected = getSelected(scene);
         if (!selected) return;
+        //esculpindo: sem setas no meio do terreno
+        if (sculptMode(scene)) return;
 
         //desenha por cima da cena
         ImGuizmo::SetOrthographic(false);
@@ -574,6 +732,8 @@ namespace crsdk {
         if (ImGui::MenuItem("Empty")) requests.add = AddKind::Empty;
         if (ImGui::MenuItem("Câmera")) requests.add = AddKind::Camera;
         if (ImGui::MenuItem("Luz pontual")) requests.add = AddKind::PointLight;
+        //nasce com 1 pedaço (256 m); o tamanho muda no card dele, de pedaço em pedaço
+        if (ImGui::MenuItem("Terreno")) requests.addTerrainTiles = 1;
     }
 
     EditorRequests CrsEditor::drawUi(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea,

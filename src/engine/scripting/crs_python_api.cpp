@@ -265,6 +265,7 @@ namespace crsdk {
                 if (!hit) return std::nullopt;
                 return ScriptRayHit{scene.findGameObjectById(hit->id), hit->distance, ray.origin + ray.direction * hit->distance};
             }, py::arg("origin"), py::arg("direction"), py::arg("maxDistance"), py::arg("ignore") = py::none())
+            .def("terrainHeight", &CrsScene::terrainHeightAt, py::arg("x"), py::arg("z"))
             .def_property("activeCamera",
                 [](CrsScene &scene) -> CrsGameObject* {
                     auto id = scene.getActiveCamera();

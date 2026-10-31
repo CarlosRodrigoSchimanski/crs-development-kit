@@ -213,6 +213,8 @@ set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/selection_mask.frag
     ${CMAKE_SOURCE_DIR}/shaders/selection_outline.vert
     ${CMAKE_SOURCE_DIR}/shaders/selection_outline.frag
+    ${CMAKE_SOURCE_DIR}/shaders/terrain.vert
+    ${CMAKE_SOURCE_DIR}/shaders/terrain.frag
 )
 #loop para compilar cada shader
 foreach(SHADER ${SHADER_SOURCES})
@@ -222,8 +224,9 @@ foreach(SHADER ${SHADER_SOURCES})
     add_custom_command(
         OUTPUT ${SPIRV}
         COMMAND ${GLSLC} ${SHADER} -o ${SPIRV}
-        #os shaders incluem esse arquivo: mudar ele tem que recompilar todos
-        DEPENDS ${SHADER} ${CMAKE_SOURCE_DIR}/shaders/global_ubo.glsl
+        #os shaders incluem esses arquivos: mudar um deles tem que recompilar todos
+        DEPENDS ${SHADER} ${CMAKE_SOURCE_DIR}/shaders/global_ubo.glsl ${CMAKE_SOURCE_DIR}/shaders/lighting.glsl
+                ${CMAKE_SOURCE_DIR}/shaders/terrain_push.glsl ${CMAKE_SOURCE_DIR}/shaders/pbr.glsl
     )
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach()
@@ -250,6 +253,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/crs_buffer.cpp
     src/engine/rendering/crs_descriptors.cpp
     src/engine/rendering/crs_texture.cpp
+    src/engine/rendering/crs_material_files.cpp
     src/engine/rendering/crs_shadow_map.cpp
     src/engine/rendering/crs_image_barrier.cpp
     src/engine/rendering/crs_upload_batch.cpp
@@ -258,11 +262,13 @@ set(ENGINE_SOURCES
     src/engine/rendering/systems/shadow_render_system.cpp
     src/engine/rendering/systems/gizmo_system.cpp
     src/engine/rendering/systems/selection_outline_system.cpp
+    src/engine/rendering/systems/terrain_render_system.cpp
     src/engine/rendering/systems/skinning_system.cpp
     src/engine/scene/crs_game_object.cpp
     src/engine/scene/crs_scene.cpp
     src/engine/scene/scene_serializer.cpp
     src/engine/scene/crs_ray.cpp
+    src/engine/terrain/crs_terrain.cpp
     src/engine/physics/crs_physics_system.cpp
     src/engine/gameplay/character_controller_system.cpp
     src/engine/gameplay/camera_rig_system.cpp
@@ -353,6 +359,8 @@ set(TEST_SOURCES
     tests/test_animation.cpp
     tests/test_animation_file.cpp
     tests/test_scripting.cpp
+    tests/test_terrain.cpp
+    tests/test_material_files.cpp
 )
 add_executable(CRSDK_tests ${TEST_SOURCES})
 if(MSVC)

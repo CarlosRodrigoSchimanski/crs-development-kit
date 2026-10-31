@@ -27,12 +27,16 @@ namespace crsdk {
             std::optional<CrsGameObject::id_t> getActiveCamera() const;
             
             CrsGameObject* findGameObjectById(CrsGameObject::id_t id);
+            //apaga o objeto e todos os filhos dele (e os filhos dos filhos); câmera ativa apagada = nenhuma
+            void destroyGameObject(CrsGameObject::id_t id);
             //matriz do objeto no mundo: a dos pais (do mais distante ao mais perto) x a dele
             glm::mat4 worldMatrix(const CrsGameObject &obj);
             //objeto com modelo mais perto que o raio acerta (a caixa de cada modelo); vazio = nenhum
             std::optional<CrsGameObject::id_t> pickObject(const Ray &ray);
-            //raio contra as caixas de colisão (rigidBody): o acerto mais perto até maxDistance; ignoreId fica de fora
+            //raio contra as caixas de colisão (rigidBody) e os terrenos: o acerto mais perto até maxDistance; ignoreId fica de fora
             std::optional<RayCastHit> raycast(const Ray &ray, float maxDistance, std::optional<CrsGameObject::id_t> ignoreId = std::nullopt);
+            //altura do chão no ponto (x, z) do mundo: o primeiro terreno que cobre o ponto; vazio = nenhum
+            std::optional<float> terrainHeightAt(float x, float z);
         
         private:
             CrsGameObject::Map gameObjects;

@@ -13,6 +13,4 @@ imgui.ini
 
 # assets grandes (80-177 MB cada): ficam fora até configurar Git LFS
 assets/models/*.glb
-# exceção: modelos pequenos que a cena de teste usa
-!assets/models/plane.glb
 assets/textures/

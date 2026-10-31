@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/rendering/crs_model.hpp"
+#include "engine/terrain/crs_terrain.hpp"
 
 #include <map>
 #include <memory>
@@ -153,6 +154,23 @@ namespace crsdk {
         void setRotationMatrix(const glm::mat3 &rotationMatrix);
     };
 
+    //terreno em pedaços (ver crs_terrain.hpp). O objeto fica no MEIO do terreno; sem pai, sem girar
+    //nem escalar (só a posição dele vale)
+    struct TerrainComponent {
+        //as alturas: compartilhadas entre a cena do editor e a cópia do Play (o Play não esculpe)
+        //(os pedaços são salvos em assets/terrains/<nome da cena>_<id>: quem decide é o salvar da cena)
+        std::shared_ptr<TerrainData> data = std::make_shared<TerrainData>(1);
+        //pasta do material PBR que cobre o terreno (assets/materials/...; vazio = a cor provisória)
+        std::string material{};
+        //a textura se repete a cada tantos metros (o tamanho de "uma foto" do material no chão)
+        float textureSize = 4.f;
+
+        //canto do terreno no mundo, pra um objeto em 'position': as coordenadas locais começam nele
+        glm::vec3 corner(const glm::vec3 &position) const {
+            return position - glm::vec3{data->size() * 0.5f, 0.f, data->size() * 0.5f};
+        }
+    };
+
     struct PointLightComponent {
         float lightIntensity = 1.f;
     };
@@ -193,6 +211,7 @@ namespace crsdk {
             std::optional<FaceMovementComponent> faceMovement{};
             std::optional<AnimatorComponent> animator{};
             std::optional<CharacterAnimationComponent> characterAnimation{};
+            std::optional<TerrainComponent> terrain{};
             std::vector<ScriptComponent> scripts{};
 
 

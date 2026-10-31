@@ -12,6 +12,7 @@
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSettings.h>
@@ -217,6 +218,15 @@ namespace crsdk {
         //depois do physics: o personagem tira o corpo de dentro dele do mundo ao ser destruído
         std::unordered_map<CrsGameObject::id_t, Character> characters{};
 
+        //terreno: um corpo estático (heightfield) por pedaço; qualquer mudança refaz todos
+        struct Terrain {
+            std::vector<JPH::BodyID> ids;
+            const TerrainData *data;
+            glm::vec3 corner;
+            std::vector<uint64_t> versions;
+        };
+        std::unordered_map<CrsGameObject::id_t, Terrain> terrains{};
+
         World() {
             physics.Init(10240, 0, 65536, 10240, broadPhaseLayers, objectVsBroadPhase, objectPairs);
             physics.SetContactListener(&contacts);
@@ -228,6 +238,51 @@ namespace crsdk {
                 bodyInterface.RemoveBody(kv.second.id);
                 bodyInterface.DestroyBody(kv.second.id);
             }
+            for (auto &kv : terrains) removeTerrain(kv.second);
+        }
+
+        static std::vector<uint64_t> tileVersions(const TerrainData &data) {
+            std::vector<uint64_t> versions;
+            for (int z = 0; z < data.tilesPerSide(); z++) {
+                for (int x = 0; x < data.tilesPerSide(); x++) versions.push_back(data.tile(x, z).version);
+            }
+            return versions;
+        }
+
+        //o terreno do objeto ainda é o mesmo que virou corpo (mesmas alturas, mesmo lugar)
+        static bool sameTerrain(const CrsGameObject &obj, const Terrain &terrain) {
+            const TerrainData &data = *obj.terrain->data;
+            return &data == terrain.data && obj.terrain->corner(obj.transform.translation) == terrain.corner
+                && tileVersions(data) == terrain.versions;
+        }
+
+        void removeTerrain(const Terrain &terrain) {
+            JPH::BodyInterface &bodyInterface = physics.GetBodyInterface();
+            for (const JPH::BodyID &id : terrain.ids) {
+                bodyInterface.RemoveBody(id);
+                bodyInterface.DestroyBody(id);
+            }
+        }
+
+        void addTerrain(const CrsGameObject &obj) {
+            const TerrainData &data = *obj.terrain->data;
+            Terrain terrain{{}, &data, obj.terrain->corner(obj.transform.translation), tileVersions(data)};
+            for (int tileZ = 0; tileZ < data.tilesPerSide(); tileZ++) {
+                for (int tileX = 0; tileX < data.tilesPerSide(); tileX++) {
+                    //a altura (x, z) do pedaço vira o ponto (x, altura, z) * escala, como na malha
+                    JPH::HeightFieldShapeSettings settings{data.tile(tileX, tileZ).heights.data(), JPH::Vec3::sZero(),
+                        JPH::Vec3{TERRAIN_CELL_SIZE, 1.f, TERRAIN_CELL_SIZE}, TERRAIN_TILE_SAMPLES};
+                    JPH::ShapeSettings::ShapeResult result = settings.Create();
+                    if (result.HasError()) continue;
+                    const glm::vec3 position = terrain.corner + glm::vec3{tileX * TERRAIN_TILE_SIZE, 0.f, tileZ * TERRAIN_TILE_SIZE};
+                    JPH::BodyCreationSettings body{result.Get(), toJolt(position), JPH::Quat::sIdentity(),
+                        JPH::EMotionType::Static, layers::STATIC};
+                    body.mUserData = obj.getId();
+                    const JPH::BodyID id = physics.GetBodyInterface().CreateAndAddBody(body, JPH::EActivation::DontActivate);
+                    if (!id.IsInvalid()) terrain.ids.push_back(id);
+                }
+            }
+            terrains[obj.getId()] = std::move(terrain);
         }
 
         void removeBody(const Body &body) {
@@ -377,6 +432,16 @@ namespace crsdk {
             CrsGameObject *obj = scene.findGameObjectById(kv.first);
             return !(obj && obj->rigidBody && obj->character && shapeKey(*obj) == kv.second.key);
         });
+        std::erase_if(w.terrains, [&](auto &kv) {
+            CrsGameObject *obj = scene.findGameObjectById(kv.first);
+            const bool keep = obj && obj->terrain && World::sameTerrain(*obj, kv.second);
+            if (!keep) w.removeTerrain(kv.second);
+            return !keep;
+        });
+        //terrenos antes dos personagens: quem nasce em cima dele já tem chão no primeiro frame
+        for (auto &kv : scene.getGameObjects()) {
+            if (kv.second.terrain && !w.terrains.contains(kv.first)) w.addTerrain(kv.second);
+        }
 
         //2) cria o que é novo, leva pro lugar novo o que alguém moveu, e anda com os personagens
         for (auto &kv : scene.getGameObjects()) {

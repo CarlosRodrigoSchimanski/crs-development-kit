@@ -232,6 +232,16 @@ namespace crsdk {
     }
 
     //um objeto da cena: o básico e os componentes
+    //pasta dos pedaços de um terreno, relativa à pasta da cena: assets/scenes/main.json -> assets/terrains/main_<id>
+    static std::string terrainFolder(const std::filesystem::path &scenePath, CrsGameObject::id_t id) {
+        return "../terrains/" + scenePath.stem().string() + "_" + std::to_string(id);
+    }
+
+    //caminho gravado na cena (relativo a ela) -> caminho de verdade
+    static std::string resolveFromScene(const std::filesystem::path &scenePath, const std::string &relative) {
+        return (scenePath.parent_path() / relative).lexically_normal().string();
+    }
+
     static json objectToJson(const CrsGameObject &obj) {
         json j;
         j["id"] = obj.getId();
@@ -263,9 +273,18 @@ namespace crsdk {
         std::sort(sorted.begin(), sorted.end(),
             [](const CrsGameObject *a, const CrsGameObject *b) { return a->getId() < b->getId(); });
 
+        std::filesystem::path path{filepath};
         json objects = json::array();
         for (const CrsGameObject *obj : sorted) {
-            objects.push_back(objectToJson(*obj));
+            json j = objectToJson(*obj);
+            //terreno: as alturas vão em arquivos próprios (binários, um por pedaço); a cena guarda onde
+            if (obj->terrain) {
+                const std::string folder = terrainFolder(path, obj->getId());
+                obj->terrain->data->save(resolveFromScene(path, folder));
+                j["terrain"] = {{"tiles", obj->terrain->data->tilesPerSide()}, {"folder", folder},
+                                {"material", obj->terrain->material}, {"textureSize", rounded(obj->terrain->textureSize)}};
+            }
+            objects.push_back(j);
         }
 
         json file;
@@ -276,7 +295,6 @@ namespace crsdk {
         file["objects"] = objects;
 
         //cria a pasta se ainda não existe (ex: scenes/)
-        std::filesystem::path path{filepath};
         if (path.has_parent_path()) {
             std::filesystem::create_directories(path.parent_path());
         }
@@ -325,6 +343,15 @@ namespace crsdk {
         CrsScene scene;
         for (const json &j : file.at("objects")) {
             objectFromJson(scene, j, loadModel);
+            if (j.contains("terrain")) {
+                const json &c = j.at("terrain");
+                CrsGameObject &obj = *scene.findGameObjectById(j.at("id").get<CrsGameObject::id_t>());
+                obj.terrain.emplace();
+                const std::string folder = resolveFromScene(filepath, c.value("folder", std::string{}));
+                obj.terrain->data = std::make_shared<TerrainData>(TerrainData::load(folder, c.value("tiles", 1)));
+                obj.terrain->material = c.value("material", std::string{});
+                obj.terrain->textureSize = c.value("textureSize", obj.terrain->textureSize);
+            }
         }
         if (file.contains("activeCamera")) {
             scene.setActiveCamera(file["activeCamera"].get<CrsGameObject::id_t>());
