@@ -174,6 +174,9 @@ Pendências pequenas do que já foi feito:
    materiais cada um aparece como uma ESFERA com o material aplicado (miniatura renderizada
    pela própria engine: uma esfera iluminada, desenhada numa imagem pequena e guardada pra não
    refazer a cada frame). Clicar/arrastar aplica no terreno ou no objeto selecionado.
+   Material do terreno (combinado em 2026-10-31): ARRASTAR a esfera de um material pro espaço
+   "material do pincel" do card do terreno carrega ele no pincel. É por isso que o card do
+   terreno não tem lista de materiais: a escolha visual fica toda no Asset Manager.
 
 3.1.1. Gizmos gerados pela engine (decisão do usuário, 2026-10-26): todo objeto de editor (Empty,
    trigger, colisor, luz, ponto de spawn, a câmera) tem a forma GERADA pela engine (caixa, esfera,
@@ -206,6 +209,22 @@ Pendências pequenas do que já foi feito:
    4.2. Pintura de camadas (texture splatting): splat map RGBA por pedaço (4 camadas por imagem:
         terra, grama, estrada...), pincel no editor, shader mistura pelas cores. Mesma regra de
         divisa do 4.1. Python: terrain.layerAt(x, z) (som de passo, poeira).
+   4.2.2. PRÓXIMO: ajuste da pintura (combinado com o usuário em 2026-10-31, NÃO feito ainda; o
+        commit 1f021b2 tem a versão com lista de todos os materiais e porcentagens, que poluiu):
+        a) Card limpo: só um espaço "material do pincel" + botão "Carregar material" (escolhe
+           qualquer um de assets/materials). Carregar outro tira o anterior do pincel; o que já
+           foi pintado continua no chão. Depois: também por arrastar do Asset Manager (3.7).
+        b) Limite de 4 materiais por TRECHO (quadradinho de 32 m), não por ponto. A engine não
+           tira material sozinha ao pintar: trecho com mais de 4 ganha uma AURA de alerta (só no
+           editor). Esqueceu? No Play/jogo exportado o trecho ignora o material mais fraco.
+        c) Pintar ligado: botão ESQUERDO pinta, DIREITO apaga o material do pincel (sai o Shift).
+           O do meio é da câmera; esquerdo e direito estão livres.
+        d) Sem porcentagens na interface: saem a lista, as porcentagens e o "Limpar não usados"
+           (a contagem fica só pra engine).
+        e) Pincel "Checar": clicar numa área com aura mostra no painel de debug (com o FPS) o
+           nome e a porcentagem de cada material dentro do círculo do pincel — assim dá pra
+           escolher qual apagar sem uma lista enorme na tela.
+        f) Trecho continua 32 m por enquanto (o incômodo era a porcentagem do terreno inteiro).
    4.3. Grama procedural (scattering): mapa de densidade pintado — uma CAMADA INVISÍVEL, separada da
         pintura de textura do 4.2 (esclarecido pelo usuário, 2026-10-31): no editor, com ela
         selecionada, a área pintada aparece num tom semitransparente por cima do terreno só pra ver
@@ -225,7 +244,8 @@ Pendências pequenas do que já foi feito:
         - folhas entram crescendo do chão (escala 0 -> 1) ou por dither, nunca de uma vez;
         - quanto mais longe, menos folhas e mais largas (afinar a densidade com a distância);
         - a distância de troca depende da resolução/qualidade gráfica (4K pede mais longe).
-   Ordem: 4.1 -> 4.2 -> 4.3 (a pintura pinta no terreno; a grama usa o pincel e a altura).
+   Ordem: 4.1 -> 4.2 -> 4.2.2 (ajuste da pintura) -> 4.3 (a grama usa o mesmo pincel, o card
+   limpo e o Checar). O Asset Manager (3.7) entra depois e só acrescenta o arrastar no card.
    Pendências do 4.1 (feito o básico):
    - desfazer (Ctrl+Z) das pinceladas: guardar as alturas do pedaço antes de cada pincelada
    - o terreno ainda não faz sombra (só recebe); a câmera do sol cobre pouco de um terreno grande
