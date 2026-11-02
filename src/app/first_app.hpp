@@ -66,7 +66,7 @@ namespace crsdk {
             //troca a cena do editor pela do arquivo (false = deu erro e a cena ficou como estava)
             bool openSceneFile(const std::string &filepath);
             //grava a cena do editor no sceneFile e anota o resultado
-            void saveSceneFile();
+            bool saveSceneFile();
             //escolhe um .json na janela do sistema e abre
             void openSceneDialog();
             //escolhe onde gravar na janela do sistema; a cena passa a ser esse arquivo
@@ -83,6 +83,12 @@ namespace crsdk {
             void updateDuplicate();
             //Ctrl+Z desfaz, Ctrl+Y (ou Ctrl+Shift+Z) refaz
             void updateUndo();
+            //tem mudança desde o último salvar/abrir (o título ganha um * e fechar pergunta)
+            bool hasUnsavedChanges() const { return history.changeCount() != savedChangeCount; }
+            //a janela "Salvar antes de sair?" (Salvar / Sair sem salvar / Cancelar)
+            void drawQuitDialog();
+            //"CRS Development Kit - main.json *"
+            void updateWindowTitle();
             //depois da interface do frame: o que ela mudou na cena vira um passo do Ctrl+Z
             void recordSceneEdits();
             //lê de novo as classes de componente da pasta (o que o Add Component lista)
@@ -150,6 +156,13 @@ namespace crsdk {
             //(a interface pode já mudar a cena no frame em que a edição começa)
             CrsScene stableScene{};
             std::string sceneEditLabel{};
+            //o changeCount do histórico quando a cena foi salva/aberta
+            uint64_t savedChangeCount = 0;
+            //fechar foi pedido com mudança não salva: a pergunta abre no próximo frame da interface
+            bool quitAsked = false;
+            //a pessoa já respondeu (salvou ou escolheu sair sem salvar): pode fechar de verdade
+            bool quitConfirmed = false;
+            std::string windowTitle{};
             //descriptor sets globais, um por frame em voo
             std::vector<VkDescriptorSet> globalDescriptorSets;
 

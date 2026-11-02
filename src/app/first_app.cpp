@@ -172,9 +172,15 @@ namespace crsdk {
             crsWindow.setRefreshCallback([this]() { drawFrame(); });
         }
 
-        while (!crsWindow.shouldClose()) {
+        while (true) {
             //eventos da janela e um frame
             glfwPollEvents();
+            //pediu pra fechar (X da janela ou Arquivo > Sair): com mudança não salva, primeiro pergunta
+            if (crsWindow.shouldClose()) {
+                if (quitConfirmed || !hasUnsavedChanges()) break;
+                glfwSetWindowShouldClose(crsWindow.getGLFWwindow(), GLFW_FALSE);
+                quitAsked = true;
+            }
             drawFrame();
 
             //limitador de FPS (<= 0 = sem limite)
@@ -350,6 +356,43 @@ namespace crsdk {
         sceneFileStatus = "Duplicado: " + name;
     }
 
+    void FirstApp::drawQuitDialog() {
+        const char *title = "Salvar antes de sair?";
+        if (quitAsked) {
+            ImGui::OpenPopup(title);
+            quitAsked = false;
+        }
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) return;
+        ImGui::Text("A cena tem mudanças que ainda não foram salvas.");
+        ImGui::TextDisabled("%s", sceneFile.c_str());
+        ImGui::Spacing();
+        const float width = 150.f;
+        auto quit = [&]() {
+            quitConfirmed = true;
+            glfwSetWindowShouldClose(crsWindow.getGLFWwindow(), GLFW_TRUE);
+            ImGui::CloseCurrentPopup();
+        };
+        if (ImGui::Button("Salvar", ImVec2(width, 0.f))) {
+            //só fecha se salvou mesmo (erro ao gravar: a mensagem aparece e a janela fica)
+            if (saveSceneFile()) quit();
+            else ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Sair sem salvar", ImVec2(width, 0.f))) quit();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancelar", ImVec2(width, 0.f)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    void FirstApp::updateWindowTitle() {
+        std::string title = "CRS Development Kit - " + std::filesystem::path{sceneFile}.filename().string();
+        if (hasUnsavedChanges()) title += " *";
+        if (title == windowTitle) return;
+        windowTitle = title;
+        glfwSetWindowTitle(crsWindow.getGLFWwindow(), title.c_str());
+    }
+
     void FirstApp::updateUndo() {
         //só no editor, sem campo de texto ativo (lá o Ctrl+Z é do texto) e sem nada no meio do caminho
         if (playScene || ImGui::GetIO().WantTextInput) return;
@@ -428,6 +471,7 @@ namespace crsdk {
             //o histórico era da cena anterior
             history.clear();
             stableScene = crsScene;
+            savedChangeCount = history.changeCount();
             editor.loadView(editorViewFile(filepath));
             return true;
         } catch (const std::exception &e) {
@@ -436,7 +480,7 @@ namespace crsdk {
         }
     }
 
-    void FirstApp::saveSceneFile() {
+    bool FirstApp::saveSceneFile() {
         try {
             //material pintado e depois coberto por inteiro não vai pro arquivo
             for (auto &kv : crsScene.getGameObjects()) {
@@ -445,8 +489,11 @@ namespace crsdk {
             saveScene(crsScene, sceneFile);
             editor.saveView(editorViewFile(sceneFile));
             sceneFileStatus = "Cena salva em " + sceneFile;
+            savedChangeCount = history.changeCount();
+            return true;
         } catch (const std::exception &e) {
             sceneFileStatus = std::string{"Erro ao salvar: "} + e.what();
+            return false;
         }
     }
 
@@ -637,12 +684,15 @@ namespace crsdk {
         selectionOutlineSystem->renderMask(frameInfo, selected, crsRenderer.getSwapChainExtent(), sceneArea);
         //as esferas de material que a interface pediu (também fora de passe, como a máscara)
         materialPreviews->render(frameInfo.commandBuffer);
+        //a pintura do terreno que mudou vai pra GPU (cópia: também fora de passe)
+        const TerrainOverlay terrainOverlay = frameInfo.playing ? TerrainOverlay{} : editor.terrainOverlay();
+        terrainRenderSystem->prepare(frameInfo, terrainOverlay);
         crsRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
         //a cena fica no retangulo
         crsRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);
         simpleRenderSystem->renderGameObjects(frameInfo);
         //curvas de nível e pincel só no editor
-        terrainRenderSystem->render(frameInfo, frameInfo.playing ? TerrainOverlay{} : editor.terrainOverlay());
+        terrainRenderSystem->render(frameInfo, terrainOverlay);
         pointLightSystem->render(frameInfo);
 
         //gizmos: transparentes, depois do que é opaco
@@ -772,6 +822,8 @@ namespace crsdk {
             crsImgui->newFrame();
             editor.beginFrame();
             drawStatsWindow(displayFps);
+            drawQuitDialog();
+            updateWindowTitle();
 
             //interface do editor (só fora do Play)
             if (!playScene) {

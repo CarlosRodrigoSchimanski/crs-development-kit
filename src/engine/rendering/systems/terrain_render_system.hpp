@@ -29,8 +29,11 @@ namespace crsdk {
     //cada quadradinho sabe quais materiais da paleta aparecem nele e só pede esses. Um material só é
     //carregado quando algum quadradinho desenhado precisa dele, e sai da memória de vídeo quando nenhum
     //usa mais (pintou por cima até ele sumir, ou tirou da paleta).
-    //A malha mora num buffer que a CPU escreve; esculpir/pintar muda a versão do pedaço, e cada frame em
-    //voo reescreve o buffer dele quando está atrasado (o da GPU desenhando agora nunca é tocado).
+    //A malha mora num buffer que a CPU escreve; esculpir muda a versão do pedaço, e cada frame em voo
+    //reescreve o buffer dele quando está atrasado (o da GPU desenhando agora nunca é tocado).
+    //A PINTURA (4 pontos por metro) fica numa imagem por pedaço na GPU, a "splat": 8 x 8 regiões de
+    //129 x 129, uma por quadradinho, com os pesos na ordem da lista de materiais dele (2 camadas RGBA =
+    //8 pesos). Pintar reenvia só as regiões dos quadradinhos que mudaram (prepare, antes do passe).
     //As camadas são misturadas no shader pela altura de cada material (displacement)
     class TerrainRenderSystem {
         public:
@@ -39,6 +42,9 @@ namespace crsdk {
             TerrainRenderSystem(const TerrainRenderSystem &) = delete;
             TerrainRenderSystem &operator=(const TerrainRenderSystem &) = delete;
 
+            //envia pra GPU a pintura que mudou: chamar FORA do passe de desenho (cópias não podem
+            //acontecer dentro dele), antes do render do mesmo frame
+            void prepare(FrameInfo &frameInfo, const TerrainOverlay &overlay);
             void render(FrameInfo &frameInfo, const TerrainOverlay &overlay);
 
             //quantos materiais estão na memória de vídeo agora (pro painel de estatísticas)
@@ -50,16 +56,25 @@ namespace crsdk {
 
             //os materiais de cada quadradinho (índices na paleta, na ordem das posições do shader)
             using ChunkLayers = std::array<std::vector<uint8_t>, TERRAIN_CHUNKS_PER_TILE * TERRAIN_CHUNKS_PER_TILE>;
+            static constexpr size_t CHUNKS = TERRAIN_CHUNKS_PER_TILE * TERRAIN_CHUNKS_PER_TILE;
             struct TileMesh {
+                //a malha (só as alturas), um buffer por frame em voo
                 std::array<std::unique_ptr<CrsBuffer>, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> vertices{};
                 std::array<uint64_t, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> versions{};
                 std::array<bool, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> written{};
-                //a lista de cada quadradinho junto com o buffer do mesmo frame (os pesos do vértice seguem ela)
-                std::array<ChunkLayers, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> layers{};
-                //trecho com mais materiais que o limite (a aura do editor), também por frame
-                std::array<std::array<bool, TERRAIN_CHUNKS_PER_TILE * TERRAIN_CHUNKS_PER_TILE>, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> overLimit{};
-                //com quantos materiais por trecho o buffer foi escrito (trocar editor/Play reescreve)
-                std::array<int, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> maxLayers{};
+                //a pintura: uma imagem só (a cópia nova espera os frames anteriores pararem de ler)
+                CrsAllocatedImage splat;
+                CrsImageView splatView;
+                VkDescriptorSet splatSet = VK_NULL_HANDLE;
+                bool splatReady = false;  //já saiu do layout inicial
+                //por quadradinho: a versão da pintura que está na imagem, se já foi enviado, a lista de
+                //materiais (a ordem dos pesos na imagem) e se passou do limite (a aura do editor)
+                std::array<uint64_t, CHUNKS> chunkVersions{};
+                std::array<bool, CHUNKS> uploaded{};
+                ChunkLayers layers{};
+                std::array<bool, CHUNKS> overLimit{};
+                //com quantos materiais por trecho a imagem foi escrita (trocar editor/Play reenvia tudo)
+                int maxLayers = 0;
             };
             struct TerrainMesh {
                 //segura as alturas vivas enquanto a malha existir (o endereço não pode ser reaproveitado)
@@ -67,8 +82,13 @@ namespace crsdk {
                 std::vector<TileMesh> tiles;
                 uint64_t lastUsedFrame = 0;
             };
-            //preenche o buffer deste frame com as alturas e a pintura atuais do pedaço (e a lista de cada quadradinho)
-            void writeTile(const TerrainData &data, int tileX, int tileZ, int maxLayers, CrsBuffer &buffer, TileMesh &tile, int frame);
+            //preenche o buffer deste frame com as alturas atuais do pedaço
+            void writeTile(const TerrainData &data, int tileX, int tileZ, CrsBuffer &buffer);
+            //a malha de um terreno (criada na primeira vez que ele aparece)
+            TerrainMesh &meshFor(const std::shared_ptr<TerrainData> &data);
+            void createSplat(TileMesh &tile);
+            //solta os sets de pintura de uma malha que vai sair
+            void releaseMesh(TerrainMesh &mesh);
 
             //os mapas de um material na GPU (o que falta aponta pra um neutro); carregado uma vez por pasta
             struct Material {
@@ -97,6 +117,12 @@ namespace crsdk {
             std::unique_ptr<CrsPipeline> pipeline;
             std::unique_ptr<CrsDescriptorSetLayout> materialSetLayout;
             std::unique_ptr<CrsDescriptorPool> materialPool;
+            //set 2: a imagem de pintura do pedaço
+            std::unique_ptr<CrsDescriptorSetLayout> splatSetLayout;
+            std::unique_ptr<CrsDescriptorPool> splatPool;
+            CrsSampler splatSampler;
+            //onde a CPU escreve a pintura antes da cópia pra imagem, um por frame em voo
+            std::array<std::unique_ptr<CrsBuffer>, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> staging{};
             //mapas neutros de 1 pixel: posição sem material, ou mapa que o material não tem
             std::unique_ptr<CrsTexture> whiteColor;   //cor branca
             std::unique_ptr<CrsTexture> whiteData;    //roughness 1 (áspero), AO 1 (sem fresta)

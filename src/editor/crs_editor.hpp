@@ -150,6 +150,10 @@ namespace crsdk {
             std::string paintMaterial{};
             //a pincelada atual é do botão direito: apaga em vez de pintar
             bool erasing = false;
+            //Pintar: quanto a borda do pincel é salpicada (0 = suave, 1 = só pontinhos) e o sorteio
+            //da pincelada atual (um por pincelada: segurar reforça os mesmos pontos)
+            float paintSpray = 0.6f;
+            uint32_t strokeSeed = 0;
             //o resultado do último Checar
             std::vector<MaterialCheck> checkReport{};
             //filhos de cada objeto

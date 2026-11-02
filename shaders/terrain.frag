@@ -4,8 +4,7 @@
 layout(location = 0) in vec3 fragPosWorldSpace;
 layout(location = 1) in vec3 fragNormalWorldSpace;
 layout(location = 2) in vec4 fragPosLightSpace;
-layout(location = 3) in vec4 fragWeights0;
-layout(location = 4) in vec4 fragWeights1;
+layout(location = 3) in vec2 fragSplatUv;
 layout(location = 0) out vec4 outColor;
 
 #include "global_ubo.glsl"
@@ -20,6 +19,8 @@ layout(set = 1, binding = 1) uniform sampler2D normalMaps[MAX_LAYERS];
 layout(set = 1, binding = 2) uniform sampler2D roughnessMaps[MAX_LAYERS];
 layout(set = 1, binding = 3) uniform sampler2D aoMaps[MAX_LAYERS];
 layout(set = 1, binding = 4) uniform sampler2D heightMaps[MAX_LAYERS];
+//set 2 = a pintura do pedaço (4 pontos por metro): camada 0 = os pesos das posições 0..3, camada 1 = 4..7
+layout(set = 2, binding = 0) uniform sampler2DArray splat;
 
 //mistura pela altura: quanto a altura de cada material (displacement) conta contra o quanto foi pintado,
 //e a faixa em que duas camadas se misturam (menor = borda mais seca, como areia entrando nas frestas)
@@ -128,8 +129,10 @@ vec3 sampleTriplanarNormal(sampler2D map, Triplanar tp, float scale, vec3 normal
 //as camadas, cada uma repetida pelo chão no tamanho dela (pelos três projetores), misturadas pela
 //pintura e pela altura
 vec3 layeredColor(vec3 normal, int layerCount) {
-    float painted[MAX_LAYERS] = float[](fragWeights0.x, fragWeights0.y, fragWeights0.z, fragWeights0.w,
-                                        fragWeights1.x, fragWeights1.y, fragWeights1.z, fragWeights1.w);
+    vec4 weights0 = textureLod(splat, vec3(fragSplatUv, 0.0), 0.0);
+    vec4 weights1 = textureLod(splat, vec3(fragSplatUv, 1.0), 0.0);
+    float painted[MAX_LAYERS] = float[](weights0.x, weights0.y, weights0.z, weights0.w,
+                                        weights1.x, weights1.y, weights1.z, weights1.w);
     //coordenadas e derivadas calculadas aqui fora: dentro do "if" de cada camada a GPU não consegue
     //escolher o mip sozinha (cada pixel pode pular camadas diferentes)
     Triplanar tp = makeTriplanar(fragPosWorldSpace, normal);
@@ -145,7 +148,7 @@ vec3 layeredColor(vec3 normal, int layerCount) {
         score[i] = painted[i] + h * HEIGHT_INFLUENCE;
         best = max(best, score[i]);
     }
-    //nada pintado (vértice sem peso): o chão base
+    //nada pintado (ponto sem peso): o chão base
     if (best < 0.0) { score[0] = 1.0; best = 1.0; }
 
     //2) só as camadas perto da mais alta entram, cada uma com o quanto passou da linha

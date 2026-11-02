@@ -2,6 +2,7 @@
 
 #include "engine/scene/crs_scene.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -11,7 +12,8 @@ namespace crsdk {
     //  - CENA: uma cópia da cena antes e depois da ação (mover, girar, mudar um campo, adicionar,
     //    apagar, mudar o tamanho do terreno...). Barato: a cena é pequena e o terreno não é copiado
     //    (ela guarda só o ponteiro das alturas dele);
-    //  - PINCELADA no terreno: só os pedaços que ela tocou, como estavam antes e como ficaram, e a
+    //  - PINCELADA no terreno: só as partes que ela tocou (alturas por pedaço, pintura por trecho de
+    //    32 m), como estavam antes e como ficaram, e a
     //    paleta de materiais (copiar o terreno inteiro a cada pincelada pesaria dezenas de MB).
     //Desfazer na ordem certa (do último pro primeiro) é o que deixa os dois tipos sempre de acordo
     class UndoHistory {
@@ -24,7 +26,7 @@ namespace crsdk {
             bool endSceneEdit(const CrsScene &after, const std::string &label);
 
             //uma pincelada terminada no terreno do objeto 'terrainId'
-            void pushTerrainStroke(CrsGameObject::id_t terrainId, std::vector<TileSnapshot> before, std::vector<TileSnapshot> after,
+            void pushTerrainStroke(CrsGameObject::id_t terrainId, TerrainSnapshot before, TerrainSnapshot after,
                                    std::vector<TerrainLayer> layersBefore, std::vector<TerrainLayer> layersAfter, const std::string &label);
 
             //desfaz/refaz o último passo; devolve o nome dele (vazio = não tinha o que desfazer/refazer)
@@ -35,6 +37,9 @@ namespace crsdk {
             void clear();
             size_t undoCount() const { return done.size(); }
             size_t redoCount() const { return undone.size(); }
+            //sobe a cada passo novo, desfeito ou refeito: comparado com o valor de quando a cena foi
+            //salva, diz se tem mudança não salva (toda edição do editor passa por aqui)
+            uint64_t changeCount() const { return changes; }
 
             //limites: os passos mais antigos saem primeiro
             static constexpr size_t MAX_STEPS = 200;
@@ -48,8 +53,8 @@ namespace crsdk {
                 std::optional<CrsScene> sceneAfter;
                 //passo de pincelada
                 CrsGameObject::id_t terrainId = 0;
-                std::vector<TileSnapshot> tilesBefore;
-                std::vector<TileSnapshot> tilesAfter;
+                TerrainSnapshot terrainBefore;
+                TerrainSnapshot terrainAfter;
                 std::vector<TerrainLayer> layersBefore;
                 std::vector<TerrainLayer> layersAfter;
                 size_t bytes = 0;
@@ -62,5 +67,6 @@ namespace crsdk {
             std::vector<Step> undone;  //o que dá pra refazer
             std::optional<CrsScene> pendingBefore;
             std::string pendingFingerprint;
+            uint64_t changes = 0;
     };
 }

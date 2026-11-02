@@ -82,6 +82,13 @@ Com **Pintar** ligado (fica azul):
 
 **Raio** e **Força** são os mesmos do card Terreno.
 
+**Espalhar** (0 a 1) controla a borda do pincel:
+- **0:** borda suave, com o material sumindo liso até a beirada.
+- **1:** borda salpicada, como uma lata de spray. O centro pinta cheio e, indo para a borda, só alguns pontos recebem o material, cada vez mais raros.
+- O padrão é **0,6**, um meio-termo. Os pontos são sorteados uma vez por pincelada, então segurar o pincel reforça os mesmos pontos, e cada pincelada nova sai com um desenho diferente. Várias pinceladas por cima umas das outras formam uma mistura natural, como terra salpicada na grama.
+
+A pintura tem **4 pontos por metro** (um a cada 25 cm), mais fina que a malha do relevo (1 por metro). Por isso o salpicado sai em grãos pequenos, e não em manchas de 1 m. Cenas pintadas antes dessa mudança são convertidas sozinhas ao abrir, com a mesma cara. Ao salvar, elas passam para o formato novo.
+
 Nas encostas e paredes a textura não estica: ela é projetada de cima e dos lados ao mesmo tempo (projeção **triplanar**), e cada lado do morro usa a direção que está de frente para ele.
 
 Onde dois materiais se encontram, a engine mistura pela **altura** de cada um. Na borda entre terra e pedra, a terra entra nas frestas e as pedras aparecem por cima, em vez de uma faixa borrada.

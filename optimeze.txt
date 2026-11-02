@@ -14,7 +14,17 @@ itens — a lista abaixo é um RASCUNHO, a ordem e o que mais faltar saem do uso
   ✅ 4.0.1 (2026-11-02) INSTANCING (CrsInstanceBatches: grupos por modelo + "usa textura", lista
      de matrizes por frame em voo, na cena e na sombra; painel mostra objetos e chamadas) e Ctrl+D
      (CrsScene::duplicateGameObject, nomes .001; terreno copiado ganha alturas próprias)
+  ✅ (2026-11-02) "Salvar antes de sair?" (Salvar / Sair sem salvar / Cancelar) e * no título: o
+     UndoHistory conta as mudanças (changeCount) e salvar/abrir guarda o valor. Pincel Pintar com
+     "Espalhar" (borda salpicada como spray, pontos sorteados por pincelada). Card Objeto com Nome.
+  ✅ (2026-11-02) pintura com 4 pontos por metro (grade própria, 1025 x 1025 por pedaço, 16 bytes
+     por ponto): imagem "splat" por pedaço na GPU (8 x 8 regiões de 129, uma por trecho), reenvia só
+     o trecho que mudou (chunkPaintVersions); Ctrl+Z guarda a pintura por trecho de 32 m; arquivo
+     comprimido (repetição); cena antiga convertida misturando os 4 vizinhos. Depois, se o usuário
+     quiser: pincel com imagem (forma do spray vinda de um PNG, como o do Photoshop)
   Cenário (falta):
+  - salvamento automático (cópia de segurança a cada poucos minutos) — o usuário perdeu trabalho
+    fechando sem salvar em 2026-11-02 (a pergunta resolve o fechar; o auto cobre travar/acabar a luz)
   - 4.3 grama 3D (o usuário faz quando for pôr grama: usa o instancing e o pincel/Checar)
   - colisão por malha pra modelo importado (casa, pedra irregular) — 3.6.1
   Rascunho do resto de uma fase completa:

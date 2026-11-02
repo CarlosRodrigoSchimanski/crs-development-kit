@@ -4,14 +4,6 @@
 
 namespace crsdk {
 
-    static size_t tilesBytes(const std::vector<TileSnapshot> &tiles) {
-        size_t bytes = 0;
-        for (const TileSnapshot &s : tiles) {
-            bytes += s.tile.heights.size() * sizeof(float) + s.tile.paint.size() * sizeof(LayerMix);
-        }
-        return bytes;
-    }
-
     void UndoHistory::beginSceneEdit(const CrsScene &before) {
         pendingBefore = before;
         pendingFingerprint = sceneFingerprint(before);
@@ -32,15 +24,15 @@ namespace crsdk {
         return true;
     }
 
-    void UndoHistory::pushTerrainStroke(CrsGameObject::id_t terrainId, std::vector<TileSnapshot> before, std::vector<TileSnapshot> after,
+    void UndoHistory::pushTerrainStroke(CrsGameObject::id_t terrainId, TerrainSnapshot before, TerrainSnapshot after,
                                         std::vector<TerrainLayer> layersBefore, std::vector<TerrainLayer> layersAfter, const std::string &label) {
         if (before.empty()) return;  //a pincelada não mudou nada (ex: apagou um material que não tinha)
         Step step{};
         step.label = label;
         step.terrainId = terrainId;
-        step.bytes = tilesBytes(before) + tilesBytes(after);
-        step.tilesBefore = std::move(before);
-        step.tilesAfter = std::move(after);
+        step.bytes = before.bytes() + after.bytes();
+        step.terrainBefore = std::move(before);
+        step.terrainAfter = std::move(after);
         step.layersBefore = std::move(layersBefore);
         step.layersAfter = std::move(layersAfter);
         push(std::move(step));
@@ -49,6 +41,7 @@ namespace crsdk {
     void UndoHistory::push(Step step) {
         //ação nova: o que tinha sido desfeito não dá mais pra refazer
         undone.clear();
+        changes++;
         done.push_back(std::move(step));
         size_t bytes = 0;
         for (const Step &s : done) bytes += s.bytes;
@@ -66,7 +59,7 @@ namespace crsdk {
         //pincelada: os pedaços e a paleta do terreno (se o terreno ainda existe)
         CrsGameObject *obj = scene.findGameObjectById(step.terrainId);
         if (!obj || !obj->terrain) return;
-        obj->terrain->data->restoreTiles(before ? step.tilesBefore : step.tilesAfter);
+        obj->terrain->data->restore(before ? step.terrainBefore : step.terrainAfter);
         obj->terrain->layers = before ? step.layersBefore : step.layersAfter;
     }
 
@@ -75,6 +68,7 @@ namespace crsdk {
         Step step = std::move(done.back());
         done.pop_back();
         apply(step, scene, true);
+        changes++;
         std::string label = step.label;
         undone.push_back(std::move(step));
         return label;
@@ -85,6 +79,7 @@ namespace crsdk {
         Step step = std::move(undone.back());
         undone.pop_back();
         apply(step, scene, false);
+        changes++;
         std::string label = step.label;
         done.push_back(std::move(step));
         return label;

@@ -451,7 +451,7 @@ namespace crsdk {
                                           : paletteIndexForPaint(obj.terrain->layers, paintMaterial);
                 if (index < 0) break;
                 const float amount = std::min(rate, 1.f);
-                data.paint(center, brushRadius, index, erasing ? -amount : amount);
+                data.paint(center, brushRadius, index, erasing ? -amount : amount, paintSpray, strokeSeed);
                 break;
             }
             case TerrainTool::Check:
@@ -463,6 +463,7 @@ namespace crsdk {
         if (strokeOpen) return;
         strokeOpen = true;
         strokeTerrainId = obj.getId();
+        strokeSeed++;  //outro desenho de pontinhos pra esta pincelada
         strokeLayersBefore = obj.terrain->layers;  //a pintura pode pôr um material novo na paleta
         switch (terrainTool) {
             case TerrainTool::Raise: strokeLabel = "Subir terreno"; break;
@@ -481,9 +482,9 @@ namespace crsdk {
         CrsGameObject *obj = scene.findGameObjectById(strokeTerrainId);
         if (!obj || !obj->terrain) return;
         TerrainData &data = *obj->terrain->data;
-        std::vector<TileSnapshot> before = data.endJournal();
+        TerrainSnapshot before = data.endJournal();
         if (!history || before.empty()) return;
-        std::vector<TileSnapshot> after = data.snapshotTiles(before);
+        TerrainSnapshot after = data.snapshotLike(before);
         history->pushTerrainStroke(strokeTerrainId, std::move(before), std::move(after),
                                    strokeLayersBefore, obj->terrain->layers, strokeLabel);
     }
@@ -588,6 +589,14 @@ namespace crsdk {
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
                 ImGui::SetTooltip("O material do pincel passa a ser o chão base (onde nada foi pintado)");
+            }
+
+            //a borda do pincel: suave (0) ou salpicada como spray (1), pra misturar os materiais
+            theme::fieldLabel("Espalhar");
+            ImGui::SliderFloat("##espalhar", &paintSpray, 0.f, 1.f, "%.2f");
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Borda do pincel: 0 = suave; 1 = salpicada como spray\n"
+                                  "(o centro pinta cheio; indo pra borda, só alguns pontos)");
             }
 
             //a repetição do material carregado (só depois que ele está no terreno)

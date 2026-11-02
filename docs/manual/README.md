@@ -13,6 +13,15 @@ Como usar a engine, um tema por página: o passo a passo, o que cada campo faz e
 7. **Play e câmera de jogo** *(em breve)*
 8. **Exportar o jogo** *(em breve)*: o instalador
 
+## Salvar
+
+**Ctrl + S** salva a cena. Enquanto houver mudança não salva, o título da janela mostra um **\*** (por exemplo `CRS Development Kit - main.json *`).
+
+Ao fechar a engine (pelo X ou por **Arquivo > Sair**) com mudança não salva, ela pergunta **"Salvar antes de sair?"**:
+- **Salvar:** salva e fecha.
+- **Sair sem salvar:** fecha e perde as mudanças.
+- **Cancelar:** volta para o editor.
+
 ## Muitas cópias não pesam
 
 Objetos que usam **o mesmo modelo** são desenhados juntos, numa chamada só (instancing): 100 paredes iguais custam quase o mesmo que uma. Então duplique à vontade com **Ctrl + D** para montar o cenário. O painel de cima mostra quantos objetos e quantas chamadas de desenho tem a cena.
