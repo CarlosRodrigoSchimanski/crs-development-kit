@@ -3,19 +3,31 @@ Itens feitos ficam numa linha só (os detalhes estão no git). Pendentes mantêm
 completa, porque guardam decisões que ainda valem. Os números dos itens não mudam.
 
 ===============================================================================
->>> PRÓXIMO MARCO: versão 1.0 (definido pelo usuário em 2026-10-31) <<<
+>>> PRÓXIMO MARCO: versão 1.0 (redefinido pelo usuário em 2026-11-02) <<<
 ===============================================================================
-A 1.0 fecha quando der pra montar um level de verdade: importar o kit do cenário (parede, chão,
-mesa, cadeira...), duplicar à vontade e espalhar pelo mapa sem pesar. Falta, nesta ordem:
-  1. ✅ 4.2.2 — ajuste da pintura do terreno (card limpo, 4 por trecho com aura, Checar...)
-  2. ✅ 4.0.1 (2026-11-02) — INSTANCING (CrsInstanceBatches: grupos por modelo + "usa textura", lista de
-     matrizes por frame em voo, na cena e na sombra; painel mostra objetos e chamadas) e Ctrl+D
-     (CrsScene::duplicateGameObject, nomes .001; terreno copiado ganha alturas próprias). Era: todos os objetos com o MESMO modelo desenhados numa chamada só (uma
-     lista de matrizes num buffer; a GPU desenha todas as cópias de uma vez), inclusive na
-     sombra e na aura de seleção. Pra quem usa nada muda: cada cópia continua um objeto normal
-     (move, gira, apaga, tem componentes); a engine agrupa sozinha na hora de desenhar.
-     Ctrl+D duplica o selecionado (com os filhos), como no Blender. É a mesma base da grama.
-  3. 4.3 — grama 3D (usa o instancing do item 2 e o pincel/Checar do item 1)
+A 1.0 fecha quando a engine tiver as FERRAMENTAS PRA UMA FASE DE JOGO COMPLETA (não só o
+cenário). O caminho: o usuário começa a fazer o jogo e as dores encontradas viram os próximos
+itens — a lista abaixo é um RASCUNHO, a ordem e o que mais faltar saem do uso real.
+
+  Cenário (feito):
+  ✅ 4.2.2 pintura do terreno ajustada; ✅ triplanar; ✅ Ctrl+Z / Ctrl+Y
+  ✅ 4.0.1 (2026-11-02) INSTANCING (CrsInstanceBatches: grupos por modelo + "usa textura", lista
+     de matrizes por frame em voo, na cena e na sombra; painel mostra objetos e chamadas) e Ctrl+D
+     (CrsScene::duplicateGameObject, nomes .001; terreno copiado ganha alturas próprias)
+  Cenário (falta):
+  - 4.3 grama 3D (o usuário faz quando for pôr grama: usa o instancing e o pincel/Checar)
+  - colisão por malha pra modelo importado (casa, pedra irregular) — 3.6.1
+  Rascunho do resto de uma fase completa:
+  - IA: inimigos e NPCs que andam pelo mapa sem atravessar paredes (navmesh/pathfinding), estados
+    (patrulhar, perseguir, atacar, fugir) e percepção (ver/ouvir o jogador)
+  - combate (item 7): dano, vida, golpes/hitbox, morte e respawn
+  - triggers e eventos pro Python (área que detecta quem entrou, onCollision) — 3.6.1
+  - áudio: música, efeitos e som 3D (posição e distância)
+  - interface do jogo: HUD (vida, mana...), menus, diálogos com NPC
+  - salvar e carregar o progresso do jogador; troca de fase/cena
+  - partículas/efeitos (poeira, fogo, magia, sangue)
+  - equipamento (item 6) e progressão (item 8), se a fase precisar
+  - HDRI/céu e reflexos; Asset Manager (3.7)
   Junto: o MANUAL (documentação de uso, como a do Blender/UPBGE), em docs/manual/, um arquivo
   Markdown por tema, com passo a passo, o que cada campo faz, dicas e exemplos de Python.
   REGRA (usuário, 2026-11-02): toda função nova entra no manual junto com o código.
