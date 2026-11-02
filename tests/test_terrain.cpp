@@ -396,24 +396,105 @@ TEST_CASE("cena: as camadas voltam na ordem, e a cena antiga (um material só) v
     std::filesystem::remove_all(root);
 }
 
-TEST_CASE("pintura: cada ponto guarda no máximo 4 materiais (pintar o 5º tira o mais fraco)") {
+TEST_CASE("pintura: a engine não tira material ao pintar; o trecho com mais de 4 é só avisado") {
     TerrainData terrain{1};
-    terrain.paint({50.f, 50.f}, 6.f, 1, 0.4f);
-    terrain.paint({50.f, 50.f}, 6.f, 2, 0.4f);
-    terrain.paint({50.f, 50.f}, 6.f, 3, 0.4f);
-    //agora: chão, 1, 2 e 3 no ponto do meio; o 4 entra no lugar do mais fraco
+    //5 materiais (o chão e mais 4) no mesmo ponto, no trecho (1, 1)
+    for (int layer = 1; layer <= 4; layer++) terrain.paint({48.f, 48.f}, 6.f, layer, 0.3f);
+
+    for (int layer = 1; layer <= 4; layer++) CHECK(terrain.weight(48, 48, layer) > 0.f);  //ninguém saiu
+    CHECK(weightSum(terrain, 48, 48) == doctest::Approx(1.f));
+    CHECK(terrain.chunkLayerCount(0, 0, 1, 1) == 5);  //5 > 4: aura no editor
+    CHECK(terrain.chunkLayerCount(0, 0, 7, 7) == 1);  //trecho intocado: só o chão
+    //no Play só os 4 que mais cobrem; no editor até 8 (dá pra ver o que passou)
+    CHECK(terrain.chunkLayers(0, 0, 1, 1, TERRAIN_CHUNK_LIMIT).size() == 4);
+    CHECK(terrain.chunkLayers(0, 0, 1, 1).size() == 5);
+}
+
+TEST_CASE("pintura: o limite é por trecho, não por ponto (materiais em pontos diferentes somam)") {
+    TerrainData terrain{1};
+    //4 manchas separadas dentro do mesmo trecho de 32 m (o (0, 0)): cada ponto tem só 2 materiais
+    terrain.paint({6.f, 6.f}, 3.f, 1, 1.f);
+    terrain.paint({24.f, 6.f}, 3.f, 2, 1.f);
+    terrain.paint({6.f, 24.f}, 3.f, 3, 1.f);
+    terrain.paint({24.f, 24.f}, 3.f, 4, 1.f);
+    CHECK(terrain.chunkLayerCount(0, 0, 0, 0) == 5);
+}
+
+TEST_CASE("pintura: um ponto guarda até 8; pintar o 9º tira o mais fraco") {
+    TerrainData terrain{1};
+    for (int layer = 1; layer <= 7; layer++) terrain.paint({50.f, 50.f}, 6.f, layer, 0.15f);
     LayerMix before = terrain.mix(50, 50);
-    int weakest = 0;
-    for (int i = 1; i < TERRAIN_LAYERS_PER_POINT; i++) {
-        if (before.weights[static_cast<size_t>(i)] < before.weights[static_cast<size_t>(weakest)]) weakest = i;
+    size_t weakest = 0;
+    for (size_t i = 1; i < before.weights.size(); i++) {
+        if (before.weights[i] < before.weights[weakest]) weakest = i;
     }
-    const int weakestLayer = before.ids[static_cast<size_t>(weakest)];
+    const int weakestLayer = before.ids[weakest];
 
-    terrain.paint({50.f, 50.f}, 6.f, 4, 0.4f);
+    terrain.paint({50.f, 50.f}, 6.f, 8, 0.15f);
 
-    CHECK(terrain.weight(50, 50, 4) == doctest::Approx(0.4f));
+    CHECK(terrain.weight(50, 50, 8) == doctest::Approx(0.15f));
     CHECK(terrain.weight(50, 50, weakestLayer) == doctest::Approx(0.f));
     CHECK(weightSum(terrain, 50, 50) == doctest::Approx(1.f));
+}
+
+TEST_CASE("pintura: o pincel Checar diz quanto cada material cobre dentro do círculo") {
+    TerrainData terrain{1};
+    //duas pinceladas: uma só cobre 100% bem no centro (a 2 m ainda sobra ~9% de chão)
+    terrain.paint({100.f, 100.f}, 10.f, 3, 1.f);
+    terrain.paint({100.f, 100.f}, 10.f, 3, 1.f);
+
+    //círculo pequeno no meio da mancha: só o 3
+    auto center = terrain.brushLayers({100.f, 100.f}, 2.f);
+    REQUIRE(center.size() == 1);
+    CHECK(center[0].layer == 3);
+    CHECK(center[0].share == doctest::Approx(1.f));
+
+    //círculo grande: o chão aparece em volta, do que mais cobre pro que menos, somando 100%
+    auto wide = terrain.brushLayers({100.f, 100.f}, 30.f);
+    REQUIRE(wide.size() == 2);
+    CHECK(wide[0].layer == 0);
+    CHECK(wide[1].layer == 3);
+    CHECK(wide[0].share + wide[1].share == doctest::Approx(1.f));
+}
+
+TEST_CASE("terreno: limpar a paleta tira só os materiais que não aparecem em lugar nenhum") {
+    CrsScene scene;
+    CrsGameObject &obj = scene.createGameObject();
+    obj.terrain.emplace();
+    obj.terrain->layers = {{"chao"}, {"lama"}, {"pedra"}, {"rocha"}};
+    obj.terrain->data->paint({50.f, 50.f}, 6.f, 1, 1.f);    //lama
+    obj.terrain->data->paint({150.f, 150.f}, 6.f, 3, 1.f);  //rocha
+    obj.terrain->data->paint({50.f, 50.f}, 6.f, 2, 1.f);    //pedra por cima da lama
+    obj.terrain->data->paint({50.f, 50.f}, 12.f, 0, 1.f);   //e o chão por cima de tudo ali
+    obj.terrain->data->paint({50.f, 50.f}, 12.f, 0, 1.f);
+
+    obj.terrain->compactPalette();
+
+    REQUIRE(obj.terrain->layers.size() == 2);
+    CHECK(obj.terrain->layers[0].material == "chao");
+    CHECK(obj.terrain->layers[1].material == "rocha");
+    CHECK(obj.terrain->data->weight(150, 150, 1) == doctest::Approx(1.f));  //a rocha desceu pro índice 1
+}
+
+TEST_CASE("pintura: arquivo do formato de 4 pares (salvo pelo commit anterior) é lido igual") {
+    const auto folder = std::filesystem::temp_directory_path() / "crs_test_pintura_4pares";
+    std::filesystem::remove_all(folder);
+    TerrainData{1}.save(folder.string());
+    {
+        //cabeçalho + 8 bytes por amostra: 4 índices e 4 pesos; todas: 70% no 2, 30% no 5
+        std::ofstream out{folder / "paint_0_0.bin", std::ios::binary};
+        const uint32_t samples = TERRAIN_TILE_SAMPLES, format = 4;
+        out.write("CRST", 4);
+        out.write(reinterpret_cast<const char *>(&samples), 4);
+        out.write(reinterpret_cast<const char *>(&format), 4);
+        const unsigned char sample[8] = {2, 5, 0, 0, 179, 77, 0, 0};
+        for (int i = 0; i < TERRAIN_TILE_SAMPLES * TERRAIN_TILE_SAMPLES; i++) out.write(reinterpret_cast<const char *>(sample), 8);
+    }
+    TerrainData loaded = TerrainData::load(folder.string(), 1);
+    CHECK(loaded.weight(10, 10, 2) == doctest::Approx(0.7f).epsilon(0.02));
+    CHECK(loaded.weight(10, 10, 5) == doctest::Approx(0.3f).epsilon(0.02));
+    CHECK(loaded.weight(10, 10, 0) == doctest::Approx(0.f));
+    std::filesystem::remove_all(folder);
 }
 
 TEST_CASE("pintura: resto de pincelada fraca (abaixo de 2%) é zerado e volta pros outros") {
@@ -456,7 +537,7 @@ TEST_CASE("pintura: pintar por cima até o material sumir tira ele do quadradinh
     CHECK(usage[0] + usage[1] + usage[2] == doctest::Approx(1.f));
 }
 
-TEST_CASE("pintura: arquivo do formato antigo (8 camadas fixas) é lido, ficando os 4 mais fortes") {
+TEST_CASE("pintura: arquivo do formato antigo (8 camadas fixas) é lido") {
     const auto folder = std::filesystem::temp_directory_path() / "crs_test_pintura_antiga";
     std::filesystem::remove_all(folder);
     TerrainData{1}.save(folder.string());

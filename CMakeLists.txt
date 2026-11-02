@@ -215,6 +215,8 @@ set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/selection_outline.frag
     ${CMAKE_SOURCE_DIR}/shaders/terrain.vert
     ${CMAKE_SOURCE_DIR}/shaders/terrain.frag
+    ${CMAKE_SOURCE_DIR}/shaders/material_preview.vert
+    ${CMAKE_SOURCE_DIR}/shaders/material_preview.frag
 )
 #loop para compilar cada shader
 foreach(SHADER ${SHADER_SOURCES})
@@ -227,6 +229,7 @@ foreach(SHADER ${SHADER_SOURCES})
         #os shaders incluem esses arquivos: mudar um deles tem que recompilar todos
         DEPENDS ${SHADER} ${CMAKE_SOURCE_DIR}/shaders/global_ubo.glsl ${CMAKE_SOURCE_DIR}/shaders/lighting.glsl
                 ${CMAKE_SOURCE_DIR}/shaders/terrain_push.glsl ${CMAKE_SOURCE_DIR}/shaders/pbr.glsl
+                ${CMAKE_SOURCE_DIR}/shaders/pbr_brdf.glsl ${CMAKE_SOURCE_DIR}/shaders/material_preview_push.glsl
     )
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach()
@@ -298,6 +301,7 @@ set(APP_SOURCES
     src/editor/crs_imgui.cpp
     src/editor/crs_editor.cpp
     src/editor/crs_editor_theme.cpp
+    src/editor/material_preview.cpp
     src/editor/file_dialog.cpp
 )
 

@@ -117,6 +117,8 @@ namespace crsdk {
         terrainRenderSystem = std::make_unique<TerrainRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         skinningSystem = std::make_unique<SkinningSystem>(crsDevice, animationLibrary);
         crsImgui = std::make_unique<CrsImgui>(crsWindow, crsDevice, colorFormat, depthFormat, crsRenderer.getImageCount());
+        materialPreviews = std::make_unique<MaterialPreviews>(crsDevice);
+        editor.setMaterialPreviews(materialPreviews.get());
 
         //descriptor sets globais: ligam UBO, shadow map, luzes e ossos aos shaders
         globalDescriptorSets.resize(CrsSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -370,6 +372,10 @@ namespace crsdk {
 
     void FirstApp::saveSceneFile() {
         try {
+            //material pintado e depois coberto por inteiro não vai pro arquivo
+            for (auto &kv : crsScene.getGameObjects()) {
+                if (kv.second.terrain) kv.second.terrain->compactPalette();
+            }
             saveScene(crsScene, sceneFile);
             editor.saveView(editorViewFile(sceneFile));
             sceneFileStatus = "Cena salva em " + sceneFile;
@@ -492,6 +498,13 @@ namespace crsdk {
         ImGui::Text("Mouse delta: %.1f, %.1f", crsInput.getMouseDelta().x, crsInput.getMouseDelta().y);
         //só os materiais que algum quadradinho do terreno usa ficam na memória de vídeo
         ImGui::Text("Materiais do terreno na memória: %zu", terrainRenderSystem->loadedMaterialCount());
+        //pincel Checar: os materiais do último clique, do que mais cobre pro que menos
+        if (!playScene && !editor.terrainCheck().empty()) {
+            ImGui::Text("Checar (%zu %s):", editor.terrainCheck().size(), editor.terrainCheck().size() == 1 ? "material" : "materiais");
+            for (const MaterialCheck &check : editor.terrainCheck()) {
+                ImGui::Text("  %5.1f%%  %s", check.share * 100.f, check.name.c_str());
+            }
+        }
         //no Play: quanto cada componente Python gasta por frame (pra achar o pesado)
         if (playScene) {
             for (const ComponentTiming &timing : scripting.componentTimings()) {
@@ -554,6 +567,8 @@ namespace crsdk {
         //máscara do selecionado (fora de qualquer passe, como a sombra); no Play não tem seleção
         const CrsGameObject *selected = frameInfo.playing ? nullptr : editor.getSelected(crsScene);
         selectionOutlineSystem->renderMask(frameInfo, selected, crsRenderer.getSwapChainExtent(), sceneArea);
+        //as esferas de material que a interface pediu (também fora de passe, como a máscara)
+        materialPreviews->render(frameInfo.commandBuffer);
         crsRenderer.beginSwapChainRendering(frameInfo.commandBuffer);
         //a cena fica no retangulo
         crsRenderer.setSceneArea(frameInfo.commandBuffer, sceneArea);

@@ -120,6 +120,19 @@ void main() {
         color = mix(color, vec3(0.07, 0.39, 0.77), contourLines(push.options.x, normal));
     }
 
+    //aura de alerta (só no editor): o trecho tem mais de 4 materiais. Tom laranja-avermelhado no
+    //trecho inteiro e uma borda firme nos limites dele (32 m), pra saber exatamente qual corrigir
+    if (push.options.z > 0.5) {
+        vec2 local = fragPosWorldSpace.xz - push.modelMatrix[3].xz;  //metros a partir do canto do terreno
+        vec2 inChunk = fract(local / 32.0);
+        float edgeMeters = min(min(inChunk.x, 1.0 - inChunk.x), min(inChunk.y, 1.0 - inChunk.y)) * 32.0;
+        float pixel = max(fwidth(edgeMeters), 1e-5);
+        float border = 1.0 - smoothstep(pixel * 1.5, pixel * 3.0, edgeMeters);
+        vec3 alert = vec3(1.0, 0.18, 0.03);
+        color = mix(color, alert, 0.28);
+        color = mix(color, alert, border * 0.9);
+    }
+
     //pincel do editor: um aro claro no raio e o miolo levemente azulado
     float radius = push.brush.w;
     if (radius > 0.0) {

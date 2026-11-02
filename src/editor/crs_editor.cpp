@@ -381,7 +381,8 @@ namespace crsdk {
 
     void CrsEditor::updateTerrainBrush(CrsScene &scene, const CrsInput &input, const CrsCamera &camera, VkRect2D sceneArea, float dt) {
         brushHit.reset();
-        if (!input.isMouseDown(GLFW_MOUSE_BUTTON_LEFT)) sculpting = false;
+        //a pincelada dura enquanto o botão que começou ela estiver apertado (esquerdo, ou direito no Pintar)
+        if (!input.isMouseDown(GLFW_MOUSE_BUTTON_LEFT) && !input.isMouseDown(GLFW_MOUSE_BUTTON_RIGHT)) sculpting = false;
         if (!sculptMode(scene)) {
             sculpting = false;
             return;
@@ -403,15 +404,27 @@ namespace crsdk {
         const glm::vec3 hit = origin + glm::normalize(ray.direction) * *distance;
         brushHit = hit + corner;
 
+        const glm::vec2 center{hit.x, hit.z};
+        //Checar: um clique lê os materiais dentro do círculo (não muda nada no terreno)
+        if (terrainTool == TerrainTool::Check) {
+            if (input.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) checkTerrain(obj, center);
+            return;
+        }
+
         if (input.wasMousePressed(GLFW_MOUSE_BUTTON_LEFT)) {
             sculpting = true;
+            erasing = false;
             flattenHeight = hit.y;
+        }
+        //botão direito: só no Pintar (apaga o material do pincel); nos outros pincéis fica livre
+        if (terrainTool == TerrainTool::Paint && input.wasMousePressed(GLFW_MOUSE_BUTTON_RIGHT)) {
+            sculpting = true;
+            erasing = true;
         }
         if (!sculpting) return;
 
         //força 1 = 5 m por segundo no meio do pincel (subir); suavizar/nivelar: quanto anda por frame
         const float rate = brushStrength * 5.f * dt;
-        const glm::vec2 center{hit.x, hit.z};
         const bool shift = input.isDown(GLFW_KEY_LEFT_SHIFT) || input.isDown(GLFW_KEY_RIGHT_SHIFT);
         switch (terrainTool) {
             case TerrainTool::Raise: data.raise(center, brushRadius, shift ? -rate : rate); break;
@@ -420,19 +433,21 @@ namespace crsdk {
             case TerrainTool::Paint: {
                 if (paintMaterial.empty()) break;
                 //apagar um material que o terreno nem tem: nada a fazer (e não põe ele na paleta)
-                const int index = shift ? paletteIndex(obj.terrain->layers, paintMaterial)
-                                        : paletteIndexForPaint(obj.terrain->layers, paintMaterial);
+                const int index = erasing ? paletteIndex(obj.terrain->layers, paintMaterial)
+                                          : paletteIndexForPaint(obj.terrain->layers, paintMaterial);
                 if (index < 0) break;
                 const float amount = std::min(rate, 1.f);
-                data.paint(center, brushRadius, index, shift ? -amount : amount);
+                data.paint(center, brushRadius, index, erasing ? -amount : amount);
                 break;
             }
+            case TerrainTool::Check:
             case TerrainTool::None: break;
         }
     }
 
     TerrainOverlay CrsEditor::terrainOverlay() const {
         TerrainOverlay overlay{};
+        overlay.editor = true;  //aura nos trechos com mais de 4 materiais
         if (contourLines) overlay.contourInterval = contourInterval;
         if (brushHit) {
             overlay.brushCenter = *brushHit;
@@ -455,112 +470,99 @@ namespace crsdk {
         return folder.empty() ? "(sem material)" : std::filesystem::path{folder}.filename().string();
     }
 
+    void CrsEditor::checkTerrain(const CrsGameObject &obj, glm::vec2 center) {
+        //os materiais dentro do círculo, com o nome (a pasta) e quanto cada um cobre: vai pro painel de
+        //debug, junto do FPS (é por aqui que se escolhe qual apagar num trecho com aura)
+        checkReport.clear();
+        const std::vector<TerrainLayer> &palette = obj.terrain->layers;
+        for (const LayerShare &share : obj.terrain->data->brushLayers(center, brushRadius)) {
+            const std::string name = static_cast<size_t>(share.layer) < palette.size()
+                ? materialName(palette[static_cast<size_t>(share.layer)].material) : "(?)";
+            checkReport.push_back({name, share.share});
+        }
+    }
+
     void CrsEditor::drawTerrainLayersCard(CrsGameObject &obj) {
         std::vector<TerrainLayer> &palette = obj.terrain->layers;
-        TerrainData &data = *obj.terrain->data;
-        const std::vector<std::string> available = listMaterials();
-        if (paintMaterial.empty() && !available.empty()) paintMaterial = available.front();
-
-        //quanto cada material cobre: refeito só quando o terreno mudou (e no máximo a cada 15 frames,
-        //percorrer o terreno inteiro a cada frame enquanto pinta seria caro)
-        uint64_t version = 0;
-        for (int z = 0; z < data.tilesPerSide(); z++) {
-            for (int x = 0; x < data.tilesPerSide(); x++) version += data.tile(x, z).version;
-        }
-        usageFrame++;
-        const bool changed = usageData != &data || usageVersion != version || usageCache.size() != palette.size();
-        if (changed && (usageFrame >= 15 || usageData != &data || usageCache.size() != palette.size())) {
-            usageCache = data.layerUsage(static_cast<int>(palette.size()));
-            usageData = &data;
-            usageVersion = version;
-            usageFrame = 0;
-        }
-
         theme::beginCard("TerrainLayersCard");
-        const std::string inTerrain = std::to_string(palette.size()) + " no terreno";
-        if (theme::cardHeader("Materiais", inTerrain, true)) {
-            //o pincel Pintar: pinta o material escolhido na lista por cima do que já tem
-            const bool painting = terrainTool == TerrainTool::Paint;
-            if (painting) ImGui::PushStyleColor(ImGuiCol_Button, theme::accent());
-            if (ImGui::Button("Pintar", ImVec2(-1.f, 0.f))) terrainTool = painting ? TerrainTool::None : TerrainTool::Paint;
-            if (painting) ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Segure o botão esquerdo pra pintar o material escolhido; com Shift, apaga ele\n"
-                                  "Cada ponto guarda até 4 materiais (o mais fraco sai)\n"
-                                  "(Raio e Força ficam no card Terreno)");
-            }
-            if (available.empty()) ImGui::TextDisabled("nenhum material em assets/materials");
-
-            //todos os materiais da pasta: o escolhido é o que o Pintar usa; os que já estão no terreno
-            //mostram quanto cobrem e quantos metros a textura deles mede
-            const float repeatWidth = 64.f;
-            const float usageWidth = ImGui::CalcTextSize("100%").x;
+        if (theme::cardHeader("Material", "", true)) {
+            //os dois pincéis do material lado a lado; o ligado fica com a cor de destaque
             const float spacing = ImGui::GetStyle().ItemSpacing.x;
-            for (size_t i = 0; i < available.size(); i++) {
-                const std::string &folder = available[i];
-                const int index = paletteIndex(palette, folder);
-                ImGui::PushID(static_cast<int>(i));
-                //todas as linhas da altura de um campo: o nome fica alinhado com a caixa de metros
-                const std::string label = (index == 0 ? "[base] " : "") + materialName(folder);
-                const float nameWidth = ImGui::GetContentRegionAvail().x - usageWidth - repeatWidth - spacing * 2.f;
-                ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.f, 0.5f));
-                if (ImGui::Selectable(label.c_str(), folder == paintMaterial, 0, ImVec2(nameWidth, ImGui::GetFrameHeight()))) {
-                    paintMaterial = folder;
-                }
-                ImGui::PopStyleVar();
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip(index == 0 ? "%s\nChão base: aparece onde nada foi pintado" : "%s", folder.c_str());
-                }
-                ImGui::SameLine();
-                ImGui::AlignTextToFramePadding();
-                if (index >= 0) {
-                    const float usage = static_cast<size_t>(index) < usageCache.size() ? usageCache[static_cast<size_t>(index)] : 0.f;
-                    const int percent = static_cast<int>(std::lround(usage * 100.f));
-                    //0% (apagado) = está na paleta mas não aparece em lugar nenhum (não é carregado);
-                    //pintado num cantinho dá menos de 1%, mas é usado
-                    if (usage <= 0.f) ImGui::TextDisabled("  0%%");
-                    else if (percent == 0) ImGui::Text(" <1%%");
-                    else ImGui::Text("%3d%%", percent);
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(repeatWidth);
-                    ImGui::DragFloat("##repetir", &palette[static_cast<size_t>(index)].textureSize, 0.05f, 0.25f, 256.f, "%.1f m");
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A textura se repete a cada tantos metros");
-                } else {
-                    ImGui::TextDisabled("  -");
-                }
-                ImGui::PopID();
-            }
-
-            //o escolhido vira o chão base (aparece onde nada foi pintado); se já estava pintado em algum
-            //lugar, aquela pintura passa a ser chão base também
-            const int chosen = paletteIndex(palette, paintMaterial);
             const float half = (ImGui::GetContentRegionAvail().x - spacing) * 0.5f;
-            ImGui::BeginDisabled(paintMaterial.empty() || chosen == 0);
-            if (ImGui::Button("Usar como chão base", ImVec2(half, 0.f))) {
-                if (chosen > 0) {
-                    data.removeLayer(chosen);
-                    palette.erase(palette.begin() + chosen);
+            auto toolButton = [&](TerrainTool tool, const char *label, const char *tip) {
+                const bool active = terrainTool == tool;
+                if (active) ImGui::PushStyleColor(ImGuiCol_Button, theme::accent());
+                if (ImGui::Button(label, ImVec2(half, 0.f))) terrainTool = active ? TerrainTool::None : tool;
+                if (active) ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tip);
+            };
+            toolButton(TerrainTool::Paint, "Pintar",
+                       "Botão esquerdo pinta o material do pincel; o direito apaga ele\n(Raio e Força ficam no card Terreno)");
+            ImGui::SameLine();
+            toolButton(TerrainTool::Check, "Checar",
+                       "Clique num trecho (com aura, por exemplo): os materiais dentro do círculo\n"
+                       "aparecem no painel de cima, com quanto cada um cobre");
+
+            //o espaço do material do pincel: mostra o carregado; clicar (ou o botão) abre a escolha.
+            //Também aceita um material arrastado (o Asset Manager vai mandar por aqui)
+            //a esfera do material carregado (pelo nome é difícil saber qual é qual), centralizada; clicar
+            //nela também abre a escolha. Na 1ª vez ela ainda está sendo desenhada: mostra só o nome
+            const ImTextureID sphere = materialPreviews ? materialPreviews->get(paintMaterial) : ImTextureID{};
+            if (sphere) {
+                const float side = 112.f;
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x - side) * 0.5f);
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));
+                if (ImGui::ImageButton("##esfera", sphere, ImVec2(side, side))) ImGui::OpenPopup("CarregarMaterial");
+                ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", paintMaterial.c_str());
+            }
+            theme::fieldLabel("Pincel");
+            const std::string current = paintMaterial.empty() ? "(nenhum)" : materialName(paintMaterial);
+            if (ImGui::Button(current.c_str(), ImVec2(-1.f, 0.f))) ImGui::OpenPopup("CarregarMaterial");
+            if (ImGui::IsItemHovered() && !paintMaterial.empty()) ImGui::SetTooltip("%s", paintMaterial.c_str());
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(MATERIAL_DRAG_PAYLOAD)) {
+                    paintMaterial.assign(static_cast<const char *>(payload->Data), static_cast<size_t>(payload->DataSize));
+                }
+                ImGui::EndDragDropTarget();
+            }
+            if (ImGui::Button("Carregar material", ImVec2(half, 0.f))) ImGui::OpenPopup("CarregarMaterial");
+            ImGui::SameLine();
+            //o material do pincel vira o chão base (aparece onde nada foi pintado); se ele já estava
+            //pintado em algum lugar, aquela pintura passa a ser chão base também
+            const int inPalette = paletteIndex(palette, paintMaterial);
+            ImGui::BeginDisabled(paintMaterial.empty() || inPalette == 0);
+            if (ImGui::Button("Usar como base", ImVec2(-1.f, 0.f))) {
+                if (inPalette > 0) {
+                    obj.terrain->data->removeLayer(inPalette);
+                    palette.erase(palette.begin() + inPalette);
                 }
                 if (palette.empty()) palette.push_back({paintMaterial});
                 else palette[0].material = paintMaterial;
             }
             ImGui::EndDisabled();
-            ImGui::SameLine();
-            //tira da paleta os que não aparecem em lugar nenhum (o chão base fica)
-            bool anyUnused = false;
-            for (size_t i = 1; i < palette.size() && i < usageCache.size(); i++) anyUnused = anyUnused || usageCache[i] <= 0.f;
-            ImGui::BeginDisabled(!anyUnused);
-            if (ImGui::Button("Limpar não usados", ImVec2(-1.f, 0.f))) {
-                for (int i = static_cast<int>(palette.size()) - 1; i >= 1; i--) {
-                    if (static_cast<size_t>(i) < usageCache.size() && usageCache[static_cast<size_t>(i)] <= 0.f) {
-                        data.removeLayer(i);
-                        palette.erase(palette.begin() + i);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("O material do pincel passa a ser o chão base (onde nada foi pintado)");
+            }
+
+            //a repetição do material carregado (só depois que ele está no terreno)
+            if (inPalette >= 0) {
+                theme::fieldLabel("Repetir");
+                ImGui::DragFloat("##repetir_pincel", &palette[static_cast<size_t>(inPalette)].textureSize, 0.05f, 0.25f, 256.f, "a cada %.2f m");
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("A textura deste material se repete a cada tantos metros");
+            }
+
+            //a escolha: aberta só quando pedida (a escolha visual de verdade vai ser o Asset Manager)
+            if (ImGui::BeginPopup("CarregarMaterial")) {
+                const std::vector<std::string> available = listMaterials();
+                if (available.empty()) ImGui::TextDisabled("nenhum material em assets/materials");
+                for (const std::string &folder : available) {
+                    if (ImGui::Selectable(materialName(folder).c_str(), folder == paintMaterial)) {
+                        paintMaterial = folder;  //o anterior sai do pincel (o que ele pintou continua no chão)
+                        if (terrainTool != TerrainTool::Paint) terrainTool = TerrainTool::Paint;
                     }
                 }
-            }
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-                ImGui::SetTooltip("Tira da lista do terreno os materiais com 0%%\n(eles já não são carregados; isso só arruma a lista)");
+                ImGui::EndPopup();
             }
         }
         theme::endCard();

@@ -14,10 +14,11 @@ namespace crsdk {
 
     //começo do arquivo de cada pedaço: confere que é mesmo um pedaço de terreno, e de que tamanho
     constexpr char TILE_MAGIC[4] = {'C', 'R', 'S', 'T'};
-    //formatos do paint_x_z.bin (o 3º número do cabeçalho): 4 = (índice, peso) x 4 por amostra;
-    //8 = o antigo, 8 pesos fixos por amostra (lido e convertido, nunca mais gravado)
-    constexpr uint32_t PAINT_FORMAT_PAIRS = TERRAIN_LAYERS_PER_POINT;
-    constexpr uint32_t PAINT_FORMAT_OLD_DENSE = 8;
+    //formatos do paint_x_z.bin (o 3º número do cabeçalho). Só o primeiro é gravado; os outros são
+    //lidos e convertidos (cenas salvas antes)
+    constexpr uint32_t PAINT_FORMAT_PAIRS8 = 0x208;  //(índice, peso) x 8 por amostra
+    constexpr uint32_t PAINT_FORMAT_PAIRS4 = 4;      //(índice, peso) x 4 por amostra
+    constexpr uint32_t PAINT_FORMAT_DENSE8 = 8;      //8 pesos fixos (a camada i = o material i)
 
     //pesos somando 1, sem resto de pincelada (abaixo do mínimo vira 0); nada sobrando = chão base
     static void normalizeMix(LayerMix &mix) {
@@ -35,7 +36,7 @@ namespace crsdk {
 
     //a posição do material no ponto (-1 = não tem)
     static int findSlot(const LayerMix &mix, int layer) {
-        for (int i = 0; i < TERRAIN_LAYERS_PER_POINT; i++) {
+        for (int i = 0; i < TERRAIN_POINT_SLOTS; i++) {
             if (mix.weights[static_cast<size_t>(i)] > 0.f && mix.ids[static_cast<size_t>(i)] == layer) return i;
         }
         return -1;
@@ -228,8 +229,8 @@ namespace crsdk {
     static LayerMix paintMix(LayerMix m, int layer, float delta) {
         int slot = findSlot(m, layer);
         if (delta > 0.f && slot < 0) {
-            //material novo no ponto: numa posição vazia, ou no lugar do mais fraco (máximo 4 por ponto)
-            for (int i = 0; i < TERRAIN_LAYERS_PER_POINT && slot < 0; i++) {
+            //material novo no ponto: numa posição vazia (só sem nenhuma, no lugar do mais fraco)
+            for (int i = 0; i < TERRAIN_POINT_SLOTS && slot < 0; i++) {
                 if (m.weights[static_cast<size_t>(i)] <= 0.f) slot = i;
             }
             if (slot < 0) {
@@ -321,9 +322,9 @@ namespace crsdk {
         return usage;
     }
 
-    std::vector<uint8_t> TerrainData::chunkLayers(int tileX, int tileZ, int chunkX, int chunkZ) const {
+    //quanto cada material cobre num trecho (soma dos pesos dos pontos dele, com a borda)
+    static std::array<float, 256> chunkSums(const TerrainTile &t, int chunkX, int chunkZ) {
         std::array<float, 256> sums{};
-        const TerrainTile &t = tile(tileX, tileZ);
         for (int z = 0; z < TERRAIN_CHUNK_SAMPLES; z++) {
             for (int x = 0; x < TERRAIN_CHUNK_SAMPLES; x++) {
                 const int localX = chunkX * TERRAIN_CHUNK_CELLS + x;
@@ -334,12 +335,50 @@ namespace crsdk {
                 }
             }
         }
+        return sums;
+    }
+
+    int TerrainData::chunkLayerCount(int tileX, int tileZ, int chunkX, int chunkZ) const {
+        const std::array<float, 256> sums = chunkSums(tile(tileX, tileZ), chunkX, chunkZ);
+        return static_cast<int>(std::count_if(sums.begin(), sums.end(), [](float s) { return s > 0.f; }));
+    }
+
+    std::vector<LayerShare> TerrainData::brushLayers(glm::vec2 center, float radius) const {
+        //as amostras dentro do círculo, todas valendo igual (é uma contagem, não o pincel suave)
+        std::array<double, 256> sums{};
+        double total = 0.0;
+        const int minX = std::max(static_cast<int>(std::floor((center.x - radius) / TERRAIN_CELL_SIZE)), 0);
+        const int maxX = std::min(static_cast<int>(std::ceil((center.x + radius) / TERRAIN_CELL_SIZE)), samplesPerSide() - 1);
+        const int minZ = std::max(static_cast<int>(std::floor((center.y - radius) / TERRAIN_CELL_SIZE)), 0);
+        const int maxZ = std::min(static_cast<int>(std::ceil((center.y + radius) / TERRAIN_CELL_SIZE)), samplesPerSide() - 1);
+        for (int z = minZ; z <= maxZ; z++) {
+            for (int x = minX; x <= maxX; x++) {
+                const glm::vec2 point{static_cast<float>(x) * TERRAIN_CELL_SIZE, static_cast<float>(z) * TERRAIN_CELL_SIZE};
+                if (glm::length(point - center) > radius) continue;
+                const LayerMix m = mix(x, z);
+                for (size_t i = 0; i < m.ids.size(); i++) {
+                    if (m.weights[i] > 0.f) sums[m.ids[i]] += m.weights[i];
+                }
+                total += 1.0;
+            }
+        }
+        std::vector<LayerShare> result;
+        for (int i = 0; i < 256; i++) {
+            if (sums[static_cast<size_t>(i)] > 0.0) result.push_back({i, static_cast<float>(sums[static_cast<size_t>(i)] / total)});
+        }
+        std::sort(result.begin(), result.end(), [](const LayerShare &a, const LayerShare &b) { return a.share > b.share; });
+        return result;
+    }
+
+    std::vector<uint8_t> TerrainData::chunkLayers(int tileX, int tileZ, int chunkX, int chunkZ, int maxCount) const {
+        const std::array<float, 256> sums = chunkSums(tile(tileX, tileZ), chunkX, chunkZ);
         std::vector<uint8_t> layers;
         for (int i = 0; i < 256; i++) {
             if (sums[static_cast<size_t>(i)] > 0.f) layers.push_back(static_cast<uint8_t>(i));
         }
         std::sort(layers.begin(), layers.end(), [&](uint8_t a, uint8_t b) { return sums[a] > sums[b]; });
-        if (layers.size() > static_cast<size_t>(TERRAIN_CHUNK_LAYERS)) layers.resize(TERRAIN_CHUNK_LAYERS);
+        maxCount = std::clamp(maxCount, 1, TERRAIN_CHUNK_LAYERS);
+        if (layers.size() > static_cast<size_t>(maxCount)) layers.resize(static_cast<size_t>(maxCount));
         if (layers.empty()) layers.push_back(0);
         return layers;
     }
@@ -373,17 +412,17 @@ namespace crsdk {
                 out.write(reinterpret_cast<const char *>(&samples), sizeof(samples));
                 out.write(reinterpret_cast<const char *>(heights.data()), static_cast<std::streamsize>(heights.size() * sizeof(float)));
 
-                //pintura: por amostra, os 4 índices e depois os 4 pesos, 1 byte cada (0..255)
+                //pintura: por amostra, os 8 índices e depois os 8 pesos, 1 byte cada (0..255)
                 const std::vector<LayerMix> &paint = tile(tileX, tileZ).paint;
                 std::vector<uint8_t> bytes;
-                bytes.reserve(paint.size() * TERRAIN_LAYERS_PER_POINT * 2);
+                bytes.reserve(paint.size() * TERRAIN_POINT_SLOTS * 2);
                 for (const LayerMix &m : paint) {
                     bytes.insert(bytes.end(), m.ids.begin(), m.ids.end());
                     for (float w : m.weights) bytes.push_back(static_cast<uint8_t>(std::lround(std::clamp(w, 0.f, 1.f) * 255.f)));
                 }
                 std::ofstream paintOut{paintPath(folder, tileX, tileZ), std::ios::binary};
                 if (!paintOut) throw std::runtime_error("não deu pra gravar a pintura do terreno em " + folder);
-                const uint32_t format = PAINT_FORMAT_PAIRS;
+                const uint32_t format = PAINT_FORMAT_PAIRS8;
                 paintOut.write(TILE_MAGIC, sizeof(TILE_MAGIC));
                 paintOut.write(reinterpret_cast<const char *>(&samples), sizeof(samples));
                 paintOut.write(reinterpret_cast<const char *>(&format), sizeof(format));
@@ -401,11 +440,12 @@ namespace crsdk {
         in.read(magic, sizeof(magic));
         in.read(reinterpret_cast<char *>(&samples), sizeof(samples));
         in.read(reinterpret_cast<char *>(&format), sizeof(format));
-        const bool known = format == PAINT_FORMAT_PAIRS || format == PAINT_FORMAT_OLD_DENSE;
+        const bool known = format == PAINT_FORMAT_PAIRS8 || format == PAINT_FORMAT_PAIRS4 || format == PAINT_FORMAT_DENSE8;
         if (std::memcmp(magic, TILE_MAGIC, sizeof(magic)) != 0 || samples != TERRAIN_TILE_SAMPLES || !known) {
             throw std::runtime_error("pintura de terreno inválida: " + path.string());
         }
-        const size_t perSample = format == PAINT_FORMAT_PAIRS ? TERRAIN_LAYERS_PER_POINT * 2 : PAINT_FORMAT_OLD_DENSE;
+        const size_t perSample = format == PAINT_FORMAT_PAIRS8 ? TERRAIN_POINT_SLOTS * 2
+                               : format == PAINT_FORMAT_PAIRS4 ? 4 * 2 : PAINT_FORMAT_DENSE8;
         std::vector<uint8_t> bytes(paint.size() * perSample);
         in.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
         if (!in) throw std::runtime_error("pintura de terreno incompleta: " + path.string());
@@ -413,18 +453,19 @@ namespace crsdk {
         for (size_t s = 0; s < paint.size(); s++) {
             const uint8_t *b = &bytes[s * perSample];
             LayerMix m{};
-            if (format == PAINT_FORMAT_PAIRS) {
-                for (size_t i = 0; i < TERRAIN_LAYERS_PER_POINT; i++) {
+            m.weights[0] = 0.f;
+            if (format == PAINT_FORMAT_PAIRS8 || format == PAINT_FORMAT_PAIRS4) {
+                //os índices primeiro, depois os pesos
+                const size_t pairs = perSample / 2;
+                for (size_t i = 0; i < pairs; i++) {
                     m.ids[i] = b[i];
-                    m.weights[i] = static_cast<float>(b[TERRAIN_LAYERS_PER_POINT + i]) / 255.f;
+                    m.weights[i] = static_cast<float>(b[pairs + i]) / 255.f;
                 }
             } else {
-                //antigo: 8 pesos fixos (a camada i = o material i); ficam os 4 mais fortes
-                std::array<uint8_t, PAINT_FORMAT_OLD_DENSE> order{0, 1, 2, 3, 4, 5, 6, 7};
-                std::sort(order.begin(), order.end(), [&](uint8_t a, uint8_t c) { return b[a] > b[c]; });
-                for (size_t i = 0; i < TERRAIN_LAYERS_PER_POINT; i++) {
-                    m.ids[i] = order[i];
-                    m.weights[i] = static_cast<float>(b[order[i]]) / 255.f;
+                //8 pesos fixos: a camada i é o material i da paleta
+                for (size_t i = 0; i < PAINT_FORMAT_DENSE8; i++) {
+                    m.ids[i] = static_cast<uint8_t>(i);
+                    m.weights[i] = static_cast<float>(b[i]) / 255.f;
                 }
             }
             normalizeMix(m);

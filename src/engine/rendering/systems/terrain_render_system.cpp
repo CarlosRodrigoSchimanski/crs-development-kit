@@ -213,14 +213,18 @@ namespace crsdk {
         return count;
     }
 
-    void TerrainRenderSystem::writeTile(const TerrainData &data, int tileX, int tileZ, CrsBuffer &buffer, ChunkLayers &layers) {
+    void TerrainRenderSystem::writeTile(const TerrainData &data, int tileX, int tileZ, int maxLayers, CrsBuffer &buffer,
+                                        TileMesh &mesh, int frame) {
         std::vector<TerrainVertex> vertices(TILE_VERTEX_COUNT);
         const TerrainTile &tile = data.tile(tileX, tileZ);
+        ChunkLayers &layers = mesh.layers[static_cast<size_t>(frame)];
         for (int chunkZ = 0; chunkZ < TERRAIN_CHUNKS_PER_TILE; chunkZ++) {
             for (int chunkX = 0; chunkX < TERRAIN_CHUNKS_PER_TILE; chunkX++) {
                 const size_t chunk = static_cast<size_t>(chunkZ * TERRAIN_CHUNKS_PER_TILE + chunkX);
-                //os materiais deste quadradinho: a posição de cada um no shader é a ordem desta lista
-                layers[chunk] = data.chunkLayers(tileX, tileZ, chunkX, chunkZ);
+                //os materiais deste trecho (os que mais cobrem, até maxLayers): a posição de cada um no
+                //shader é a ordem desta lista; o que passou do limite fica de fora e o resto se renormaliza
+                layers[chunk] = data.chunkLayers(tileX, tileZ, chunkX, chunkZ, maxLayers);
+                mesh.overLimit[static_cast<size_t>(frame)][chunk] = data.chunkLayerCount(tileX, tileZ, chunkX, chunkZ) > TERRAIN_CHUNK_LIMIT;
                 std::array<int, 256> slotOf{};
                 slotOf.fill(-1);
                 for (size_t i = 0; i < layers[chunk].size(); i++) slotOf[layers[chunk][i]] = static_cast<int>(i);
@@ -241,7 +245,7 @@ namespace crsdk {
                         const LayerMix &m = tile.paint[index];
                         for (size_t i = 0; i < m.ids.size(); i++) {
                             const int slot = slotOf[m.ids[i]];
-                            if (m.weights[i] <= 0.f || slot < 0) continue;  //material cortado (mais de 8 no quadradinho)
+                            if (m.weights[i] <= 0.f || slot < 0) continue;  //material ignorado (passou do limite do trecho)
                             v.weights[slot] = static_cast<uint8_t>(std::lround(std::clamp(m.weights[i], 0.f, 1.f) * 255.f));
                         }
                     }
@@ -281,6 +285,7 @@ namespace crsdk {
             push.modelMatrix = glm::translate(glm::mat4{1.f}, obj.terrain->corner(obj.transform.translation));
             push.brush = glm::vec4{overlay.brushCenter, overlay.brushRadius};
             push.options.x = overlay.contourInterval;
+            const int maxLayers = overlay.editor ? TERRAIN_CHUNK_LAYERS : TERRAIN_CHUNK_LIMIT;
 
             for (int tileZ = 0; tileZ < data.tilesPerSide(); tileZ++) {
                 for (int tileX = 0; tileX < data.tilesPerSide(); tileX++) {
@@ -293,9 +298,10 @@ namespace crsdk {
                     }
                     //o buffer deste frame está atrasado (pedaço esculpido/pintado depois que ele foi escrito)
                     const uint64_t version = data.tile(tileX, tileZ).version;
-                    if (!tile.written[frame] || tile.versions[frame] != version) {
-                        writeTile(data, tileX, tileZ, *buffer, tile.layers[frame]);
+                    if (!tile.written[frame] || tile.versions[frame] != version || tile.maxLayers[frame] != maxLayers) {
+                        writeTile(data, tileX, tileZ, maxLayers, *buffer, tile, frame);
                         tile.versions[frame] = version;
+                        tile.maxLayers[frame] = maxLayers;
                         tile.written[frame] = true;
                     }
                     VkBuffer vertexBuffer = buffer->getBuffer();
@@ -315,6 +321,8 @@ namespace crsdk {
                         }
                         //nenhum material de verdade (terreno sem paleta): a cor provisória
                         push.options.y = anyMaterial ? static_cast<float>(ids.size()) : 0.f;
+                        //aura de alerta: só no editor, no trecho com mais de 4 materiais
+                        push.options.z = overlay.editor && tile.overLimit[frame][chunk] ? 1.f : 0.f;
                         VkDescriptorSet layerSet = getLayerSet(folders);
                         vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout.get(),
                             1, 1, &layerSet, 0, nullptr);

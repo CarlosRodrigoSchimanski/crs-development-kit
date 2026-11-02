@@ -10,6 +10,7 @@
 #include "engine/rendering/systems/gizmo_system.hpp"
 #include "engine/rendering/systems/selection_outline_system.hpp"
 #include "engine/rendering/systems/terrain_render_system.hpp"
+#include "editor/material_preview.hpp"
 #include "engine/rendering/systems/skinning_system.hpp"
 #include "engine/rendering/crs_model_cache.hpp"
 #include "engine/rendering/crs_descriptors.hpp"
@@ -134,6 +135,8 @@ namespace crsdk {
 
             //interface do editor
             std::unique_ptr<CrsImgui> crsImgui{};
+            //esferas de prévia dos materiais (depois do crsImgui: devolve as imagens antes dele fechar)
+            std::unique_ptr<MaterialPreviews> materialPreviews{};
             //descriptor sets globais, um por frame em voo
             std::vector<VkDescriptorSet> globalDescriptorSets;
 

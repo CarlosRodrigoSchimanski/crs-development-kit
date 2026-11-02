@@ -170,6 +170,10 @@ namespace crsdk {
         //até TERRAIN_MAX_LAYERS. Sem nenhum: a cor provisória
         std::vector<TerrainLayer> layers{};
 
+        //tira da paleta os materiais que não aparecem em lugar nenhum (pintados e depois cobertos);
+        //o chão base fica. Feito ao salvar: quem controla isso é a engine, não a interface
+        void compactPalette();
+
         //canto do terreno no mundo, pra um objeto em 'position': as coordenadas locais começam nele
         glm::vec3 corner(const glm::vec3 &position) const {
             return position - glm::vec3{data->size() * 0.5f, 0.f, data->size() * 0.5f};

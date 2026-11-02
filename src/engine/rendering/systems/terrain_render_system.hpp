@@ -17,6 +17,9 @@
 namespace crsdk {
     //o que o editor desenha por cima do terreno (no Play fica tudo desligado)
     struct TerrainOverlay {
+        //editor: o trecho desenha até 8 materiais (dá pra ver o excesso) e o que passa de 4 ganha a
+        //aura de alerta. Fora dele (Play, jogo exportado): só os 4 que mais cobrem, sem aura
+        bool editor = false;
         float contourInterval = 0.f;  //metros entre as curvas de nível; 0 = sem curvas
         float brushRadius = 0.f;      //0 = sem pincel
         glm::vec3 brushCenter{0.f};   //no mundo
@@ -53,6 +56,10 @@ namespace crsdk {
                 std::array<bool, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> written{};
                 //a lista de cada quadradinho junto com o buffer do mesmo frame (os pesos do vértice seguem ela)
                 std::array<ChunkLayers, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> layers{};
+                //trecho com mais materiais que o limite (a aura do editor), também por frame
+                std::array<std::array<bool, TERRAIN_CHUNKS_PER_TILE * TERRAIN_CHUNKS_PER_TILE>, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> overLimit{};
+                //com quantos materiais por trecho o buffer foi escrito (trocar editor/Play reescreve)
+                std::array<int, CrsSwapChain::MAX_FRAMES_IN_FLIGHT> maxLayers{};
             };
             struct TerrainMesh {
                 //segura as alturas vivas enquanto a malha existir (o endereço não pode ser reaproveitado)
@@ -61,7 +68,7 @@ namespace crsdk {
                 uint64_t lastUsedFrame = 0;
             };
             //preenche o buffer deste frame com as alturas e a pintura atuais do pedaço (e a lista de cada quadradinho)
-            void writeTile(const TerrainData &data, int tileX, int tileZ, CrsBuffer &buffer, ChunkLayers &layers);
+            void writeTile(const TerrainData &data, int tileX, int tileZ, int maxLayers, CrsBuffer &buffer, TileMesh &tile, int frame);
 
             //os mapas de um material na GPU (o que falta aponta pra um neutro); carregado uma vez por pasta
             struct Material {

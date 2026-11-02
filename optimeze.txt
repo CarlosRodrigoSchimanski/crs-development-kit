@@ -7,13 +7,20 @@ completa, porque guardam decisões que ainda valem. Os números dos itens não m
 ===============================================================================
 A 1.0 fecha quando der pra montar um level de verdade: importar o kit do cenário (parede, chão,
 mesa, cadeira...), duplicar à vontade e espalhar pelo mapa sem pesar. Falta, nesta ordem:
-  1. 4.2.2 — ajuste da pintura do terreno (card limpo, 4 por trecho com aura, Checar...)
+  1. ✅ 4.2.2 — ajuste da pintura do terreno (card limpo, 4 por trecho com aura, Checar...)
   2. 4.0.1 — INSTANCING: todos os objetos com o MESMO modelo desenhados numa chamada só (uma
      lista de matrizes num buffer; a GPU desenha todas as cópias de uma vez), inclusive na
      sombra e na aura de seleção. Pra quem usa nada muda: cada cópia continua um objeto normal
      (move, gira, apaga, tem componentes); a engine agrupa sozinha na hora de desenhar.
      Ctrl+D duplica o selecionado (com os filhos), como no Blender. É a mesma base da grama.
   3. 4.3 — grama 3D (usa o instancing do item 2 e o pincel/Checar do item 1)
+  Junto: o MANUAL (documentação de uso, como a do Blender/UPBGE), em docs/manual/, um arquivo
+  Markdown por tema, com passo a passo, o que cada campo faz, dicas e exemplos de Python.
+  REGRA (usuário, 2026-11-02): toda função nova entra no manual junto com o código.
+  Feito: índice + atalhos (README.md) e o capítulo Terreno (03-terreno.md). Faltam: Começando,
+  Cena e objetos, Física, Animação, Componentes Python (com a referência da API por tema),
+  Play e câmera de jogo, Exportar o jogo. Depois: menu Ajuda > Manual no editor (abre no
+  navegador, como o F1 do Blender) e o manual indo junto no instalador.
   Depois da 1.0: Asset Manager (3.7), HDRI/reflexos, streaming do terreno, Ctrl+Z
   (ferramenta de estrada 4.4 é opcional: estrada com direção vira peça modelada).
 
@@ -189,6 +196,9 @@ Pendências pequenas do que já foi feito:
    materiais cada um aparece como uma ESFERA com o material aplicado (miniatura renderizada
    pela própria engine: uma esfera iluminada, desenhada numa imagem pequena e guardada pra não
    refazer a cada frame). Clicar/arrastar aplica no terreno ou no objeto selecionado.
+   ✅ A esfera já existe (2026-11-02): editor/material_preview (MaterialPreviews::get devolve a
+   miniatura de 256 px pro ImGui, desenhada uma vez com o PBR e luzes de estúdio; os mapas são
+   soltos logo depois). Hoje aparece no card Material do terreno; a grade do Asset Manager reusa.
    Material do terreno (combinado em 2026-10-31): ARRASTAR a esfera de um material pro espaço
    "material do pincel" do card do terreno carrega ele no pincel. É por isso que o card do
    terreno não tem lista de materiais: a escolha visual fica toda no Asset Manager.
@@ -224,8 +234,10 @@ Pendências pequenas do que já foi feito:
    4.2. Pintura de camadas (texture splatting): splat map RGBA por pedaço (4 camadas por imagem:
         terra, grama, estrada...), pincel no editor, shader mistura pelas cores. Mesma regra de
         divisa do 4.1. Python: terrain.layerAt(x, z) (som de passo, poeira).
-   4.2.2. PRÓXIMO: ajuste da pintura (combinado com o usuário em 2026-10-31, NÃO feito ainda; o
-        commit 1f021b2 tem a versão com lista de todos os materiais e porcentagens, que poluiu):
+   4.2.2. ✅ FEITO em 2026-11-02 — ajuste da pintura (combinado com o usuário em 2026-10-31).
+        Cada ponto guarda até 8 (a engine não tira nada ao pintar); o limite de 4 é do trecho;
+        a paleta é limpa sozinha ao salvar (TerrainComponent::compactPalette). O espaço do pincel
+        já aceita arrastar (payload "CRS_MATERIAL") pro Asset Manager. Combinado:
         a) Card limpo: só um espaço "material do pincel" + botão "Carregar material" (escolhe
            qualquer um de assets/materials). Carregar outro tira o anterior do pincel; o que já
            foi pintado continua no chão. Depois: também por arrastar do Asset Manager (3.7).

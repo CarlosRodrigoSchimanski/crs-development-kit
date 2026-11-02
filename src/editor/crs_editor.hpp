@@ -6,6 +6,7 @@
 #include "engine/scene/crs_scene.hpp"
 #include "engine/scripting/crs_scripting.hpp"
 #include "editor/orbit_camera_controller.hpp"
+#include "editor/material_preview.hpp"
 
 #include <optional>
 #include <string>
@@ -20,7 +21,16 @@ namespace crsdk {
     enum class AddKind {None, Empty, Camera, PointLight};
 
     //ferramenta de esculpir do terreno (None = o clique volta a selecionar)
-    enum class TerrainTool {None, Raise, Smooth, Flatten, Paint};
+    enum class TerrainTool {None, Raise, Smooth, Flatten, Paint, Check};
+
+    //o que o Asset Manager vai mandar ao arrastar um material (os bytes são a pasta dele)
+    constexpr const char *MATERIAL_DRAG_PAYLOAD = "CRS_MATERIAL";
+
+    //uma linha do pincel Checar: o material e quanto ele cobre dentro do círculo (0..1)
+    struct MaterialCheck {
+        std::string name;
+        float share;
+    };
 
     //o que foi pedido pelo menu neste frame (quem executa é o FirstApp)
     struct EditorRequests {
@@ -60,6 +70,10 @@ namespace crsdk {
             void updateTerrainBrush(CrsScene &scene, const CrsInput &input, const CrsCamera &camera, VkRect2D sceneArea, float dt);
             //o que o terreno desenha por cima neste frame (curvas de nível, círculo do pincel)
             TerrainOverlay terrainOverlay() const;
+            //quem desenha as esferas dos materiais (o FirstApp é o dono; sem ele o card mostra só o nome)
+            void setMaterialPreviews(MaterialPreviews *previews) { materialPreviews = previews; }
+            //o último clique do pincel Checar (vazio = nenhum): o painel de debug mostra
+            const std::vector<MaterialCheck> &terrainCheck() const { return checkReport; }
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
             CrsGameObject* getSelected(CrsScene &scene) const;
             //nada selecionado (ao trocar de cena)
@@ -96,8 +110,10 @@ namespace crsdk {
             void drawColliders(CrsScene &scene, const CrsCamera &camera, VkRect2D sceneArea);
             //card do terreno: tamanho, ferramentas de esculpir, pincel e curvas de nível
             void drawTerrainCard(CrsGameObject &obj);
-            //card dos materiais: todos os de assets/materials pra pintar, quanto cada um cobre e o pincel Pintar
+            //card do material: o do pincel (Carregar material, arrastar), Pintar, Checar e usar como base
             void drawTerrainLayersCard(CrsGameObject &obj);
+            //pincel Checar: guarda os materiais dentro do círculo pro painel de debug
+            void checkTerrain(const CrsGameObject &obj, glm::vec2 center);
             //terreno selecionado e uma ferramenta escolhida: o clique esculpe
             bool sculptMode(CrsScene &scene) const;
 
@@ -124,11 +140,10 @@ namespace crsdk {
             float flattenHeight = 0.f;
             //Pintar: a pasta do material que o pincel pinta (entra na paleta do terreno na 1ª pincelada)
             std::string paintMaterial{};
-            //quanto cada material da paleta cobre, guardado (percorrer o terreno todo a cada frame é caro)
-            std::vector<float> usageCache{};
-            const TerrainData *usageData = nullptr;
-            uint64_t usageVersion = 0;
-            int usageFrame = 0;
+            //a pincelada atual é do botão direito: apaga em vez de pintar
+            bool erasing = false;
+            //o resultado do último Checar
+            std::vector<MaterialCheck> checkReport{};
             //filhos de cada objeto
             using ChildrenMap = std::map<CrsGameObject::id_t, std::vector<CrsGameObject::id_t>>;
             //lista de objetos da cena em árvore
@@ -137,5 +152,6 @@ namespace crsdk {
             void drawOutLinerNode(CrsScene &scene, CrsGameObject::id_t id, const ChildrenMap &children);
             //camera orbital
             OrbitCameraController cameraController{};
+            MaterialPreviews *materialPreviews = nullptr;
     };
 }

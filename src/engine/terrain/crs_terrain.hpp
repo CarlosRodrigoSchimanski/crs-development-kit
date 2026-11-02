@@ -20,22 +20,31 @@ namespace crsdk {
     constexpr int TERRAIN_MAX_TILES = 8;
 
     //pintura, como no WoW: o terreno tem uma PALETA de materiais (a lista dos que já foram usados nele,
-    //o [0] é o chão base) e cada ponto guarda só os poucos que tem ali, com quanto de cada um
-    constexpr int TERRAIN_LAYERS_PER_POINT = 4;  //pintar um 5º num ponto tira o mais fraco dele
-    constexpr int TERRAIN_MAX_PALETTE = 255;     //materiais diferentes num terreno
-    //o desenho é feito em quadradinhos de 32 m (64 por pedaço): cada um só pede os materiais que tem
+    //o [0] é o chão base) e cada ponto guarda só os que tem ali, com quanto de cada um
+    constexpr int TERRAIN_POINT_SLOTS = 8;    //por ponto (pintar um 9º tira o mais fraco: na prática não acontece)
+    constexpr int TERRAIN_MAX_PALETTE = 255;  //materiais diferentes num terreno
+    //o desenho é feito em trechos de 32 m (64 por pedaço): cada um só pede os materiais que tem
     constexpr int TERRAIN_CHUNK_CELLS = 32;
     constexpr int TERRAIN_CHUNKS_PER_TILE = TERRAIN_TILE_CELLS / TERRAIN_CHUNK_CELLS;
     constexpr int TERRAIN_CHUNK_SAMPLES = TERRAIN_CHUNK_CELLS + 1;
-    //quantos materiais um quadradinho mistura no shader (4 por ponto, mas pontos vizinhos podem ter outros)
+    //A REGRA: até 4 materiais por trecho. A engine não tira nada ao pintar: no editor o trecho com
+    //mais ganha uma aura de alerta; no Play/jogo exportado ele só desenha os 4 que mais cobrem
+    constexpr int TERRAIN_CHUNK_LIMIT = 4;
+    //quantos o shader consegue misturar num trecho (o editor mostra até isso, pra dar pra ver o excesso)
     constexpr int TERRAIN_CHUNK_LAYERS = 8;
     //o que fica abaixo disso numa pintura é zerado e volta pros outros (resto de pincelada fraca)
     constexpr float TERRAIN_MIN_WEIGHT = 0.02f;
 
-    //os materiais de um ponto: até 4 (índice na paleta, quanto), somando 1; peso 0 = posição vazia
+    //os materiais de um ponto: até 8 (índice na paleta, quanto), somando 1; peso 0 = posição vazia
     struct LayerMix {
-        std::array<uint8_t, TERRAIN_LAYERS_PER_POINT> ids{};
-        std::array<float, TERRAIN_LAYERS_PER_POINT> weights{1.f, 0.f, 0.f, 0.f};  //começa todo no chão base
+        std::array<uint8_t, TERRAIN_POINT_SLOTS> ids{};
+        std::array<float, TERRAIN_POINT_SLOTS> weights{1.f};  //começa todo no chão base (o resto fica 0)
+    };
+
+    //um material e quanto ele cobre (0..1): o resultado do pincel Checar
+    struct LayerShare {
+        int layer;
+        float share;
     };
 
     struct TerrainTile {
@@ -98,13 +107,17 @@ namespace crsdk {
 
             //quanto do terreno cada material da paleta cobre (0..1, somando 1); 'paletteSize' posições
             std::vector<float> layerUsage(int paletteSize) const;
-            //os materiais que aparecem num quadradinho de 32 m (com a borda), do que mais cobre pro que
-            //menos, no máximo TERRAIN_CHUNK_LAYERS: é a lista que o desenho daquele quadradinho pede
-            std::vector<uint8_t> chunkLayers(int tileX, int tileZ, int chunkX, int chunkZ) const;
+            //os materiais que aparecem num trecho de 32 m (com a borda), do que mais cobre pro que menos,
+            //no máximo 'maxCount': é a lista que o desenho daquele trecho pede (o resto é ignorado)
+            std::vector<uint8_t> chunkLayers(int tileX, int tileZ, int chunkX, int chunkZ, int maxCount = TERRAIN_CHUNK_LAYERS) const;
+            //quantos materiais diferentes aparecem no trecho (mais que TERRAIN_CHUNK_LIMIT = alerta)
+            int chunkLayerCount(int tileX, int tileZ, int chunkX, int chunkZ) const;
+            //pincel Checar: os materiais dentro do círculo e quanto cada um cobre ali, do maior pro menor
+            std::vector<LayerShare> brushLayers(glm::vec2 center, float radius) const;
 
-            //dois arquivos por pedaço na pasta: tile_x_z.bin (alturas) e paint_x_z.bin (pintura: 4 índices
-            //e 4 pesos de 1 byte por amostra); os de um tamanho antigo maior são apagados. Carregar: o que
-            //não tem arquivo fica plano/sem pintura (lê também a pintura antiga, de 8 camadas fixas)
+            //dois arquivos por pedaço na pasta: tile_x_z.bin (alturas) e paint_x_z.bin (pintura: 8 índices
+            //e 8 pesos de 1 byte por amostra); os de um tamanho antigo maior são apagados. Carregar: o que
+            //não tem arquivo fica plano/sem pintura (lê também os formatos antigos)
             void save(const std::string &folder) const;
             static TerrainData load(const std::string &folder, int tilesPerSide);
 
