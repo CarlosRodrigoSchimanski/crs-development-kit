@@ -157,7 +157,12 @@ namespace crsdk {
         CrsGameObject* selected = getSelected(scene);
         if (selected) {
             theme::beginCard("TransformCard");
-            if (theme::cardHeader(selected->name, "Transform")) {
+            if (theme::cardHeader(selected->name, "Objeto")) {
+                //renomear (útil depois do Ctrl+D: "cube.001" vira "parede_norte"); entra no Ctrl+Z
+                theme::fieldLabel("Nome");
+                ImGui::InputText("##nome_objeto", &selected->name);
+                //apagou tudo e saiu do campo: volta um nome (objeto sem nome some no outliner)
+                if (ImGui::IsItemDeactivated() && selected->name.empty()) selected->name = "Objeto";
                 TransformComponent& transform = selected->transform;
                 theme::fieldLabel("Posição");
                 ImGui::DragFloat3("##posicao", &transform.translation.x, 0.05f);
