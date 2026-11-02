@@ -82,6 +82,8 @@ Com **Pintar** ligado (fica azul):
 
 **Raio** e **Força** são os mesmos do card Terreno.
 
+Nas encostas e paredes a textura não estica: ela é projetada de cima e dos lados ao mesmo tempo (projeção **triplanar**), e cada lado do morro usa a direção que está de frente para ele.
+
 Onde dois materiais se encontram, a engine mistura pela **altura** de cada um. Na borda entre terra e pedra, a terra entra nas frestas e as pedras aparecem por cima, em vez de uma faixa borrada.
 
 ### Escala da textura (Repetir)
@@ -166,6 +168,5 @@ if acerto:
 
 ## Limites de hoje
 
-- **Encostas muito íngremes:** a textura estica, porque é projetada só de cima.
 - **Sombra:** os morros recebem a sombra dos objetos, mas ainda não fazem sombra.
 - **Estrada com padrão** (pedras alinhadas, tijolo): numa curva as pedras não acompanham o caminho. Para isso, use peças de estrada modeladas. No terreno, prefira materiais sem direção (terra, grama, areia, rocha, trilha).

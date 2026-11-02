@@ -52,14 +52,87 @@ float contourLines(float interval, vec3 normal) {
     return max(line * 0.6 * minorFade, majorLine * 0.95) * slopeFade;
 }
 
-//as camadas vistas de cima, cada uma repetida pelo chão no tamanho dela, misturadas pela pintura e pela altura
+//projeção TRIPLANAR: a textura vem de três projetores, um de cima (plano XZ) e dois dos lados (planos
+//ZY e XY), misturados pela inclinação. Só de cima, a textura estica na encosta (a mesma faixa da foto
+//cobre uma parede inteira); com os três, cada lado do morro usa o projetor que está de frente pra ele
+const float TRIPLANAR_SHARPNESS = 4.0;  //maior = troca de projetor mais seca (menos área misturada)
+const float TRIPLANAR_SKIP = 0.02;      //projetor com menos peso que isso nem é lido (no plano: só o de cima)
+
+//os pesos dos três projetores (x = o de lado X, y = o de cima, z = o de lado Z), somando 1
+vec3 triplanarWeights(vec3 normal) {
+    vec3 w = pow(abs(normal), vec3(TRIPLANAR_SHARPNESS));
+    w /= (w.x + w.y + w.z);
+    w = mix(vec3(0.0), w, step(TRIPLANAR_SKIP, w));
+    return w / (w.x + w.y + w.z);
+}
+
+//as coordenadas da foto em cada projetor. Do lado de trás (normal negativa) a foto é espelhada pra não
+//ficar ao contrário; nos lados o v desce com a altura (a foto em pé, como numa parede)
+struct Triplanar {
+    vec3 weights;
+    vec3 axisSign;
+    vec2 uvX, uvY, uvZ;  //em metros (o tamanho da camada multiplica depois)
+    vec2 dxX, dxY, dxZ;  //o quanto mudam de um pixel pro vizinho (mip escolhido fora do "if" de cada camada)
+    vec2 dyX, dyY, dyZ;
+};
+
+Triplanar makeTriplanar(vec3 pos, vec3 normal) {
+    Triplanar tp;
+    tp.weights = triplanarWeights(normal);
+    tp.axisSign = vec3(normal.x < 0.0 ? -1.0 : 1.0, normal.y < 0.0 ? -1.0 : 1.0, normal.z < 0.0 ? -1.0 : 1.0);
+    vec3 dx = dFdx(pos);
+    vec3 dy = dFdy(pos);
+    vec2 flipX = vec2(tp.axisSign.x, -1.0);
+    vec2 flipZ = vec2(-tp.axisSign.z, -1.0);
+    tp.uvX = pos.zy * flipX;  tp.dxX = dx.zy * flipX;  tp.dyX = dy.zy * flipX;
+    tp.uvY = pos.xz;          tp.dxY = dx.xz;          tp.dyY = dy.xz;
+    tp.uvZ = pos.xy * flipZ;  tp.dxZ = dx.xy * flipZ;  tp.dyZ = dy.xy * flipZ;
+    return tp;
+}
+
+//um mapa de cor/dado de uma camada, misturado dos projetores que têm peso
+vec4 sampleTriplanar(sampler2D map, Triplanar tp, float scale) {
+    vec4 result = vec4(0.0);
+    if (tp.weights.x > 0.0) result += textureGrad(map, tp.uvX * scale, tp.dxX * scale, tp.dyX * scale) * tp.weights.x;
+    if (tp.weights.y > 0.0) result += textureGrad(map, tp.uvY * scale, tp.dxY * scale, tp.dyY * scale) * tp.weights.y;
+    if (tp.weights.z > 0.0) result += textureGrad(map, tp.uvZ * scale, tp.dxZ * scale, tp.dyZ * scale) * tp.weights.z;
+    return result;
+}
+
+//o normal map de uma camada nos três projetores, já virado pro mundo e misturado ("whiteout": soma o
+//relevo da foto à inclinação do terreno em cada projetor). O normal map é OpenGL (verde = pra cima na
+//foto) e a foto começa no canto de cima (Vulkan): o verde vem invertido em relação ao v
+vec3 sampleTriplanarNormal(sampler2D map, Triplanar tp, float scale, vec3 normal) {
+    vec3 result = vec3(0.0);
+    if (tp.weights.x > 0.0) {
+        vec3 tn = textureGrad(map, tp.uvX * scale, tp.dxX * scale, tp.dyX * scale).xyz * 2.0 - 1.0;
+        tn.x *= tp.axisSign.x;  //a foto espelhada no lado de trás: o relevo de lado espelha junto
+        tn = vec3(tn.xy + normal.zy, abs(tn.z) * normal.x);
+        result += tn.zyx * tp.weights.x;
+    }
+    if (tp.weights.y > 0.0) {
+        vec3 tn = textureGrad(map, tp.uvY * scale, tp.dxY * scale, tp.dyY * scale).xyz * 2.0 - 1.0;
+        tn.y = -tn.y;  //de cima: "pra cima na foto" é o -Z do mundo
+        tn = vec3(tn.xy + normal.xz, abs(tn.z) * normal.y);
+        result += tn.xzy * tp.weights.y;
+    }
+    if (tp.weights.z > 0.0) {
+        vec3 tn = textureGrad(map, tp.uvZ * scale, tp.dxZ * scale, tp.dyZ * scale).xyz * 2.0 - 1.0;
+        tn.x *= -tp.axisSign.z;
+        tn = vec3(tn.xy + normal.xy, abs(tn.z) * normal.z);
+        result += tn.xyz * tp.weights.z;
+    }
+    return normalize(result);
+}
+
+//as camadas, cada uma repetida pelo chão no tamanho dela (pelos três projetores), misturadas pela
+//pintura e pela altura
 vec3 layeredColor(vec3 normal, int layerCount) {
     float painted[MAX_LAYERS] = float[](fragWeights0.x, fragWeights0.y, fragWeights0.z, fragWeights0.w,
                                         fragWeights1.x, fragWeights1.y, fragWeights1.z, fragWeights1.w);
-    //o quanto a coordenada muda de um pixel pro vizinho, calculado aqui fora: dentro do "if" de cada
-    //camada a GPU não consegue escolher o mip sozinha (cada pixel pode pular camadas diferentes)
-    vec2 uvDx = dFdx(fragPosWorldSpace.xz);
-    vec2 uvDy = dFdy(fragPosWorldSpace.xz);
+    //coordenadas e derivadas calculadas aqui fora: dentro do "if" de cada camada a GPU não consegue
+    //escolher o mip sozinha (cada pixel pode pular camadas diferentes)
+    Triplanar tp = makeTriplanar(fragPosWorldSpace, normal);
 
     //1) a "altura" de cada camada presente: pintado + o relevo do material (pedra alta aparece primeiro)
     float score[MAX_LAYERS];
@@ -68,7 +141,7 @@ vec3 layeredColor(vec3 normal, int layerCount) {
         score[i] = -1.0;
         if (i >= layerCount || painted[i] < 0.002) continue;
         float scale = push.layerScales[i / 4][i % 4];
-        float h = textureGrad(heightMaps[i], fragPosWorldSpace.xz * scale, uvDx * scale, uvDy * scale).r;
+        float h = sampleTriplanar(heightMaps[i], tp, scale).r;
         score[i] = painted[i] + h * HEIGHT_INFLUENCE;
         best = max(best, score[i]);
     }
@@ -76,10 +149,8 @@ vec3 layeredColor(vec3 normal, int layerCount) {
     if (best < 0.0) { score[0] = 1.0; best = 1.0; }
 
     //2) só as camadas perto da mais alta entram, cada uma com o quanto passou da linha
-    vec3 tangent = normalize(vec3(1.0, 0.0, 0.0) - normal * normal.x);
-    vec3 bitangent = cross(normal, tangent);
     vec3 albedo = vec3(0.0);
-    vec3 detail = vec3(0.0);
+    vec3 shadingNormal = vec3(0.0);
     float roughness = 0.0;
     float ao = 0.0;
     float total = 0.0;
@@ -87,23 +158,16 @@ vec3 layeredColor(vec3 normal, int layerCount) {
         float blend = max(score[i] - (best - BLEND_DEPTH), 0.0);
         if (blend <= 0.0) continue;
         float scale = push.layerScales[i / 4][i % 4];
-        vec2 uv = fragPosWorldSpace.xz * scale;
-        vec2 dx = uvDx * scale;
-        vec2 dy = uvDy * scale;
-        albedo += textureGrad(albedoMaps[i], uv, dx, dy).rgb * blend;
-        detail += (textureGrad(normalMaps[i], uv, dx, dy).xyz * 2.0 - 1.0) * blend;
-        roughness += textureGrad(roughnessMaps[i], uv, dx, dy).r * blend;
-        ao += textureGrad(aoMaps[i], uv, dx, dy).r * blend;
+        albedo += sampleTriplanar(albedoMaps[i], tp, scale).rgb * blend;
+        shadingNormal += sampleTriplanarNormal(normalMaps[i], tp, scale, normal) * blend;
+        roughness += sampleTriplanar(roughnessMaps[i], tp, scale).r * blend;
+        ao += sampleTriplanar(aoMaps[i], tp, scale).r * blend;
         total += blend;
     }
     albedo /= total;
     roughness /= total;
     ao /= total;
-
-    //normal map (padrão OpenGL): x = pra direita na foto (+X do mundo), y = pra cima na foto. A foto
-    //começa no canto de cima (Vulkan), então "pra cima" nela é o -Z do mundo = cross(normal, tangente)
-    detail = normalize(detail);
-    vec3 shadingNormal = normalize(tangent * detail.x + bitangent * detail.y + normal * detail.z);
+    shadingNormal = normalize(shadingNormal);
 
     return applyPbrLighting(albedo, roughness, 0.0, ao, shadingNormal, fragPosWorldSpace, fragPosLightSpace);
 }

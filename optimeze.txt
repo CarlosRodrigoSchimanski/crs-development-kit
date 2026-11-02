@@ -298,8 +298,9 @@ Pendências pequenas do que já foi feito:
    - objeto enterrado ao esculpir cai pelo chão no Play (heightfield só segura de cima):
      aviso no editor ou "assentar no chão"
    - cor provisória (grama/rocha pela inclinação) quando o terreno está sem material
-   - material: na encosta a textura estica (projeção só de cima): triplanar (de cima e dos lados,
-     misturado pela inclinação; o usuário aprovou em 2026-10-31, os morros de rocha mostram isso); repetição visível de longe (variar escala/rotação por região)
+   - ✅ triplanar (2026-11-02): terrain.frag projeta de cima e dos dois lados, misturado pela
+     inclinação (projetor com menos de 2% de peso nem é lido: no plano custa igual); normal map
+     virado pra cada projetor (whiteout). Falta: repetição visível de longe (variar escala/rotação por região)
    - reflexo do ambiente (céu) precisa de um HDRI (Poly Haven > HDRIs, .hdr 2K em assets/hdri):
      céu da cena + luz/reflexo de ambiente (IBL). Os objetos (simple_shader) passarem pro PBR
    - mapas de 1 canal (rough, AO) sobem como RGBA: 4x a memória; juntar em uma textura (ARM)
