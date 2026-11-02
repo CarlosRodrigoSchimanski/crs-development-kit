@@ -270,6 +270,7 @@ set(ENGINE_SOURCES
     src/engine/scene/crs_game_object.cpp
     src/engine/scene/crs_scene.cpp
     src/engine/scene/scene_serializer.cpp
+    src/engine/scene/crs_undo_history.cpp
     src/engine/scene/crs_ray.cpp
     src/engine/terrain/crs_terrain.cpp
     src/engine/physics/crs_physics_system.cpp
@@ -365,6 +366,7 @@ set(TEST_SOURCES
     tests/test_scripting.cpp
     tests/test_terrain.cpp
     tests/test_material_files.cpp
+    tests/test_undo.cpp
 )
 add_executable(CRSDK_tests ${TEST_SOURCES})
 if(MSVC)

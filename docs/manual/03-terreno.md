@@ -30,7 +30,7 @@ No card **Terreno**, a linha **Tamanho** tem **−** e **+**.
 
 - O terreno é feito de **pedaços de 256 m**, e cada clique tira ou põe um pedaço por lado: 256, 512, 768, 1024 m... até **2048 m**.
 - **Ao aumentar:** o que você já esculpiu e pintou **fica no mesmo lugar**, e os pedaços novos entram planos para os lados **+X e +Z**.
-- **Ao diminuir:** os pedaços das bordas +X e +Z saem com o que tinha neles. Não há como desfazer.
+- **Ao diminuir:** os pedaços das bordas +X e +Z saem com o que tinha neles. Mudou de ideia? **Ctrl + Z**.
 
 ## Esculpir
 
@@ -160,9 +160,12 @@ if acerto:
     print(acerto.point)
 ```
 
+## Desfazer
+
+**Ctrl + Z** desfaz a última pincelada (esculpir, pintar ou apagar), a mudança de tamanho e o "Usar como base". **Ctrl + Y** refaz. Cada pincelada, do apertar ao soltar o botão, é um passo. O painel de cima mostra o que foi desfeito.
+
 ## Limites de hoje
 
-- **Ctrl + Z** ainda não desfaz as pinceladas.
 - **Encostas muito íngremes:** a textura estica, porque é projetada só de cima.
 - **Sombra:** os morros recebem a sombra dos objetos, mas ainda não fazem sombra.
 - **Estrada com padrão** (pedras alinhadas, tijolo): numa curva as pedras não acompanham o caminho. Para isso, use peças de estrada modeladas. No terreno, prefira materiais sem direção (terra, grama, areia, rocha, trilha).

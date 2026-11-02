@@ -12,6 +12,7 @@
 #include "editor/file_dialog.hpp"
 
 #include <imgui.h>
+#include <ImGuizmo.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
@@ -119,6 +120,7 @@ namespace crsdk {
         crsImgui = std::make_unique<CrsImgui>(crsWindow, crsDevice, colorFormat, depthFormat, crsRenderer.getImageCount());
         materialPreviews = std::make_unique<MaterialPreviews>(crsDevice);
         editor.setMaterialPreviews(materialPreviews.get());
+        editor.setHistory(&history);
 
         //descriptor sets globais: ligam UBO, shadow map, luzes e ossos aos shaders
         globalDescriptorSets.resize(CrsSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -323,9 +325,55 @@ namespace crsdk {
         //(WantTextInput, não WantCaptureKeyboard: clicar no outliner deixa o foco no painel, e o Delete tem que valer)
         if (playScene || ImGui::GetIO().WantTextInput || !crsInput.wasPressed(GLFW_KEY_DELETE)) return;
         if (CrsGameObject *selected = editor.getSelected(crsScene)) {
+            if (history.sceneEditOpen()) return;  //no meio de arrastar algo: não mistura as duas ações
+            const std::string name = selected->name;  //guardado antes: depois de apagar o objeto não existe
+            history.beginSceneEdit(crsScene);
             crsScene.destroyGameObject(selected->getId());
             editor.clearSelection();
+            history.endSceneEdit(crsScene, "Apagar " + name);
+            stableScene = crsScene;
         }
+    }
+
+    void FirstApp::updateUndo() {
+        //só no editor, sem campo de texto ativo (lá o Ctrl+Z é do texto) e sem nada no meio do caminho
+        if (playScene || ImGui::GetIO().WantTextInput) return;
+        if (history.sceneEditOpen() || editor.strokeInProgress()) return;
+        const bool ctrl = crsInput.isDown(GLFW_KEY_LEFT_CONTROL) || crsInput.isDown(GLFW_KEY_RIGHT_CONTROL);
+        const bool shift = crsInput.isDown(GLFW_KEY_LEFT_SHIFT) || crsInput.isDown(GLFW_KEY_RIGHT_SHIFT);
+        if (!ctrl) return;
+        std::optional<std::string> label{};
+        bool redo = false;
+        if (crsInput.wasPressed(GLFW_KEY_Z) && !shift) {
+            label = history.undo(crsScene);
+        } else if (crsInput.wasPressed(GLFW_KEY_Y) || (crsInput.wasPressed(GLFW_KEY_Z) && shift)) {
+            label = history.redo(crsScene);
+            redo = true;
+        } else {
+            return;
+        }
+        if (label) {
+            sceneFileStatus = std::string{redo ? "Refeito: " : "Desfeito: "} + *label;
+        } else {
+            sceneFileStatus = redo ? "Nada pra refazer" : "Nada pra desfazer";
+        }
+        //o objeto selecionado pode ter sumido (desfez o Adicionar): o editor já trata como "nenhum"
+        stableScene = crsScene;
+    }
+
+    void FirstApp::recordSceneEdits() {
+        //um campo do painel sendo arrastado/digitado ou uma seta do gizmo em uso = uma edição em andamento.
+        //O começo usa a cena do fim do frame anterior (neste frame a interface pode já ter mudado algo)
+        const bool editing = ImGui::IsAnyItemActive() || ImGuizmo::IsUsing();
+        if (editing && !history.sceneEditOpen()) {
+            history.beginSceneEdit(stableScene);
+            sceneEditLabel = ImGuizmo::IsUsing() ? "Mover/girar/escalar" : "Editar";
+        }
+        //soltou: se algo mudou, vira um passo
+        if (!editing && history.sceneEditOpen()) history.endSceneEdit(crsScene, sceneEditLabel);
+        //sem edição aberta, a cena atual é o "antes" da próxima (copiar a cena é barato: o terreno vai
+        //só como ponteiro)
+        if (!history.sceneEditOpen()) stableScene = crsScene;
     }
 
     void FirstApp::updatePlayMode() {
@@ -362,6 +410,9 @@ namespace crsdk {
             sceneFile = filepath;
             sceneFileStatus = "Cena aberta de " + filepath;
             editor.clearSelection();
+            //o histórico era da cena anterior
+            history.clear();
+            stableScene = crsScene;
             editor.loadView(editorViewFile(filepath));
             return true;
         } catch (const std::exception &e) {
@@ -651,6 +702,8 @@ namespace crsdk {
         updateSceneFile();
         //Delete apaga o selecionado
         updateDelete();
+        //Ctrl+Z / Ctrl+Y
+        updateUndo();
         //clique seleciona (só no editor)
         if (!playScene) {
             //pincel antes da seleção: esculpindo, o clique é dele
@@ -713,6 +766,8 @@ namespace crsdk {
                 if (requests.add != AddKind::None) addObject(requests.add);
                 if (requests.addTerrainTiles > 0) addTerrain(requests.addTerrainTiles);
                 if (requests.quit) glfwSetWindowShouldClose(crsWindow.getGLFWwindow(), GLFW_TRUE);
+                //o que a interface mudou neste frame (inclusive os pedidos acima) vira passo do Ctrl+Z
+                recordSceneEdits();
             }
 
             //render

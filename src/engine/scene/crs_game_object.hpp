@@ -171,7 +171,9 @@ namespace crsdk {
         std::vector<TerrainLayer> layers{};
 
         //tira da paleta os materiais que não aparecem em lugar nenhum (pintados e depois cobertos);
-        //o chão base fica. Feito ao salvar: quem controla isso é a engine, não a interface
+        //o chão base fica. Feito ao salvar: quem controla isso é a engine, não a interface.
+        //Não muda o número de ninguém (o Ctrl+Z continua valendo): o do meio fica com o nome vazio
+        //(e é reaproveitado pelo próximo material novo); só os do fim da lista saem de verdade
         void compactPalette();
 
         //canto do terreno no mundo, pra um objeto em 'position': as coordenadas locais começam nele

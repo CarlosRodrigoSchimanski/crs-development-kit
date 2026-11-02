@@ -367,6 +367,13 @@ namespace crsdk {
     static int paletteIndexForPaint(std::vector<TerrainLayer> &palette, const std::string &folder) {
         int index = paletteIndex(palette, folder);
         if (index >= 0) return index;
+        //posição esvaziada pela limpeza ao salvar (nenhum ponto usa ela): reaproveita
+        for (size_t i = 1; i < palette.size(); i++) {
+            if (palette[i].material.empty()) {
+                palette[i] = TerrainLayer{folder};
+                return static_cast<int>(i);
+            }
+        }
         if (palette.size() >= static_cast<size_t>(TERRAIN_MAX_PALETTE)) return -1;
         //terreno sem paleta: o chão base fica sem material (a cor provisória) e o pintado entra depois dele
         if (palette.empty()) palette.push_back({});
@@ -383,10 +390,10 @@ namespace crsdk {
         brushHit.reset();
         //a pincelada dura enquanto o botão que começou ela estiver apertado (esquerdo, ou direito no Pintar)
         if (!input.isMouseDown(GLFW_MOUSE_BUTTON_LEFT) && !input.isMouseDown(GLFW_MOUSE_BUTTON_RIGHT)) sculpting = false;
-        if (!sculptMode(scene)) {
-            sculpting = false;
-            return;
-        }
+        if (!sculptMode(scene)) sculpting = false;
+        //soltou: o que a pincelada mudou vira um passo do Ctrl+Z
+        if (!sculpting) finishStroke(scene);
+        if (!sculptMode(scene)) return;
         //mouse em cima do painel: nem pincel nem esculpir
         if (ImGui::GetIO().WantCaptureMouse) return;
 
@@ -415,11 +422,13 @@ namespace crsdk {
             sculpting = true;
             erasing = false;
             flattenHeight = hit.y;
+            startStroke(obj);
         }
         //botão direito: só no Pintar (apaga o material do pincel); nos outros pincéis fica livre
         if (terrainTool == TerrainTool::Paint && input.wasMousePressed(GLFW_MOUSE_BUTTON_RIGHT)) {
             sculpting = true;
             erasing = true;
+            startStroke(obj);
         }
         if (!sculpting) return;
 
@@ -443,6 +452,35 @@ namespace crsdk {
             case TerrainTool::Check:
             case TerrainTool::None: break;
         }
+    }
+
+    void CrsEditor::startStroke(CrsGameObject &obj) {
+        if (strokeOpen) return;
+        strokeOpen = true;
+        strokeTerrainId = obj.getId();
+        strokeLayersBefore = obj.terrain->layers;  //a pintura pode pôr um material novo na paleta
+        switch (terrainTool) {
+            case TerrainTool::Raise: strokeLabel = "Subir terreno"; break;
+            case TerrainTool::Smooth: strokeLabel = "Suavizar terreno"; break;
+            case TerrainTool::Flatten: strokeLabel = "Nivelar terreno"; break;
+            case TerrainTool::Paint: strokeLabel = erasing ? "Apagar material" : "Pintar material"; break;
+            default: strokeLabel = "Terreno"; break;
+        }
+        //a primeira mudança de cada pedaço guarda uma cópia dele como estava
+        obj.terrain->data->beginJournal();
+    }
+
+    void CrsEditor::finishStroke(CrsScene &scene) {
+        if (!strokeOpen) return;
+        strokeOpen = false;
+        CrsGameObject *obj = scene.findGameObjectById(strokeTerrainId);
+        if (!obj || !obj->terrain) return;
+        TerrainData &data = *obj->terrain->data;
+        std::vector<TileSnapshot> before = data.endJournal();
+        if (!history || before.empty()) return;
+        std::vector<TileSnapshot> after = data.snapshotTiles(before);
+        history->pushTerrainStroke(strokeTerrainId, std::move(before), std::move(after),
+                                   strokeLayersBefore, obj->terrain->layers, strokeLabel);
     }
 
     TerrainOverlay CrsEditor::terrainOverlay() const {
@@ -534,8 +572,10 @@ namespace crsdk {
             ImGui::BeginDisabled(paintMaterial.empty() || inPalette == 0);
             if (ImGui::Button("Usar como base", ImVec2(-1.f, 0.f))) {
                 if (inPalette > 0) {
-                    obj.terrain->data->removeLayer(inPalette);
-                    palette.erase(palette.begin() + inPalette);
+                    //numa cópia: o passo do Ctrl+Z guarda a anterior inteira (o terreno todo muda)
+                    obj.terrain->data = std::make_shared<TerrainData>(*obj.terrain->data);
+                    obj.terrain->data->mergeIntoBase(inPalette);
+                    palette[static_cast<size_t>(inPalette)].material.clear();
                 }
                 if (palette.empty()) palette.push_back({paintMaterial});
                 else palette[0].material = paintMaterial;

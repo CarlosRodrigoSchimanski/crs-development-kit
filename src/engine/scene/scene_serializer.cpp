@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -262,6 +263,29 @@ namespace crsdk {
         };
         componentsToJson(j, obj);
         return j;
+    }
+
+    std::string sceneFingerprint(const CrsScene &scene) {
+        json objects = json::array();
+        std::vector<const CrsGameObject *> sorted;
+        for (const auto &kv : scene.getGameObjects()) sorted.push_back(&kv.second);
+        std::sort(sorted.begin(), sorted.end(),
+            [](const CrsGameObject *a, const CrsGameObject *b) { return a->getId() < b->getId(); });
+        for (const CrsGameObject *obj : sorted) {
+            json j = objectToJson(*obj);
+            if (obj->terrain) {
+                //o terreno pelo que dá pra comparar barato: quais alturas (o endereço delas: mudar o
+                //tamanho troca por outras) e a paleta (a pintura em si vai pelo histórico das pinceladas)
+                json layers = json::array();
+                for (const TerrainLayer &layer : obj->terrain->layers) layers.push_back({layer.material, layer.textureSize});
+                j["terrain"] = {{"data", reinterpret_cast<std::uintptr_t>(obj->terrain->data.get())}, {"layers", layers}};
+            }
+            objects.push_back(j);
+        }
+        json file;
+        file["objects"] = objects;
+        if (auto camera = scene.getActiveCamera()) file["activeCamera"] = *camera;
+        return file.dump();
     }
 
     void saveScene(const CrsScene &scene, const std::string &filepath) {

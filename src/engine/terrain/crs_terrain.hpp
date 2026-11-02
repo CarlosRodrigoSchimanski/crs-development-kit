@@ -56,6 +56,12 @@ namespace crsdk {
         uint64_t version = 0;
     };
 
+    //um pedaço guardado pro histórico (Ctrl+Z): qual é ([z * pedaços + x]) e como estava
+    struct TileSnapshot {
+        int index;
+        TerrainTile tile;
+    };
+
     //o relevo do terreno: as alturas, divididas em pedaços. Coordenadas "locais" = metros a partir do
     //canto do terreno (0 até size()); "amostra" = o índice de uma altura no terreno inteiro
     class TerrainData {
@@ -104,6 +110,19 @@ namespace crsdk {
             //tira o material da paleta em todo o terreno: o que estava pintado com ele volta pro chão
             //base, e os de índice maior descem uma posição (a paleta do componente tem que acompanhar)
             void removeLayer(int layer);
+            //o que estava pintado com o material vira chão base, sem mexer no índice de ninguém (o
+            //histórico do Ctrl+Z continua valendo: nenhum outro ponto muda de número)
+            void mergeIntoBase(int layer);
+
+            //histórico (Ctrl+Z): entre beginJournal e endJournal, a PRIMEIRA mudança de cada pedaço guarda
+            //uma cópia dele como estava antes. endJournal devolve essas cópias (só os pedaços tocados:
+            //uma pincelada costuma mexer em 1 ou 2, não no terreno inteiro)
+            void beginJournal();
+            std::vector<TileSnapshot> endJournal();
+            //como estão agora os mesmos pedaços de uma lista (o "depois" da pincelada, pro Ctrl+Y)
+            std::vector<TileSnapshot> snapshotTiles(const std::vector<TileSnapshot> &which) const;
+            //põe os pedaços de volta; a versão sobe (a malha e a física refazem)
+            void restoreTiles(const std::vector<TileSnapshot> &snapshots);
 
             //quanto do terreno cada material da paleta cobre (0..1, somando 1); 'paletteSize' posições
             std::vector<float> layerUsage(int paletteSize) const;
@@ -133,5 +152,9 @@ namespace crsdk {
 
             int tiles;
             std::vector<TerrainTile> tileData;  //linha por linha: o pedaço (x, z) fica em [z * tiles + x]
+            //o journal do histórico (ver beginJournal)
+            bool journaling = false;
+            std::vector<TileSnapshot> journal;
+            std::vector<bool> journaled;
     };
 }

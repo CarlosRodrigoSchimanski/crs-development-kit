@@ -93,12 +93,10 @@ namespace crsdk {
 
     void TerrainComponent::compactPalette() {
         const std::vector<float> usage = data->layerUsage(static_cast<int>(layers.size()));
-        //de trás pra frente: tirar um material desce o índice dos que vêm depois dele
-        for (int i = static_cast<int>(layers.size()) - 1; i >= 1; i--) {
-            if (usage[static_cast<size_t>(i)] > 0.f) continue;
-            data->removeLayer(i);
-            layers.erase(layers.begin() + i);
+        for (size_t i = 1; i < layers.size(); i++) {
+            if (usage[i] <= 0.f) layers[i].material.clear();
         }
+        while (layers.size() > 1 && layers.back().material.empty()) layers.pop_back();
     }
 
     void AnimatorComponent::play(const std::string &name, float fadeSeconds, bool loopClip) {

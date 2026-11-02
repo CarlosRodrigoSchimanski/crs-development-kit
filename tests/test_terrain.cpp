@@ -457,7 +457,7 @@ TEST_CASE("pintura: o pincel Checar diz quanto cada material cobre dentro do cí
     CHECK(wide[0].share + wide[1].share == doctest::Approx(1.f));
 }
 
-TEST_CASE("terreno: limpar a paleta tira só os materiais que não aparecem em lugar nenhum") {
+TEST_CASE("terreno: limpar a paleta esvazia só os materiais que não aparecem em lugar nenhum") {
     CrsScene scene;
     CrsGameObject &obj = scene.createGameObject();
     obj.terrain.emplace();
@@ -470,10 +470,19 @@ TEST_CASE("terreno: limpar a paleta tira só os materiais que não aparecem em l
 
     obj.terrain->compactPalette();
 
-    REQUIRE(obj.terrain->layers.size() == 2);
+    //ninguém muda de número (o Ctrl+Z continua valendo): os sem uso ficam com o nome vazio
+    REQUIRE(obj.terrain->layers.size() == 4);
     CHECK(obj.terrain->layers[0].material == "chao");
-    CHECK(obj.terrain->layers[1].material == "rocha");
-    CHECK(obj.terrain->data->weight(150, 150, 1) == doctest::Approx(1.f));  //a rocha desceu pro índice 1
+    CHECK(obj.terrain->layers[1].material.empty());
+    CHECK(obj.terrain->layers[2].material.empty());
+    CHECK(obj.terrain->layers[3].material == "rocha");
+    CHECK(obj.terrain->data->weight(150, 150, 3) == doctest::Approx(1.f));  //a rocha continua sendo a 3
+
+    //sem uso no fim da lista: sai de verdade
+    obj.terrain->data->paint({150.f, 150.f}, 12.f, 0, 1.f);
+    obj.terrain->data->paint({150.f, 150.f}, 12.f, 0, 1.f);
+    obj.terrain->compactPalette();
+    CHECK(obj.terrain->layers.size() == 1);
 }
 
 TEST_CASE("pintura: arquivo do formato de 4 pares (salvo pelo commit anterior) é lido igual") {

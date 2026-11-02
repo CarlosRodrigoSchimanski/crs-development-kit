@@ -95,7 +95,13 @@ namespace crsdk {
                 const int localX = x - tileX * TERRAIN_TILE_CELLS;
                 const int localZ = z - tileZ * TERRAIN_TILE_CELLS;
                 if (localX < 0 || localZ < 0 || localX > TERRAIN_TILE_CELLS || localZ > TERRAIN_TILE_CELLS) continue;
-                TerrainTile &t = tileData[static_cast<size_t>(tileZ * tiles + tileX)];
+                const size_t tileIndex = static_cast<size_t>(tileZ * tiles + tileX);
+                TerrainTile &t = tileData[tileIndex];
+                //histórico: a primeira mudança do pedaço guarda como ele estava
+                if (journaling && !journaled[tileIndex]) {
+                    journaled[tileIndex] = true;
+                    journal.push_back({static_cast<int>(tileIndex), t});
+                }
                 write(t, static_cast<size_t>(localZ * TERRAIN_TILE_SAMPLES + localX));
                 t.version++;
             }
@@ -304,6 +310,62 @@ namespace crsdk {
                 }
             }
             t.version++;
+        }
+    }
+
+    void TerrainData::mergeIntoBase(int layer) {
+        if (layer <= 0 || layer >= TERRAIN_MAX_PALETTE) return;
+        for (size_t tileIndex = 0; tileIndex < tileData.size(); tileIndex++) {
+            TerrainTile &t = tileData[tileIndex];
+            bool changed = false;
+            for (LayerMix &m : t.paint) {
+                const int slot = findSlot(m, layer);
+                if (slot < 0) continue;
+                if (!changed && journaling && !journaled[tileIndex]) {
+                    journaled[tileIndex] = true;
+                    journal.push_back({static_cast<int>(tileIndex), t});
+                }
+                changed = true;
+                const int base = findSlot(m, 0);
+                if (base >= 0) {
+                    m.weights[static_cast<size_t>(base)] += m.weights[static_cast<size_t>(slot)];
+                    m.weights[static_cast<size_t>(slot)] = 0.f;
+                } else {
+                    m.ids[static_cast<size_t>(slot)] = 0;
+                }
+            }
+            if (changed) t.version++;
+        }
+    }
+
+    void TerrainData::beginJournal() {
+        journaling = true;
+        journal.clear();
+        journaled.assign(tileData.size(), false);
+    }
+
+    std::vector<TileSnapshot> TerrainData::endJournal() {
+        journaling = false;
+        journaled.clear();
+        return std::move(journal);
+    }
+
+    std::vector<TileSnapshot> TerrainData::snapshotTiles(const std::vector<TileSnapshot> &which) const {
+        std::vector<TileSnapshot> result;
+        for (const TileSnapshot &s : which) {
+            if (s.index >= 0 && static_cast<size_t>(s.index) < tileData.size()) result.push_back({s.index, tileData[static_cast<size_t>(s.index)]});
+        }
+        return result;
+    }
+
+    void TerrainData::restoreTiles(const std::vector<TileSnapshot> &snapshots) {
+        for (const TileSnapshot &s : snapshots) {
+            if (s.index < 0 || static_cast<size_t>(s.index) >= tileData.size()) continue;
+            TerrainTile &t = tileData[static_cast<size_t>(s.index)];
+            //a versão nunca volta pra trás: quem guardou uma cópia (malha, física) tem que ver que mudou
+            const uint64_t version = std::max(t.version, s.tile.version) + 1;
+            t = s.tile;
+            t.version = version;
         }
     }
 

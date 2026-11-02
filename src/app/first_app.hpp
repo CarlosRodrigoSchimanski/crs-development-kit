@@ -11,6 +11,7 @@
 #include "engine/rendering/systems/selection_outline_system.hpp"
 #include "engine/rendering/systems/terrain_render_system.hpp"
 #include "editor/material_preview.hpp"
+#include "engine/scene/crs_undo_history.hpp"
 #include "engine/rendering/systems/skinning_system.hpp"
 #include "engine/rendering/crs_model_cache.hpp"
 #include "engine/rendering/crs_descriptors.hpp"
@@ -78,6 +79,10 @@ namespace crsdk {
             void addTerrain(int tiles);
             //tecla Delete: apaga o objeto selecionado
             void updateDelete();
+            //Ctrl+Z desfaz, Ctrl+Y (ou Ctrl+Shift+Z) refaz
+            void updateUndo();
+            //depois da interface do frame: o que ela mudou na cena vira um passo do Ctrl+Z
+            void recordSceneEdits();
             //lê de novo as classes de componente da pasta (o que o Add Component lista)
             void refreshComponents();
             //Generate Component: cria o .py com o modelo e prende no objeto selecionado
@@ -137,6 +142,12 @@ namespace crsdk {
             std::unique_ptr<CrsImgui> crsImgui{};
             //esferas de prévia dos materiais (depois do crsImgui: devolve as imagens antes dele fechar)
             std::unique_ptr<MaterialPreviews> materialPreviews{};
+            //Ctrl+Z / Ctrl+Y do editor
+            UndoHistory history{};
+            //a cena como estava no fim do último frame sem edição: é o "antes" de uma edição que começa
+            //(a interface pode já mudar a cena no frame em que a edição começa)
+            CrsScene stableScene{};
+            std::string sceneEditLabel{};
             //descriptor sets globais, um por frame em voo
             std::vector<VkDescriptorSet> globalDescriptorSets;
 

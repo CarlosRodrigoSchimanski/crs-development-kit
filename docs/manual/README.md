@@ -24,6 +24,8 @@ Como usar a engine, um tema por página: o passo a passo, o que cada campo faz e
 | G / R / S | setas de mover / girar / escalar |
 | Shift + A | menu Adicionar, onde está o mouse |
 | Delete | apaga o objeto selecionado (e os filhos dele) |
+| Ctrl + Z | desfaz a última ação (pincelada, mover, apagar, campo do painel...) |
+| Ctrl + Y (ou Ctrl + Shift + Z) | refaz o que foi desfeito |
 | Ctrl + S | salva a cena |
 | P | começa o Play |
 | ' (tecla à esquerda do 1) | volta do Play para o editor |

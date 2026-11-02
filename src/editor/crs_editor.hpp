@@ -7,6 +7,7 @@
 #include "engine/scripting/crs_scripting.hpp"
 #include "editor/orbit_camera_controller.hpp"
 #include "editor/material_preview.hpp"
+#include "engine/scene/crs_undo_history.hpp"
 
 #include <optional>
 #include <string>
@@ -72,6 +73,10 @@ namespace crsdk {
             TerrainOverlay terrainOverlay() const;
             //quem desenha as esferas dos materiais (o FirstApp é o dono; sem ele o card mostra só o nome)
             void setMaterialPreviews(MaterialPreviews *previews) { materialPreviews = previews; }
+            //onde as pinceladas do terreno viram passos do Ctrl+Z (o FirstApp é o dono)
+            void setHistory(UndoHistory *undoHistory) { history = undoHistory; }
+            //tem uma pincelada acontecendo (o Ctrl+Z espera ela terminar)
+            bool strokeInProgress() const { return strokeOpen; }
             //o último clique do pincel Checar (vazio = nenhum): o painel de debug mostra
             const std::vector<MaterialCheck> &terrainCheck() const { return checkReport; }
             //objeto selecionado, buscado pelo id (nullptr = nenhum, ou já não existe)
@@ -114,6 +119,9 @@ namespace crsdk {
             void drawTerrainLayersCard(CrsGameObject &obj);
             //pincel Checar: guarda os materiais dentro do círculo pro painel de debug
             void checkTerrain(const CrsGameObject &obj, glm::vec2 center);
+            //pincelada: o começo liga o registro do terreno, o fim manda pro histórico o que ela mudou
+            void startStroke(CrsGameObject &obj);
+            void finishStroke(CrsScene &scene);
             //terreno selecionado e uma ferramenta escolhida: o clique esculpe
             bool sculptMode(CrsScene &scene) const;
 
@@ -153,5 +161,11 @@ namespace crsdk {
             //camera orbital
             OrbitCameraController cameraController{};
             MaterialPreviews *materialPreviews = nullptr;
+            UndoHistory *history = nullptr;
+            //a pincelada aberta: em qual terreno, a paleta de antes e o nome do passo
+            bool strokeOpen = false;
+            CrsGameObject::id_t strokeTerrainId = 0;
+            std::vector<TerrainLayer> strokeLayersBefore{};
+            std::string strokeLabel{};
     };
 }

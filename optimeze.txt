@@ -21,7 +21,13 @@ mesa, cadeira...), duplicar à vontade e espalhar pelo mapa sem pesar. Falta, ne
   Cena e objetos, Física, Animação, Componentes Python (com a referência da API por tema),
   Play e câmera de jogo, Exportar o jogo. Depois: menu Ajuda > Manual no editor (abre no
   navegador, como o F1 do Blender) e o manual indo junto no instalador.
-  Depois da 1.0: Asset Manager (3.7), HDRI/reflexos, streaming do terreno, Ctrl+Z
+  ✅ Ctrl+Z / Ctrl+Y (2026-11-02, pedido urgente do usuário): engine/scene/crs_undo_history. Passo de
+  CENA = cópia da cena antes/depois (campo do painel, gizmo, adicionar, apagar, tamanho do terreno;
+  o FirstApp grava sozinho quando um item do ImGui ou o gizmo para de ser usado e a cena mudou);
+  passo de PINCELADA = só os pedaços que ela tocou (journal no TerrainData) + a paleta. A paleta
+  não remapeia mais índices (compactPalette esvazia o nome; mergeIntoBase no "Usar como base").
+  Até 200 passos / 768 MB. Desfazer no Play: não (o Play é uma cópia).
+  Depois da 1.0: Asset Manager (3.7), HDRI/reflexos, streaming do terreno
   (ferramenta de estrada 4.4 é opcional: estrada com direção vira peça modelada).
 
 ===============================================================================
