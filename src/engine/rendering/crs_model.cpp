@@ -119,11 +119,11 @@ namespace crsdk {
         }
     }
 
-    void CrsModel::draw(VkCommandBuffer commandBuffer) {
+    void CrsModel::draw(VkCommandBuffer commandBuffer, uint32_t instanceCount, uint32_t firstInstance) {
         if(indexBuffer) {
-            vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
+            vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, 0, 0, firstInstance);
         } else {
-            vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
+            vkCmdDraw(commandBuffer, vertexCount, instanceCount, 0, firstInstance);
         }
     }
 

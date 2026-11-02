@@ -64,7 +64,8 @@ namespace crsdk {
             static std::unique_ptr<CrsModel> createModelFromFile(CrsDevice &device, const std::string &filepath);
 
             void bind(VkCommandBuffer commandBuffer);
-            void draw(VkCommandBuffer commandBuffer);
+            //instanceCount cópias (instancing: cada uma lê a própria matriz no buffer de cópias, começando em firstInstance)
+            void draw(VkCommandBuffer commandBuffer, uint32_t instanceCount = 1, uint32_t firstInstance = 0);
 
             //desenha as arestas reais como linhas (precisa de uma pipeline LINE_LIST)
             void drawEdges(VkCommandBuffer commandBuffer);

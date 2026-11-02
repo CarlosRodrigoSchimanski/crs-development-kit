@@ -7,6 +7,7 @@
 #include "engine/rendering/crs_frameInfo.hpp"
 #include "engine/rendering/crs_descriptors.hpp"
 #include "engine/rendering/crs_texture.hpp"
+#include "engine/rendering/crs_instance_batches.hpp"
 
 #include <memory>
 #include <vector>
@@ -24,6 +25,9 @@ namespace crsdk {
             SimpleRenderSystem& operator=(const SimpleRenderSystem&) = delete;
 
             void renderGameObjects(FrameInfo& frameInfo);
+            //chamadas de desenho do último frame (com o instancing: uma por grupo de modelo, mais os animados)
+            uint32_t lastDrawCalls() const { return drawCalls; }
+            uint32_t lastObjectCount() const { return objectCount; }
 
         private:
             void createPipeline(VkFormat colorFormat, VkFormat depthFormat);
@@ -44,6 +48,10 @@ namespace crsdk {
             //usada por quem não tem textura: branco * cor = a própria cor
             std::unique_ptr<CrsTexture> whiteTexture;
             std::unordered_map<const CrsTexture *, VkDescriptorSet> materialSets;
+            //os objetos parados agrupados por modelo: uma chamada por grupo
+            CrsInstanceBatches batches;
+            uint32_t drawCalls = 0;
+            uint32_t objectCount = 0;
 
     };
 }

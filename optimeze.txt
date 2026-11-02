@@ -8,7 +8,9 @@ completa, porque guardam decisões que ainda valem. Os números dos itens não m
 A 1.0 fecha quando der pra montar um level de verdade: importar o kit do cenário (parede, chão,
 mesa, cadeira...), duplicar à vontade e espalhar pelo mapa sem pesar. Falta, nesta ordem:
   1. ✅ 4.2.2 — ajuste da pintura do terreno (card limpo, 4 por trecho com aura, Checar...)
-  2. 4.0.1 — INSTANCING: todos os objetos com o MESMO modelo desenhados numa chamada só (uma
+  2. ✅ 4.0.1 (2026-11-02) — INSTANCING (CrsInstanceBatches: grupos por modelo + "usa textura", lista de
+     matrizes por frame em voo, na cena e na sombra; painel mostra objetos e chamadas) e Ctrl+D
+     (CrsScene::duplicateGameObject, nomes .001; terreno copiado ganha alturas próprias). Era: todos os objetos com o MESMO modelo desenhados numa chamada só (uma
      lista de matrizes num buffer; a GPU desenha todas as cópias de uma vez), inclusive na
      sombra e na aura de seleção. Pra quem usa nada muda: cada cópia continua um objeto normal
      (move, gira, apaga, tem componentes); a engine agrupa sozinha na hora de desenhar.

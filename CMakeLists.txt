@@ -16,6 +16,12 @@ include(CheckIPOSupported)
 check_ipo_supported(RESULT LTO_SUPPORTED OUTPUT LTO_ERROR)
 if(LTO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    #LTO completo, não o incremental (padrão do Visual Studio): o incremental reaproveita um cache entre
+    #builds que já saiu de sincronia e gerou um .exe que fechava sozinho (2026-11-02). Release é pra
+    #distribuir: vale mais certo que rápido
+    if(MSVC)
+        add_link_options("$<$<CONFIG:Release>:/LTCG>")
+    endif()
 else()
     message(WARNING "LTO não suportado: ${LTO_ERROR}")
 endif()
@@ -257,6 +263,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/crs_descriptors.cpp
     src/engine/rendering/crs_texture.cpp
     src/engine/rendering/crs_material_files.cpp
+    src/engine/rendering/crs_instance_batches.cpp
     src/engine/rendering/crs_shadow_map.cpp
     src/engine/rendering/crs_image_barrier.cpp
     src/engine/rendering/crs_upload_batch.cpp

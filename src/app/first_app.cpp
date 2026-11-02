@@ -335,6 +335,21 @@ namespace crsdk {
         }
     }
 
+    void FirstApp::updateDuplicate() {
+        if (playScene || ImGui::GetIO().WantTextInput || history.sceneEditOpen()) return;
+        const bool ctrl = crsInput.isDown(GLFW_KEY_LEFT_CONTROL) || crsInput.isDown(GLFW_KEY_RIGHT_CONTROL);
+        if (!ctrl || !crsInput.wasPressed(GLFW_KEY_D)) return;
+        CrsGameObject *selected = editor.getSelected(crsScene);
+        if (!selected) return;
+        const std::string name = selected->name;
+        history.beginSceneEdit(crsScene);
+        //a cópia nasce no mesmo lugar e já selecionada: é só arrastar com as setas (G)
+        if (auto copy = crsScene.duplicateGameObject(selected->getId())) editor.select(*copy);
+        history.endSceneEdit(crsScene, "Duplicar " + name);
+        stableScene = crsScene;
+        sceneFileStatus = "Duplicado: " + name;
+    }
+
     void FirstApp::updateUndo() {
         //só no editor, sem campo de texto ativo (lá o Ctrl+Z é do texto) e sem nada no meio do caminho
         if (playScene || ImGui::GetIO().WantTextInput) return;
@@ -547,6 +562,8 @@ namespace crsdk {
         }
 
         ImGui::Text("Mouse delta: %.1f, %.1f", crsInput.getMouseDelta().x, crsInput.getMouseDelta().y);
+        //instancing: objetos iguais viram uma chamada só
+        ImGui::Text("Objetos: %u  chamadas de desenho: %u", simpleRenderSystem->lastObjectCount(), simpleRenderSystem->lastDrawCalls());
         //só os materiais que algum quadradinho do terreno usa ficam na memória de vídeo
         ImGui::Text("Materiais do terreno na memória: %zu", terrainRenderSystem->loadedMaterialCount());
         //pincel Checar: os materiais do último clique, do que mais cobre pro que menos
@@ -702,6 +719,8 @@ namespace crsdk {
         updateSceneFile();
         //Delete apaga o selecionado
         updateDelete();
+        //Ctrl+D duplica o selecionado
+        updateDuplicate();
         //Ctrl+Z / Ctrl+Y
         updateUndo();
         //clique seleciona (só no editor)

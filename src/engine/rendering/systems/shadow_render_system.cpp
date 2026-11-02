@@ -18,7 +18,7 @@ namespace crsdk {
     };
 
     ShadowRenderSystem::ShadowRenderSystem(CrsDevice& device, CrsShadowMap& shadowMap, VkDescriptorSetLayout globalSetLayout)
-        : crsDevice{device}, shadowMap{shadowMap} {
+        : crsDevice{device}, shadowMap{shadowMap}, batches{device} {
         //mesmo set global dos outros sistemas: é dele que sai a lightSpaceMatrix
         pipelineLayout = CrsPipeline::createPipelineLayout(
             crsDevice,
@@ -52,6 +52,9 @@ namespace crsdk {
             if (attribute.location == 0) positionOnly.push_back(attribute);
         }
         pipelineConfig.attributeDescriptions = positionOnly;
+        //instancing: a matriz de cada cópia vem da lista de cópias (binding 1, locations 4..7)
+        pipelineConfig.bindingDescriptions.push_back(CrsInstanceBatches::bindingDescription());
+        for (const auto &attribute : CrsInstanceBatches::attributeDescriptions(false)) pipelineConfig.attributeDescriptions.push_back(attribute);
         //dynamic rendering: sem render pass, o pipeline só precisa saber o formato da profundidade
         pipelineConfig.depthAttachmentFormat = shadowMap.getFormat();
         pipelineConfig.pipelineLayout = pipelineLayout.get();
@@ -136,25 +139,12 @@ namespace crsdk {
             0,
             nullptr);
 
-        for (auto& kv : frameInfo.crsScene.getGameObjects()) {
-            auto& obj = kv.second;
-            if (obj.model == nullptr) continue;
-            if (obj.editorOnly) continue;  //não projeta sombra
-            if (obj.isAnimated()) continue;  //desenhado abaixo, seguindo a pose
-            ShadowPushConstantData push{};
-            push.modelMatrix = frameInfo.crsScene.worldMatrix(obj);
-
-            vkCmdPushConstants(
-                frameInfo.commandBuffer,
-                pipelineLayout.get(),
-                VK_SHADER_STAGE_VERTEX_BIT,
-                0,
-                sizeof(ShadowPushConstantData),
-                &push
-            );
-
-            obj.model->bind(frameInfo.commandBuffer);
-            obj.model->draw(frameInfo.commandBuffer);
+        //objetos parados: um desenho por grupo de modelo (instancing); os só do editor não projetam sombra
+        const std::vector<CrsInstanceBatches::Batch> &groups = batches.build(frameInfo.crsScene, frameInfo.frameIndex);
+        batches.bind(frameInfo.commandBuffer, frameInfo.frameIndex);
+        for (const CrsInstanceBatches::Batch &group : groups) {
+            group.first->model->bind(frameInfo.commandBuffer);
+            group.first->model->draw(frameInfo.commandBuffer, group.count, group.firstInstance);
         }
 
         //objetos animados: outra pipeline (layout diferente, então o set global é ligado de novo)

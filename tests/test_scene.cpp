@@ -175,3 +175,68 @@ TEST_CASE("apagar um objeto apaga os filhos dele e solta a câmera ativa") {
     CHECK(scene.findGameObjectById(otherId) != nullptr);
     CHECK_FALSE(scene.getActiveCamera().has_value());
 }
+
+TEST_CASE("duplicar copia o objeto e os filhos, com ids novos e o pai certo") {
+    CrsScene scene;
+    CrsGameObject &player = scene.createGameObject();
+    player.name = "Player";
+    player.transform.translation = {3.f, 0.f, 1.f};
+    player.rigidBody.emplace();
+    player.scripts.push_back({"controle", "Controle"});
+    CrsGameObject &pivot = scene.createGameObject();
+    pivot.name = "Pivo";
+    pivot.parentId = player.getId();
+    CrsGameObject &camera = scene.createGameObject();
+    camera.parentId = pivot.getId();
+    const auto playerId = player.getId(), pivotId = pivot.getId();
+
+    auto copyId = scene.duplicateGameObject(playerId);
+
+    REQUIRE(copyId.has_value());
+    CHECK(scene.getGameObjects().size() == 6);
+    CrsGameObject &copy = *scene.findGameObjectById(*copyId);
+    CHECK(copy.name == "Player.001");
+    CHECK(copy.transform.translation.x == doctest::Approx(3.f));  //mesmo lugar
+    CHECK(copy.rigidBody.has_value());
+    REQUIRE(copy.scripts.size() == 1);
+    CHECK_FALSE(copy.parentId.has_value());  //o original não tinha pai
+
+    //o filho da cópia é uma cópia do pivô, e o neto é filho dele (não do pivô original)
+    const CrsGameObject *pivotCopy = nullptr;
+    for (auto &kv : scene.getGameObjects()) {
+        if (kv.second.parentId == *copyId) pivotCopy = &kv.second;
+    }
+    REQUIRE(pivotCopy != nullptr);
+    CHECK(pivotCopy->name == "Pivo.001");
+    CHECK(pivotCopy->getId() != pivotId);
+    int grandchildren = 0;
+    for (auto &kv : scene.getGameObjects()) {
+        if (kv.second.parentId == pivotCopy->getId()) grandchildren++;
+    }
+    CHECK(grandchildren == 1);
+}
+
+TEST_CASE("duplicar de novo continua a numeração, e a cópia de uma cópia não vira cube.001.001") {
+    CrsScene scene;
+    CrsGameObject &cube = scene.createGameObject();
+    cube.name = "cube";
+    const auto id = cube.getId();
+    auto first = scene.duplicateGameObject(id);
+    auto second = scene.duplicateGameObject(id);
+    auto ofCopy = scene.duplicateGameObject(*first);
+    CHECK(scene.findGameObjectById(*first)->name == "cube.001");
+    CHECK(scene.findGameObjectById(*second)->name == "cube.002");
+    CHECK(scene.findGameObjectById(*ofCopy)->name == "cube.003");
+    CHECK_FALSE(scene.duplicateGameObject(9999).has_value());
+}
+
+TEST_CASE("duplicar um terreno dá alturas próprias pra cópia") {
+    CrsScene scene;
+    CrsGameObject &ground = scene.createGameObject();
+    ground.terrain.emplace();
+    auto copyId = scene.duplicateGameObject(ground.getId());
+    CrsGameObject &copy = *scene.findGameObjectById(*copyId);
+    copy.terrain->data->raise({50.f, 50.f}, 6.f, 3.f);
+    CHECK(scene.findGameObjectById(ground.getId())->terrain->data->sample(50, 50) == doctest::Approx(0.f));
+    CHECK(copy.terrain->data->sample(50, 50) == doctest::Approx(3.f));
+}

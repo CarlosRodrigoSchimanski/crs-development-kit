@@ -14,16 +14,15 @@ layout(location = 4) out vec4 fragPosLightSpace;
 
 #include "global_ubo.glsl"
 
-layout(push_constant) uniform Push {
-    mat4 modelMatrix;
-    mat4 normalMatrix;
-} push;
+//instancing: cada cópia do modelo traz a própria matriz (uma mat4 ocupa 4 locations)
+layout(location = 4) in mat4 instanceModelMatrix;   //4..7
+layout(location = 8) in mat4 instanceNormalMatrix;  //8..11
 
 void main() {
-    vec4 positionWorldSpace = push.modelMatrix * vec4(position, 1.0);
+    vec4 positionWorldSpace = instanceModelMatrix * vec4(position, 1.0);
     gl_Position = ubo.projection * ubo.view * positionWorldSpace;
     fragPosWorldSpace = positionWorldSpace.xyz;
-    fragNormalWorldSpace = normalize(mat3(push.normalMatrix) * normal);
+    fragNormalWorldSpace = normalize(mat3(instanceNormalMatrix) * normal);
     fragColor = color;
     fragUv = uv;
     //mesma posição, mas vista pela câmera do sol: é com ela que o .frag consulta o shadow map

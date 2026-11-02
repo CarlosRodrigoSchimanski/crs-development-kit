@@ -29,6 +29,12 @@ namespace crsdk {
             CrsGameObject* findGameObjectById(CrsGameObject::id_t id);
             //apaga o objeto e todos os filhos dele (e os filhos dos filhos); câmera ativa apagada = nenhuma
             void destroyGameObject(CrsGameObject::id_t id);
+            //copia o objeto e todos os filhos dele (Ctrl+D): mesmo lugar, mesmo pai, ids novos, nomes no
+            //estilo do Blender ("cube" -> "cube.001"). Terreno ganha alturas próprias (senão esculpir um
+            //mexeria nos dois). Devolve o id da cópia do objeto (vazio = não existe)
+            std::optional<CrsGameObject::id_t> duplicateGameObject(CrsGameObject::id_t id);
+            //um nome que nenhum objeto da cena usa: "nome.001", "nome.002"... (sem o número que já tinha)
+            std::string uniqueName(const std::string &name) const;
             //matriz do objeto no mundo: a dos pais (do mais distante ao mais perto) x a dele
             glm::mat4 worldMatrix(const CrsGameObject &obj);
             //objeto com modelo mais perto que o raio acerta (a caixa de cada modelo); vazio = nenhum

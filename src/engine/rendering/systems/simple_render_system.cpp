@@ -22,7 +22,8 @@ namespace crsdk {
     constexpr uint32_t MAX_MATERIALS = 100;
 
 
-    SimpleRenderSystem::SimpleRenderSystem(CrsDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout) : crsDevice{device} {
+    SimpleRenderSystem::SimpleRenderSystem(CrsDevice& device, VkFormat colorFormat, VkFormat depthFormat, VkDescriptorSetLayout globalSetLayout)
+        : crsDevice{device}, batches{device} {
         materialSetLayout = CrsDescriptorSetLayout::Builder{crsDevice}
             .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .build();
@@ -56,6 +57,9 @@ namespace crsdk {
         PipelineConfigInfo pipelineConfig{};
         CrsPipeline::defaultPipelineConfigInfo(pipelineConfig);
         //desenha na imagem da tela (cor + profundidade)
+        //instancing: além do modelo (binding 0), a lista de cópias (binding 1) com as duas matrizes
+        pipelineConfig.bindingDescriptions.push_back(CrsInstanceBatches::bindingDescription());
+        for (const auto &attribute : CrsInstanceBatches::attributeDescriptions(true)) pipelineConfig.attributeDescriptions.push_back(attribute);
         pipelineConfig.colorAttachmentFormats = {colorFormat};
         pipelineConfig.depthAttachmentFormat = depthFormat;
         pipelineConfig.pipelineLayout = pipelineLayout.get();
@@ -101,31 +105,18 @@ namespace crsdk {
             0,
             nullptr);
 
-        for (auto& kv : frameInfo.crsScene.getGameObjects()) {
-            auto& obj = kv.second;
-            if (obj.model == nullptr) continue;
-            if (obj.editorOnly) continue;  //gizmos são do GizmoRenderSystem
-            if (obj.isAnimated()) continue;  //desenhado depois, pela pipeline de skinning
-
-            bindMaterial(frameInfo, obj, pipelineLayout.get());
-
-            SimplePushConstantData push{};
-            glm::mat4 world = frameInfo.crsScene.worldMatrix(obj);
-            push.modelMatrix = world;
-            //normais com a escala de todos os pais: inversa transposta da parte 3x3 do mundo
-            push.normalMatrix = glm::transpose(glm::inverse(glm::mat3{world}));
-
-            vkCmdPushConstants(
-                frameInfo.commandBuffer,
-                pipelineLayout.get(),
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                0,
-                sizeof(SimplePushConstantData),
-                &push
-            );
-
-            obj.model->bind(frameInfo.commandBuffer);
-            obj.model->draw(frameInfo.commandBuffer);
+        //objetos parados: um desenho por grupo de modelo (instancing); as matrizes estão na lista de cópias
+        const std::vector<CrsInstanceBatches::Batch> &groups = batches.build(frameInfo.crsScene, frameInfo.frameIndex);
+        drawCalls = 0;
+        objectCount = 0;
+        batches.bind(frameInfo.commandBuffer, frameInfo.frameIndex);
+        for (const CrsInstanceBatches::Batch &group : groups) {
+            //a textura é a mesma no grupo inteiro (o grupo é por modelo e por "usa textura")
+            bindMaterial(frameInfo, *group.first, pipelineLayout.get());
+            group.first->model->bind(frameInfo.commandBuffer);
+            group.first->model->draw(frameInfo.commandBuffer, group.count, group.firstInstance);
+            drawCalls++;
+            objectCount += group.count;
         }
 
         //objetos animados: outra pipeline (o layout é diferente, então o set global é ligado de novo)
@@ -147,6 +138,8 @@ namespace crsdk {
 
             obj.model->bindSkinned(frameInfo.commandBuffer);
             obj.model->draw(frameInfo.commandBuffer);
+            drawCalls++;
+            objectCount++;
         }
     }
 

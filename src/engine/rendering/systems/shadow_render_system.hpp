@@ -5,6 +5,8 @@
 #include "engine/rendering/crs_frameInfo.hpp"
 #include "engine/rendering/crs_shadow_map.hpp"
 
+#include "engine/rendering/crs_instance_batches.hpp"
+
 #include <memory>
 
 namespace crsdk {
@@ -29,6 +31,8 @@ namespace crsdk {
             CrsPipelineLayout pipelineLayout;
             //objetos animados: a sombra também segue a pose (ossos do binding 3)
             std::unique_ptr<CrsPipeline> skinnedPipeline;
+            //os objetos parados agrupados por modelo: uma chamada por grupo (como no SimpleRenderSystem)
+            CrsInstanceBatches batches;
             CrsPipelineLayout skinnedPipelineLayout;
     };
 }

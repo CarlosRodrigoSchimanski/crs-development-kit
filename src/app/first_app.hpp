@@ -79,6 +79,8 @@ namespace crsdk {
             void addTerrain(int tiles);
             //tecla Delete: apaga o objeto selecionado
             void updateDelete();
+            //Ctrl+D: duplica o objeto selecionado (com os filhos)
+            void updateDuplicate();
             //Ctrl+Z desfaz, Ctrl+Y (ou Ctrl+Shift+Z) refaz
             void updateUndo();
             //depois da interface do frame: o que ela mudou na cena vira um passo do Ctrl+Z
