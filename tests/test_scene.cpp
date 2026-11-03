@@ -240,3 +240,99 @@ TEST_CASE("duplicar um terreno dá alturas próprias pra cópia") {
     CHECK(scene.findGameObjectById(ground.getId())->terrain->data->sample(50, 50) == doctest::Approx(0.f));
     CHECK(copy.terrain->data->sample(50, 50) == doctest::Approx(3.f));
 }
+
+TEST_CASE("cena: worldBounds envolve a forma do objeto e a dos filhos, no mundo") {
+    CrsScene scene;
+    CrsGameObject &parent = scene.createGameObject();
+    parent.transform.translation = {10.f, 0.f, 0.f};
+    parent.rigidBody.emplace();
+    parent.rigidBody->halfExtents = {1.f, 1.f, 1.f};
+    CrsGameObject &child = scene.createGameObject();
+    child.parentId = parent.getId();
+    child.transform.translation = {0.f, 5.f, 0.f};  //5 m acima do pai
+    child.rigidBody.emplace();
+    child.rigidBody->halfExtents = {0.5f, 0.5f, 0.5f};
+
+    auto bounds = scene.worldBounds(parent.getId());
+    REQUIRE(bounds.has_value());
+    CHECK(bounds->min.x == doctest::Approx(9.f));
+    CHECK(bounds->max.x == doctest::Approx(11.f));
+    CHECK(bounds->min.y == doctest::Approx(-1.f));
+    CHECK(bounds->max.y == doctest::Approx(5.5f));  //o filho conta
+
+    //só o filho: a caixa dele, já no lugar do mundo
+    auto childBounds = scene.worldBounds(child.getId());
+    REQUIRE(childBounds.has_value());
+    CHECK(childBounds->center().x == doctest::Approx(10.f));
+    CHECK(childBounds->center().y == doctest::Approx(5.f));
+    CHECK(scene.worldBounds(9999) == std::nullopt);
+}
+
+TEST_CASE("cena: worldBounds de objeto vazio é um ponto; do terreno, ele inteiro com o relevo") {
+    CrsScene scene;
+    CrsGameObject &empty = scene.createGameObject();
+    empty.transform.translation = {1.f, 2.f, 3.f};
+    auto point = scene.worldBounds(empty.getId());
+    REQUIRE(point.has_value());
+    CHECK(point->size().x == doctest::Approx(0.f));
+    CHECK(point->center().z == doctest::Approx(3.f));
+
+    CrsGameObject &ground = scene.createGameObject();
+    ground.terrain.emplace();
+    ground.terrain->data->raise({128.f, 128.f}, 10.f, 6.f);  //morro de 6 m no meio
+    auto terrain = scene.worldBounds(ground.getId());
+    REQUIRE(terrain.has_value());
+    CHECK(terrain->min.x == doctest::Approx(-128.f));  //o objeto fica no meio do terreno
+    CHECK(terrain->max.z == doctest::Approx(128.f));
+    CHECK(terrain->max.y == doctest::Approx(6.f));
+    CHECK(terrain->min.y == doctest::Approx(0.f));
+}
+
+TEST_CASE("cena: setParent troca o pai sem o objeto sair do lugar (posição, rotação e escala)") {
+    CrsScene scene;
+    CrsGameObject &collider = scene.createGameObject();  //o pai: um collider girado e escalado
+    collider.transform.translation = {10.f, 0.f, 5.f};
+    collider.transform.rotation = {0.f, glm::half_pi<float>(), 0.f};
+    collider.transform.scale = {2.f, 2.f, 2.f};
+    CrsGameObject &wall = scene.createGameObject();
+    wall.transform.translation = {12.f, 1.f, 5.f};
+    wall.transform.rotation = {0.f, 0.3f, 0.f};
+    const glm::mat4 before = scene.worldMatrix(wall);
+
+    REQUIRE(scene.setParent(wall.getId(), collider.getId()));
+    CHECK(wall.parentId == collider.getId());
+    const glm::mat4 after = scene.worldMatrix(wall);
+    for (int c = 0; c < 4; c++) {
+        for (int r = 0; r < 4; r++) CHECK(after[c][r] == doctest::Approx(before[c][r]).epsilon(1e-4));
+    }
+
+    //o pai anda e gira: o filho vai junto
+    collider.transform.translation.x += 3.f;
+    CHECK(worldPosition(scene, wall).x != doctest::Approx(before[3].x));
+
+    //tirar do pai: continua onde estava (agora com o pai mexido)
+    const glm::vec3 moved = worldPosition(scene, wall);
+    REQUIRE(scene.setParent(wall.getId(), std::nullopt));
+    CHECK_FALSE(wall.parentId.has_value());
+    CHECK(wall.transform.translation.x == doctest::Approx(moved.x).epsilon(1e-4));
+    CHECK(wall.transform.translation.z == doctest::Approx(moved.z).epsilon(1e-4));
+}
+
+TEST_CASE("cena: setParent recusa círculo, o próprio objeto, terreno e o que não existe") {
+    CrsScene scene;
+    CrsGameObject &a = scene.createGameObject();
+    CrsGameObject &b = scene.createGameObject();
+    CrsGameObject &c = scene.createGameObject();
+    REQUIRE(scene.setParent(b.getId(), a.getId()));
+    REQUIRE(scene.setParent(c.getId(), b.getId()));
+
+    CHECK_FALSE(scene.setParent(a.getId(), c.getId()));  //a seria neto de si mesmo
+    CHECK_FALSE(scene.setParent(a.getId(), a.getId()));
+    CHECK_FALSE(scene.setParent(b.getId(), a.getId()));  //já é o pai
+    CHECK_FALSE(scene.setParent(9999, a.getId()));
+    CHECK_FALSE(scene.setParent(a.getId(), 9999));
+    CrsGameObject &ground = scene.createGameObject();
+    ground.terrain.emplace();
+    CHECK_FALSE(scene.setParent(ground.getId(), a.getId()));
+    CHECK_FALSE(a.parentId.has_value());
+}

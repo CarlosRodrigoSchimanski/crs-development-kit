@@ -380,6 +380,7 @@ TEST_CASE("cena: as camadas voltam na ordem, e a cena antiga (um material só) v
     CrsGameObject &obj = scene.createGameObject();
     obj.terrain.emplace();
     obj.terrain->layers = {{"assets/materials/a", 4.f}, {"assets/materials/b", 2.5f}};
+    obj.terrain->blend = 0.8f;
     saveScene(scene, scenePath.string());
 
     CrsScene loaded = loadScene(scenePath.string(), [](const std::string &) { return nullptr; });
@@ -387,6 +388,7 @@ TEST_CASE("cena: as camadas voltam na ordem, e a cena antiga (um material só) v
     REQUIRE(layers.size() == 2);
     CHECK(layers[1].material == "assets/materials/b");
     CHECK(layers[1].textureSize == doctest::Approx(2.5f));
+    CHECK(loaded.findGameObjectById(obj.getId())->terrain->blend == doctest::Approx(0.8f));  //a Mistura
 
     {
         std::ofstream out{scenePath};
@@ -398,6 +400,7 @@ TEST_CASE("cena: as camadas voltam na ordem, e a cena antiga (um material só) v
     REQUIRE(oldLayers.size() == 1);
     CHECK(oldLayers[0].material == "assets/materials/velho");
     CHECK(oldLayers[0].textureSize == doctest::Approx(3.f));
+    CHECK(old.findGameObjectById(0)->terrain->blend == doctest::Approx(0.5f));  //cena sem Mistura: o padrão
     std::filesystem::remove_all(root);
 }
 
@@ -681,4 +684,75 @@ TEST_CASE("pintura: segurar o pincel a 144 fps acumula até na borda (passos peq
     TerrainData single{1};
     for (int frame = 0; frame < 10; frame++) single.paint({100.f, 100.f}, 10.f, 1, perFrame);
     CHECK(single.weight(P(100), P(100), 1) == doctest::Approx(0.f));
+}
+
+TEST_CASE("física: personagem parado na ladeira não escorrega (e o visual não fica girando)") {
+    CrsScene scene;
+    CrsGameObject &ground = scene.createGameObject();
+    ground.terrain.emplace();
+    ground.terrain->data->raise({128.f, 128.f}, 30.f, 8.f);
+
+    CrsGameObject &player = scene.createGameObject();
+    player.transform.translation = {12.f, 15.f, 0.f};  //na encosta (uns 22 graus)
+    player.rigidBody.emplace();
+    player.rigidBody->shape = ColliderShape::Capsule;
+    player.rigidBody->radius = 0.4f;
+    player.rigidBody->height = 1.8f;
+    player.rigidBody->center = {0.f, 0.9f, 0.f};
+    player.character.emplace();
+    CrsGameObject &visual = scene.createGameObject();
+    visual.parentId = player.getId();
+    visual.faceMovement.emplace();
+    visual.transform.rotation.y = 1.f;
+
+    PhysicsSystem physics;
+    CharacterControllerSystem controller;
+    for (int i = 0; i < 120; i++) {  //cai e assenta
+        controller.update(scene);
+        physics.update(scene, 1.f / 60.f);
+    }
+    REQUIRE(player.rigidBody->onGround);
+    const glm::vec3 rested = player.transform.translation;
+    for (int i = 0; i < 180; i++) {  //3 s parado
+        controller.update(scene);
+        physics.update(scene, 1.f / 60.f);
+        controller.faceMovement(scene, 1.f / 60.f);
+    }
+    CHECK(glm::length(player.transform.translation - rested) < 0.05f);
+    CHECK(visual.transform.rotation.y == doctest::Approx(1.f));  //parado: continua olhando pra onde olhava
+}
+
+TEST_CASE("física: personagem descendo a ladeira andando continua grudado no chão") {
+    CrsScene scene;
+    CrsGameObject &ground = scene.createGameObject();
+    ground.terrain.emplace();
+    ground.terrain->data->raise({128.f, 128.f}, 30.f, 8.f);
+
+    CrsGameObject &player = scene.createGameObject();
+    player.transform.translation = {3.f, 15.f, 0.f};  //perto do topo
+    player.rigidBody.emplace();
+    player.rigidBody->shape = ColliderShape::Capsule;
+    player.rigidBody->radius = 0.4f;
+    player.rigidBody->height = 1.8f;
+    player.rigidBody->center = {0.f, 0.9f, 0.f};
+    player.character.emplace();
+
+    PhysicsSystem physics;
+    CharacterControllerSystem controller;
+    for (int i = 0; i < 120; i++) {
+        controller.update(scene);
+        physics.update(scene, 1.f / 60.f);
+    }
+    player.character->input.moveDirection = {1.f, 0.f, 0.f};  //morro abaixo, correndo
+    player.character->input.run = true;
+    int airborne = 0;
+    for (int i = 0; i < 120; i++) {
+        controller.update(scene);
+        physics.update(scene, 1.f / 60.f);
+        if (!player.rigidBody->onGround) airborne++;
+    }
+    CHECK(player.transform.translation.x > 11.f);  //correu uns 10 m
+    CHECK(airborne < 5);                          //sem ficar pulando rampa abaixo
+    const float groundY = *scene.terrainHeightAt(player.transform.translation.x, player.transform.translation.z);
+    CHECK(player.transform.translation.y == doctest::Approx(groundY).epsilon(0.03));
 }

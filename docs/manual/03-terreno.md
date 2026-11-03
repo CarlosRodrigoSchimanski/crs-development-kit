@@ -91,7 +91,15 @@ A pintura tem **4 pontos por metro** (um a cada 25 cm), mais fina que a malha do
 
 Nas encostas e paredes a textura não estica: ela é projetada de cima e dos lados ao mesmo tempo (projeção **triplanar**), e cada lado do morro usa a direção que está de frente para ele.
 
-Onde dois materiais se encontram, a engine mistura pela **altura** de cada um. Na borda entre terra e pedra, a terra entra nas frestas e as pedras aparecem por cima, em vez de uma faixa borrada.
+### Mistura
+
+O campo **Mistura** (0 a 1) diz como os materiais se juntam onde se encontram. Ele vale para o terreno todo e é salvo com a cena.
+
+- **0, pela altura:** a troca é seca. Na borda entre terra e pedra, a terra entra nas frestas e as pedras aparecem por cima, usando o relevo (displacement) de cada material. Enquanto você pinta, o material novo aparece de repente quando passa do outro.
+- **1, suave:** um material vai **surgindo aos poucos** enquanto o outro some, na proporção do que foi pintado. É o melhor para misturar variações parecidas, como três tipos de grama com pedras da mesma série de fotos.
+- **No meio** (o padrão é **0,5**), um pouco de cada: a passagem é gradual, mas as pedras ainda se destacam.
+
+> **Dica:** com materiais muito diferentes (pedra escura e grama), uma Mistura mais baixa fica mais natural. Com variações do mesmo material, use uma Mistura alta e pinceladas grandes com Espalhar baixo.
 
 ### Escala da textura (Repetir)
 

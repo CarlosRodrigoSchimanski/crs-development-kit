@@ -270,3 +270,85 @@ TEST_CASE("caixa que envolve a forma: esfera e cápsula") {
     CHECK(body.boundsMax().y == doctest::Approx(1.8f));
     CHECK(body.boundsMax().z == doctest::Approx(0.4f));
 }
+
+//um grupo: o collider pai em (20, 0, 0), girado 90 graus; a "escada" filha 3 m pra frente dele, 2 m de
+//altura. Sem somar o pai, a física poria a escada perto da origem
+static CrsGameObject &addGroupWithStair(CrsScene &scene, CrsGameObject *&parent) {
+    parent = &scene.createGameObject();
+    parent->transform.translation = {20.f, 0.f, 0.f};
+    parent->transform.rotation = {0.f, glm::half_pi<float>(), 0.f};
+    CrsGameObject &stair = scene.createGameObject();
+    stair.parentId = parent->getId();
+    stair.transform.translation = {0.f, 2.f, 3.f};  //local: 3 m no +Z do pai (girado: vira +X do mundo)
+    stair.rigidBody.emplace();
+    stair.rigidBody->type = BodyType::Static;
+    stair.rigidBody->halfExtents = {1.f, 0.25f, 1.f};
+    return stair;
+}
+
+static CrsGameObject &addBall(CrsScene &scene, glm::vec3 position) {
+    CrsGameObject &ball = scene.createGameObject();
+    ball.transform.translation = position;
+    ball.rigidBody.emplace();
+    ball.rigidBody->shape = ColliderShape::Sphere;
+    ball.rigidBody->radius = 0.25f;
+    return ball;
+}
+
+TEST_CASE("física de filho: o collider filho fica onde o pai põe ele no mundo") {
+    CrsScene scene;
+    PhysicsSystem physics;
+    CrsGameObject *parent = nullptr;
+    CrsGameObject &stair = addGroupWithStair(scene, parent);
+    const glm::vec3 stairWorld = glm::vec3{scene.worldMatrix(stair)[3]};
+    REQUIRE(stairWorld.x == doctest::Approx(23.f).epsilon(1e-4));  //20 + 3 (girado pro +X)
+
+    //bola em cima da escada no mundo: para em cima dela (topo em y = 2.25)
+    CrsGameObject &onStair = addBall(scene, {stairWorld.x, 5.f, stairWorld.z});
+    //bola onde a escada estaria SEM o pai (o transform local como se fosse mundo): cai direto
+    CrsGameObject &wrongPlace = addBall(scene, {0.f, 5.f, 3.f});
+    simulate(physics, scene, 2.f);
+
+    CHECK(onStair.transform.translation.y == doctest::Approx(2.5f).epsilon(SLOP));
+    CHECK(wrongPlace.transform.translation.y < 0.f);
+    //o collider estático não se mexe nem muda o transform local
+    CHECK(stair.transform.translation.z == doctest::Approx(3.f));
+}
+
+TEST_CASE("física de filho: mover o pai leva o collider filho junto") {
+    CrsScene scene;
+    PhysicsSystem physics;
+    CrsGameObject *parent = nullptr;
+    CrsGameObject &stair = addGroupWithStair(scene, parent);
+    simulate(physics, scene, 0.1f);  //os corpos já existem
+
+    //o castelo inteiro vai 10 m pro +Z (como arrastar o grupo no editor)
+    parent->transform.translation.z += 10.f;
+    const glm::vec3 stairWorld = glm::vec3{scene.worldMatrix(stair)[3]};
+    CrsGameObject &ball = addBall(scene, {stairWorld.x, 5.f, stairWorld.z});
+    simulate(physics, scene, 2.f);
+    CHECK(ball.transform.translation.y == doctest::Approx(2.5f).epsilon(SLOP));
+}
+
+TEST_CASE("física de filho: corpo dinâmico filho cai no mundo e o transform fica relativo ao pai") {
+    CrsScene scene;
+    PhysicsSystem physics;
+    CrsGameObject &parent = scene.createGameObject();
+    parent.transform.translation = {5.f, 10.f, 0.f};
+    CrsGameObject &crate = scene.createGameObject();
+    crate.parentId = parent.getId();
+    crate.transform.translation = {1.f, 0.f, 0.f};  //no mundo: (6, 10, 0)
+    crate.rigidBody.emplace();
+
+    CrsGameObject &floor = scene.createGameObject();
+    floor.transform.scale = {20.f, 1.f, 20.f};
+    floor.rigidBody.emplace();
+    floor.rigidBody->type = BodyType::Static;
+    floor.rigidBody->halfExtents = {1.f, 0.f, 1.f};
+
+    simulate(physics, scene, 3.f);
+    const glm::vec3 world = glm::vec3{scene.worldMatrix(crate)[3]};
+    CHECK(world.y == doctest::Approx(1.f).epsilon(SLOP));  //pousou no chão (meia altura acima)
+    CHECK(world.x == doctest::Approx(6.f).epsilon(0.01));
+    CHECK(crate.transform.translation.y == doctest::Approx(-9.f).epsilon(SLOP));  //relativo ao pai (em y = 10)
+}

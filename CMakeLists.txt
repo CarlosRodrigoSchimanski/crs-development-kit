@@ -212,6 +212,8 @@ set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/shadow.frag
     ${CMAKE_SOURCE_DIR}/shaders/gizmo.vert
     ${CMAKE_SOURCE_DIR}/shaders/gizmo.frag
+    ${CMAKE_SOURCE_DIR}/shaders/collision.vert
+    ${CMAKE_SOURCE_DIR}/shaders/collision.frag
     ${CMAKE_SOURCE_DIR}/shaders/skinned.vert
     ${CMAKE_SOURCE_DIR}/shaders/shadow_skinned.vert
     ${CMAKE_SOURCE_DIR}/shaders/selection_mask.vert
@@ -257,6 +259,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/crs_swap_chain.cpp
     src/engine/rendering/crs_model.cpp
     src/engine/rendering/crs_model_cache.cpp
+    src/engine/rendering/crs_gltf_export.cpp
     src/engine/rendering/crs_renderer.cpp
     src/engine/rendering/crs_camera.cpp
     src/engine/rendering/crs_buffer.cpp
@@ -271,6 +274,7 @@ set(ENGINE_SOURCES
     src/engine/rendering/systems/point_light_system.cpp
     src/engine/rendering/systems/shadow_render_system.cpp
     src/engine/rendering/systems/gizmo_system.cpp
+    src/engine/rendering/systems/collision_render_system.cpp
     src/engine/rendering/systems/selection_outline_system.cpp
     src/engine/rendering/systems/terrain_render_system.cpp
     src/engine/rendering/systems/skinning_system.cpp
@@ -365,6 +369,7 @@ set(TEST_SOURCES
     tests/test_character.cpp
     tests/test_scene.cpp
     tests/test_scene_serializer.cpp
+    tests/test_collision_mesh.cpp
     tests/test_ray.cpp
     tests/test_transform.cpp
     tests/test_camera_rig.cpp

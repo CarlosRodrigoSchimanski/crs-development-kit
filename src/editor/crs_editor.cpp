@@ -121,6 +121,24 @@ namespace crsdk {
         if (input.wasPressed(GLFW_KEY_S)) gizmoMode = GizmoMode::Scale;
     }
 
+    bool CrsEditor::frameSelected(CrsScene &scene) {
+        if (!selectedId) return false;
+        const std::optional<WorldBounds> bounds = scene.worldBounds(*selectedId);
+        if (!bounds) return false;
+        //a esfera que envolve a caixa; objeto sem tamanho (vazio, luz) enquadra como se tivesse 1 m
+        const float radius = std::max(glm::length(bounds->size()) * 0.5f, 0.5f);
+        cameraController.frame(bounds->center(), radius, EDITOR_FOV_Y);
+        return true;
+    }
+
+    void CrsEditor::updateFrameSelected(CrsScene &scene, const CrsInput &input) {
+        //só não vale digitando num campo (WantTextInput: depois de clicar no outliner tem que valer).
+        //O GLFW lê a tecla física: é o Del/ponto do numérico com o Num Lock ligado ou desligado, e
+        //não confunde com o Delete de cima (que apaga)
+        if (ImGui::GetIO().WantTextInput || !input.wasPressed(GLFW_KEY_KP_DECIMAL)) return;
+        frameSelected(scene);
+    }
+
     void CrsEditor::clearSelection() {
         selectedId.reset();
     }
@@ -294,16 +312,18 @@ namespace crsdk {
 
         for (auto &kv : scene.getGameObjects()) {
             CrsGameObject &obj = kv.second;
-            if (!obj.rigidBody) continue;
-            const RigidBodyComponent &body = *obj.rigidBody;
             //verde como nas outras engines; o selecionado mais forte
             const ImU32 color = &obj == selected ? IM_COL32(80, 255, 120, 255) : IM_COL32(80, 220, 120, 110);
-
-            //a física usa posição e rotação do objeto, e a escala só nos tamanhos (sem distorcer a forma)
             const glm::mat4 world = scene.worldMatrix(obj);
-            const glm::mat3 rotation{glm::normalize(glm::vec3{world[0]}), glm::normalize(glm::vec3{world[1]}),
-                                     glm::normalize(glm::vec3{world[2]})};
-            const glm::vec3 scale = glm::abs(obj.transform.scale);
+
+            //(a colisão que veio no modelo, UCX_, é desenhada na cena pelo CollisionRenderSystem)
+            if (!obj.rigidBody) continue;
+            const RigidBodyComponent &body = *obj.rigidBody;
+
+            //a física usa posição e rotação do objeto, e a escala só nos tamanhos (sem distorcer a forma).
+            //A escala é a do mundo: dentro de um grupo escalado, a do pai conta
+            const glm::vec3 scale{glm::length(glm::vec3{world[0]}), glm::length(glm::vec3{world[1]}), glm::length(glm::vec3{world[2]})};
+            const glm::mat3 rotation{glm::vec3{world[0]} / scale.x, glm::vec3{world[1]} / scale.y, glm::vec3{world[2]} / scale.z};
             const glm::vec3 center = glm::vec3{world[3]} + rotation * (body.center * scale);
             auto line = [&](glm::vec3 a, glm::vec3 b) {
                 auto from = worldToScreen(center + rotation * a, viewProjection, sceneArea);
@@ -599,6 +619,15 @@ namespace crsdk {
                                   "(o centro pinta cheio; indo pra borda, só alguns pontos)");
             }
 
+            //como os materiais se juntam na borda (vale pro terreno todo)
+            theme::fieldLabel("Mistura");
+            ImGui::SliderFloat("##mistura", &obj.terrain->blend, 0.f, 1.f, "%.2f");
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Como os materiais se juntam onde se encontram (o terreno todo):\n"
+                                  "0 = pela altura: troca seca, as pedras aparecem por cima\n"
+                                  "1 = suave: um vai surgindo aos poucos enquanto o outro some");
+            }
+
             //a repetição do material carregado (só depois que ele está no terreno)
             if (inPalette >= 0) {
                 theme::fieldLabel("Repetir");
@@ -861,6 +890,25 @@ namespace crsdk {
         for (CrsGameObject::id_t id : roots) {
             drawOutLinerNode(scene, id, children);
         }
+
+        //uma faixa embaixo da lista: soltar um objeto aqui tira ele do pai (vira raiz). Só aparece
+        //escrita enquanto um objeto está sendo arrastado
+        ImGui::InvisibleButton("##outliner_raiz", ImVec2(std::max(ImGui::GetContentRegionAvail().x, 1.f), ImGui::GetFrameHeight()));
+        const ImGuiPayload *dragging = ImGui::GetDragDropPayload();
+        if (dragging && dragging->IsDataType(OBJECT_DRAG_PAYLOAD)) {
+            const ImVec2 min = ImGui::GetItemRectMin();
+            const ImVec2 max = ImGui::GetItemRectMax();
+            ImDrawList *draw = ImGui::GetWindowDrawList();
+            draw->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_TextDisabled), 4.f);
+            draw->AddText(ImVec2(min.x + 8.f, min.y + ImGui::GetStyle().FramePadding.y),
+                          ImGui::GetColorU32(ImGuiCol_TextDisabled), "solte aqui para tirar do pai");
+        }
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(OBJECT_DRAG_PAYLOAD)) {
+                scene.setParent(*static_cast<const CrsGameObject::id_t *>(payload->Data), std::nullopt);
+            }
+            ImGui::EndDragDropTarget();
+        }
     }
 
     void CrsEditor::drawOutLinerNode(CrsScene &scene, CrsGameObject::id_t id, const ChildrenMap &children) {
@@ -881,6 +929,24 @@ namespace crsdk {
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
             selectedId = id;
         }
+        //arrastar o nome: solto em cima de outro objeto, vira filho dele (no mesmo lugar do mundo).
+        //Assim se monta um grupo: o pai (um collider, um Empty) leva todos os filhos junto
+        if (ImGui::BeginDragDropSource()) {
+            ImGui::SetDragDropPayload(OBJECT_DRAG_PAYLOAD, &id, sizeof(id));
+            ImGui::Text("%s", label);
+            ImGui::EndDragDropSource();
+        }
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(OBJECT_DRAG_PAYLOAD)) {
+                scene.setParent(*static_cast<const CrsGameObject::id_t *>(payload->Data), id);
+            }
+            ImGui::EndDragDropTarget();
+        }
+        //duplo clique no nome: seleciona e enquadra (como o Del do numérico)
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen()) {
+            selectedId = id;
+            frameSelected(scene);
+        }
 
         if (hasChildren && open) {
             for (CrsGameObject::id_t childId : found->second) {
@@ -900,6 +966,10 @@ namespace crsdk {
             if (ImGui::MenuItem("Salvar como...", "Ctrl+Shift+S")) requests.saveSceneAs = true;
             ImGui::Separator();
             if (ImGui::MenuItem("Importar .glb...")) requests.importModel = true;
+            //o selecionado com os filhos, com ele na origem: pra modelar a colisão (UCX_) em volta no Blender
+            if (ImGui::MenuItem("Exportar grupo para o Blender (.glb)...", nullptr, false, selectedId.has_value())) {
+                requests.exportGroup = true;
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Sair")) requests.quit = true;
             ImGui::EndMenu();

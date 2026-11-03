@@ -451,6 +451,7 @@ namespace crsdk {
             push.modelMatrix = glm::translate(glm::mat4{1.f}, obj.terrain->corner(obj.transform.translation));
             push.brush = glm::vec4{overlay.brushCenter, overlay.brushRadius};
             push.options.x = overlay.contourInterval;
+            push.options.w = std::clamp(obj.terrain->blend, 0.f, 1.f);
 
             for (int tileZ = 0; tileZ < data.tilesPerSide(); tileZ++) {
                 for (int tileX = 0; tileX < data.tilesPerSide(); tileX++) {

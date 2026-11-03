@@ -44,10 +44,19 @@ namespace crsdk {
             CrsGameObject *parent = scene.findGameObjectById(*obj.parentId);
             if (!parent || !parent->rigidBody) continue;
 
+            //personagem: olha pra onde o jogador QUER ir, e só se ele estiver andando de verdade (contra a
+            //parede: não vira). Escorregar, ser empurrado ou um tremido da física não giram o visual
             glm::vec2 velocity{parent->rigidBody->velocity.x, parent->rigidBody->velocity.z};
-            if (glm::length(velocity) < 0.01f) continue;
+            glm::vec2 facing = velocity;
+            if (parent->character) {
+                const glm::vec3 &wanted = parent->character->input.moveDirection;
+                facing = {wanted.x, wanted.z};
+                if (glm::length(facing) < 0.01f || glm::length(velocity) < 0.1f) continue;
+            } else if (glm::length(velocity) < 0.01f) {
+                continue;
+            }
 
-            float target = std::atan2(velocity.x, velocity.y) + obj.faceMovement->yawOffset;
+            float target = std::atan2(facing.x, facing.y) + obj.faceMovement->yawOffset;
             obj.transform.rotation.y = turnTowards(obj.transform.rotation.y, target, obj.faceMovement->turnSpeed * dt);
         }
     }

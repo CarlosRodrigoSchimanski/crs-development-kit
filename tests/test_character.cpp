@@ -180,6 +180,7 @@ TEST_CASE("faceMovement: o visual fica de frente pro movimento (com o desvio do 
     CrsGameObject &body = addCharacter(scene);
     CrsGameObject &visual = addVisual(scene, body);
     body.rigidBody->velocity = {1.f, 0.f, 0.f};  //andando pro +X
+    body.character->input.moveDirection = {1.f, 0.f, 0.f};  //porque o jogador pediu
 
     CharacterControllerSystem controller;
     controller.faceMovement(scene, DT);

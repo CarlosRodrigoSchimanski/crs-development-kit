@@ -22,6 +22,29 @@ itens — a lista abaixo é um RASCUNHO, a ordem e o que mais faltar saem do uso
      o trecho que mudou (chunkPaintVersions); Ctrl+Z guarda a pintura por trecho de 32 m; arquivo
      comprimido (repetição); cena antiga convertida misturando os 4 vizinhos. Depois, se o usuário
      quiser: pincel com imagem (forma do spray vinda de um PNG, como o do Photoshop)
+  ✅ (2026-11-02) personagem parado na ladeira não escorrega (sem gravidade apoiado) e o visual
+     olha pra intenção do jogador (não gira com escorregão/empurrão). Enquadrar o selecionado (Del do
+     numérico / duplo clique no Outliner), com CrsScene::worldBounds
+  ✅ (2026-11-02) "Mistura" do terreno (TerrainComponent::blend, salva na cena): 0 = pela altura
+     (troca seca), 1 = suave (proporcional à pintura); o shader mistura os dois pesos
+  ✅ (2026-11-03) animação de queda com espera (fallDelay, 0,5 s; pulo começa na hora): correndo
+     contra a parede o onGround piscava e a animação trocava sem parar. Manual: 05-animacao.md
+  ✅ (2026-11-03) GRUPOS: arrastar no Outliner troca o pai (CrsScene::setParent, mantém o lugar no
+     mundo; recusa círculo e terreno); faixa "solte aqui para tirar do pai". Uso do usuário: collider
+     (Empty + física) como pai e as peças do kit como filhos = casa/castelo que move junto
+  ✅ (2026-11-03) física de FILHOS: a Jolt recebe a pose no MUNDO (WorldPose, somada com os pais);
+     dinâmico filho volta relativo ao pai (setWorldPose); comparação com folga (nearlyEqual) pra não
+     teleportar o corpo por arredondamento. Pedido: a escada do castelo com colisão própria
+  ✅ (2026-11-03) COLISÃO NO MODELO: malhas UCX_/COL_ do .glb não são desenhadas e viram colisão
+     estática com a forma exata (MeshShape da Jolt, côncava ok; ScaledShape pra escala; forma dividida
+     por todos os objetos do mesmo modelo). CollisionMesh no modelo, copiada pro objeto no setModel; o
+     card Física manda se existir. No editor: CollisionRenderSystem (collision.vert/.frag) — verde
+     translúcido com luz pela inclinação da face, arestas (só bordas e dobras), depth bias pra ganhar da
+     parede coincidente, selecionado mais forte; no Play invisível. Arquivo > Exportar grupo para o
+     Blender (writeGlb + collectGroupMeshes, o pai na origem). Manual: 04-fisica.md
+  - Depois: seleção múltipla + Ctrl+G (agrupar selecionados num Empty); "prefab" no Asset Manager;
+    colisão do modelo dinâmica (precisaria de formas convexas); o raycast da cena (scene.raycast) ainda
+    não enxerga a colisão do modelo, só as do card Física e o terreno
   Cenário (falta):
   - salvamento automático (cópia de segurança a cada poucos minutos) — o usuário perdeu trabalho
     fechando sem salvar em 2026-11-02 (a pergunta resolve o fechar; o auto cobre travar/acabar a luz)
@@ -38,6 +61,25 @@ itens — a lista abaixo é um RASCUNHO, a ordem e o que mais faltar saem do uso
   - partículas/efeitos (poeira, fogo, magia, sangue)
   - equipamento (item 6) e progressão (item 8), se a fase precisar
   - HDRI/céu e reflexos; Asset Manager (3.7)
+  - modo TERRAIN EDIT (pedido do usuário, 2026-11-02: "muita informação" na tela): além de Editor e
+    Play, um modo só pro terreno — os cards e ferramentas do terreno (esculpir, pintar, Checar,
+    Mistura...) ficam nele, e o Editor fica limpo pra montar a cena. Outros modos podem vir depois
+    (junto com o Asset Manager). Sem pressa: quando o usuário sentir a dor
+  Bugs: o usuário avisa quando sentir dor (2026-11-02: os dois relatados — personagem girando na
+  ladeira e materiais trocando sem misturar — já foram resolvidos; falta ele testar a Mistura)
+
+  >>> ÚLTIMO PASSO ANTES DE FECHAR A 1.0: REVISÃO GERAL DO PROJETO <<<
+  (pedido do usuário, 2026-11-02). Depois que as ferramentas da fase estiverem prontas, antes de
+  marcar a 1.0: commit de tudo, depois revisão por área, cada correção num commit pequeno.
+  Ordem: terreno/pintura -> histórico (Ctrl+Z) -> desenho do terreno na GPU -> física do personagem
+  -> o resto (cena, scripts, editor). Pontos já conhecidos pra olhar:
+  - memória do Ctrl+Z: "Usar como base" e Ctrl+D de terreno copiam o terreno inteiro (17 MB por
+    pedaço com a pintura 4/m), mas o passo de cena conta só 64 KB (o limite de 768 MB não enxerga)
+  - editor e câmera (orbit_camera_controller, crs_editor) sem testes automáticos (ficam fora do
+    CRSDK_tests): enquadrar, cards e atalhos só foram testados na tela
+  - restos da pintura de 1 ponto por metro (nomes/comentários antigos); removeLayer fora do histórico
+  - rodar com a validação do Vulkan ligada (sincronização da imagem de pintura, splat)
+  - complemento: /code-review nas mudanças desde a última revisão
   Junto: o MANUAL (documentação de uso, como a do Blender/UPBGE), em docs/manual/, um arquivo
   Markdown por tema, com passo a passo, o que cada campo faz, dicas e exemplos de Python.
   REGRA (usuário, 2026-11-02): toda função nova entra no manual junto com o código.

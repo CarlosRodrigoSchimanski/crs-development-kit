@@ -145,6 +145,11 @@ namespace crsdk {
 
     CrsGameObject::id_t CrsGameObject::getId() const { return id; }
 
+    void CrsGameObject::setModel(std::shared_ptr<CrsModel> newModel) {
+        model = std::move(newModel);
+        collisionMesh = model ? model->getCollisionMesh() : nullptr;
+    }
+
     bool CrsGameObject::isAnimated() const {
         return model != nullptr && model->hasSkin() && animator.has_value();
     }

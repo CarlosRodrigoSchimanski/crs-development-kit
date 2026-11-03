@@ -8,6 +8,7 @@
 #include "engine/rendering/systems/point_light_system.hpp"
 #include "engine/rendering/systems/shadow_render_system.hpp"
 #include "engine/rendering/systems/gizmo_system.hpp"
+#include "engine/rendering/systems/collision_render_system.hpp"
 #include "engine/rendering/systems/selection_outline_system.hpp"
 #include "engine/rendering/systems/terrain_render_system.hpp"
 #include "editor/material_preview.hpp"
@@ -73,6 +74,8 @@ namespace crsdk {
             void saveSceneAsDialog();
             //escolhe um .glb na janela do sistema e põe na cena, no ponto que a câmera do editor olha
             void importModelDialog();
+            //Arquivo > Exportar grupo para o Blender: o selecionado e os filhos num .glb (o molde da colisão)
+            void exportGroupDialog();
             //cria um objeto do menu Adicionar no ponto que a câmera do editor olha
             void addObject(AddKind kind);
             //terreno novo, plano, no meio da cena (tiles = pedaços por lado)
@@ -140,6 +143,8 @@ namespace crsdk {
             std::unique_ptr<PointLightSystem> pointLightSystem{};
             std::unique_ptr<ShadowRenderSystem> shadowRenderSystem{};
             std::unique_ptr<GizmoRenderSystem> gizmoRenderSystem{};
+            //a colisão dos modelos (UCX_) translúcida, só no editor
+            std::unique_ptr<CollisionRenderSystem> collisionRenderSystem{};
             //aura laranja do selecionado (só no editor)
             std::unique_ptr<SelectionOutlineSystem> selectionOutlineSystem{};
             std::unique_ptr<TerrainRenderSystem> terrainRenderSystem{};

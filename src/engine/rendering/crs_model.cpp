@@ -47,7 +47,16 @@ namespace crsdk {
                 boundsMin = glm::min(boundsMin, vertex.position);
                 boundsMax = glm::max(boundsMax, vertex.position);
             }
+        } else if (!builder.collision.vertices.empty()) {
+            //modelo só de colisão: a caixa dela (clicar e enquadrar continuam funcionando)
+            boundsMin = builder.collision.vertices[0];
+            boundsMax = builder.collision.vertices[0];
+            for (const glm::vec3 &v : builder.collision.vertices) {
+                boundsMin = glm::min(boundsMin, v);
+                boundsMax = glm::max(boundsMax, v);
+            }
         }
+        if (!builder.collision.empty()) collisionMesh = std::make_shared<const CollisionMesh>(builder.collision);
 
         skeleton = builder.skeleton;
         animations = builder.animations;
@@ -75,6 +84,8 @@ namespace crsdk {
 
     void CrsModel::createVertexBuffers(const std::vector<Vertex>& vertices, CrsUploadBatch &upload) {
         vertexCount = static_cast<uint32_t>(vertices.size());
+        //modelo só de colisão (todas as malhas são UCX_): nada pra desenhar, sem buffer
+        if (vertexCount == 0) return;
         assert(vertexCount >= 3 && "Vertex count must be at least 3");
 
         vertexBuffer = createDeviceLocalBuffer(
@@ -110,6 +121,7 @@ namespace crsdk {
     }
 
     void CrsModel::bind(VkCommandBuffer commandBuffer) {
+        if (!vertexBuffer) return;  //só de colisão
         VkBuffer buffers[] = {vertexBuffer->getBuffer()};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
@@ -120,6 +132,7 @@ namespace crsdk {
     }
 
     void CrsModel::draw(VkCommandBuffer commandBuffer, uint32_t instanceCount, uint32_t firstInstance) {
+        if (!vertexBuffer) return;  //só de colisão: nada pra desenhar
         if(indexBuffer) {
             vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, 0, 0, firstInstance);
         } else {
@@ -128,7 +141,7 @@ namespace crsdk {
     }
 
     void CrsModel::drawEdges(VkCommandBuffer commandBuffer) {
-        if (!edgeIndexBuffer) return;
+        if (!edgeIndexBuffer || !vertexBuffer) return;
         //mesmos vértices dos triângulos; só troca a lista de índices
         VkBuffer buffers[] = {vertexBuffer->getBuffer()};
         VkDeviceSize offsets[] = {0};
@@ -140,6 +153,7 @@ namespace crsdk {
     bool CrsModel::hasSkin() const { return skinVertexBuffer != nullptr; }
 
     void CrsModel::bindSkinned(VkCommandBuffer commandBuffer) {
+        if (!vertexBuffer || !skinVertexBuffer) return;
         VkBuffer buffers[] = {vertexBuffer->getBuffer(), skinVertexBuffer->getBuffer()};
         VkDeviceSize offsets[] = {0, 0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 2, buffers, offsets);
@@ -254,6 +268,7 @@ namespace crsdk {
         skinVertices.clear();
         indices.clear();
         baseColorImage.clear();
+        collision = CollisionMesh{};
 
         cgltf_options options{};
         cgltf_data *rawData = nullptr;
@@ -287,6 +302,34 @@ namespace crsdk {
             glm::mat4 world = node.skin != nullptr ? glm::mat4{1.f} : glm::make_mat4(nodeMatrix);
 
             glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3{world}));
+
+            //malha de colisão (UCX_/COL_ no nome do objeto ou da malha no Blender): só as posições e os
+            //triângulos, pra física; não é desenhada
+            const bool collisionNode = (node.name && isCollisionMeshName(node.name)) ||
+                                       (node.mesh->name && isCollisionMeshName(node.mesh->name));
+            if (collisionNode) {
+                for (cgltf_size p = 0; p < node.mesh->primitives_count; p++) {
+                    const cgltf_primitive &primitive = node.mesh->primitives[p];
+                    if (primitive.type != cgltf_primitive_type_triangles) continue;
+                    const cgltf_accessor *positions = nullptr;
+                    for (cgltf_size a = 0; a < primitive.attributes_count; a++) {
+                        if (primitive.attributes[a].type == cgltf_attribute_type_position) positions = primitive.attributes[a].data;
+                    }
+                    if (positions == nullptr) continue;
+                    const uint32_t base = static_cast<uint32_t>(collision.vertices.size());
+                    for (cgltf_size i = 0; i < positions->count; i++) {
+                        float value[3] = {0.f, 0.f, 0.f};
+                        cgltf_accessor_read_float(positions, i, value, 3);
+                        collision.vertices.push_back(glm::vec3{world * glm::vec4{value[0], value[1], value[2], 1.f}});
+                    }
+                    const cgltf_size count = primitive.indices ? primitive.indices->count : positions->count;
+                    for (cgltf_size i = 0; i < count; i++) {
+                        const cgltf_size index = primitive.indices ? cgltf_accessor_read_index(primitive.indices, i) : i;
+                        collision.indices.push_back(base + static_cast<uint32_t>(index));
+                    }
+                }
+                continue;
+            }
 
             for (cgltf_size p = 0; p < node.mesh->primitives_count; p++) {
                 const cgltf_primitive &primitive = node.mesh->primitives[p];
@@ -410,6 +453,7 @@ namespace crsdk {
         }
 
         buildEdges();
+        collision.buildEdges();
     }
 
     //aresta real: borda da malha, ou onde as faces vizinhas dobram mais que este ângulo

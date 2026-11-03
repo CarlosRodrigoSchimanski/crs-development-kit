@@ -7,7 +7,7 @@ namespace crsdk {
     //provisório: quando tiver scripts, essa regra vira Python chamando animator.play()
     class CharacterAnimationSystem {
         public:
-            //depois da física (usa a velocidade e o onGround do frame)
-            void update(CrsScene &scene);
+            //depois da física (usa a velocidade e o onGround do frame); dt = duração do frame
+            void update(CrsScene &scene, float dt);
     };
 }

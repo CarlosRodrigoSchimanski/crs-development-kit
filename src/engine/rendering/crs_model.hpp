@@ -5,6 +5,7 @@
 #include "engine/rendering/crs_texture.hpp"
 #include "engine/rendering/crs_buffer.hpp"
 #include "engine/core/crs_device.hpp"
+#include "engine/scene/crs_collision_mesh.hpp"
 
 #include <optional>
 #include <vector>
@@ -48,6 +49,8 @@ namespace crsdk {
                 std::optional<Skeleton> skeleton{};
                 std::vector<AnimationClip> animations{};
                 std::vector<SkinVertex> skinVertices{};  //um por vértice; vazio = modelo sem esqueleto
+                //as malhas UCX_/COL_ do arquivo: não vão pros vértices (não são desenhadas), viram colisão
+                CollisionMesh collision{};
 
                 //carrega um .gltf/.glb (formato do jogo: exportado direto do Blender)
                 void loadModel(const std::string &filepath);
@@ -76,7 +79,10 @@ namespace crsdk {
 
             //nullptr se o modelo não tem textura
             CrsTexture *getTexture() const;
-            //caixa em volta do modelo, no espaço dele (menor e maior ponto dos vértices)
+            //a colisão que veio no arquivo (malhas UCX_/COL_); nullptr = o modelo não tem
+            std::shared_ptr<const CollisionMesh> getCollisionMesh() const { return collisionMesh; }
+            //caixa em volta do modelo, no espaço dele (menor e maior ponto dos vértices; modelo só de
+            //colisão: a caixa da colisão, pra dar pra clicar nele)
             glm::vec3 getBoundsMin() const;
             glm::vec3 getBoundsMax() const;
 
@@ -99,11 +105,11 @@ namespace crsdk {
 
             CrsDevice &crsDevice;
 
-            std::unique_ptr<CrsBuffer> vertexBuffer;
-            uint32_t vertexCount;
+            std::unique_ptr<CrsBuffer> vertexBuffer;  //vazio = modelo só de colisão (nada pra desenhar)
+            uint32_t vertexCount = 0;
 
             std::unique_ptr<CrsBuffer> indexBuffer;  //vazio = modelo sem índices
-            uint32_t indexCount;
+            uint32_t indexCount = 0;
 
             std::unique_ptr<CrsBuffer> edgeIndexBuffer;  //vazio = modelo sem arestas
             uint32_t edgeIndexCount = 0;
@@ -119,5 +125,6 @@ namespace crsdk {
             std::vector<AnimationClip> animations{};
 
             std::string filePath{};
+            std::shared_ptr<const CollisionMesh> collisionMesh{};
     };
 }

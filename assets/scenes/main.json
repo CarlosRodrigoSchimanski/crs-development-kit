@@ -16,8 +16,8 @@
             "transform": {
                 "translation": [
                     -4.078259,
-                    1.5,
-                    -0.0
+                    10.443448,
+                    0.0
                 ],
                 "rotation": [
                     -0.0,
@@ -62,11 +62,11 @@
             "transform": {
                 "translation": [
                     3.0,
-                    2.0,
+                    6.775796,
                     0.0
                 ],
                 "rotation": [
-                    0.0,
+                    -0.0,
                     0.0,
                     0.0
                 ],
@@ -266,7 +266,7 @@
                         "textureSize": 4.0
                     },
                     {
-                        "material": "assets/materials/dark_rock",
+                        "material": "",
                         "textureSize": 4.0
                     },
                     {
@@ -274,10 +274,31 @@
                         "textureSize": 4.0
                     },
                     {
-                        "material": "assets/materials/cobblestone_floor_09",
+                        "material": "",
+                        "textureSize": 4.0
+                    },
+                    {
+                        "material": "",
+                        "textureSize": 2.5
+                    },
+                    {
+                        "material": "assets/materials/rock_terrain_02",
+                        "textureSize": 4.0
+                    },
+                    {
+                        "material": "assets/materials/rock_terrain",
+                        "textureSize": 4.0
+                    },
+                    {
+                        "material": "assets/materials/rock_ground_02",
+                        "textureSize": 4.0
+                    },
+                    {
+                        "material": "assets/materials/rock_terrain_03",
                         "textureSize": 4.0
                     }
-                ]
+                ],
+                "blend": 0.0
             }
         }
     ]

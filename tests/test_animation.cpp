@@ -195,23 +195,48 @@ TEST_CASE("CharacterAnimationSystem: parado, andando, correndo e no ar") {
     float walkSpeed = body->character->moveSpeed;
 
     body->rigidBody->onGround = true;
-    system.update(scene);
+    system.update(scene, 1.f / 60.f);
     CHECK(visual.animator->clip == "idle");
 
     body->rigidBody->velocity = {walkSpeed, 0.f, 0.f};
-    system.update(scene);
+    system.update(scene, 1.f / 60.f);
     CHECK(visual.animator->clip == "walk");
     CHECK(visual.animator->loop);
 
     body->rigidBody->velocity = {0.f, 0.f, body->character->runSpeed};
-    system.update(scene);
+    system.update(scene, 1.f / 60.f);
     CHECK(visual.animator->clip == "run");
 
-    //no ar: a queda, em loop até pousar
+    //pulou (subindo): a queda, na hora, em loop até pousar
     body->rigidBody->onGround = false;
-    system.update(scene);
+    body->rigidBody->velocity.y = 4.f;
+    system.update(scene, 1.f / 60.f);
     CHECK(visual.animator->clip == "fall");
     CHECK(visual.animator->loop);
+}
+
+TEST_CASE("CharacterAnimationSystem: o 'no chão' piscando (correndo contra a parede) não troca pra queda") {
+    CrsScene scene;
+    CrsGameObject *body = nullptr;
+    CrsGameObject &visual = addAnimatedCharacter(scene, body);
+    CharacterAnimationSystem system;
+    body->rigidBody->velocity = {0.f, 0.f, body->character->runSpeed};
+
+    //60 frames alternando: 3 no chão, 2 "no ar" descendo um pouquinho
+    for (int frame = 0; frame < 60; frame++) {
+        const bool ground = frame % 5 < 3;
+        body->rigidBody->onGround = ground;
+        body->rigidBody->velocity.y = ground ? 0.f : -0.3f;
+        system.update(scene, 1.f / 60.f);
+        CHECK(visual.animator->clip == "run");
+    }
+
+    //caiu de verdade (saiu da beirada): depois da espera, a queda
+    body->rigidBody->onGround = false;
+    body->rigidBody->velocity.y = -2.f;
+    const int framesToFall = static_cast<int>(visual.characterAnimation->fallDelay * 60.f) + 1;
+    for (int frame = 0; frame < framesToFall; frame++) system.update(scene, 1.f / 60.f);
+    CHECK(visual.animator->clip == "fall");
 }
 
 TEST_CASE("animator: progress, frame e isFinished") {

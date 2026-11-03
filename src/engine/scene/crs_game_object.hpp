@@ -118,6 +118,13 @@ namespace crsdk {
         std::string run{};
         std::string fall{};      //no ar (pulando ou caindo): em loop até pousar
         float fadeTime = 0.2f;   //duração da transição (segundos)
+        //caindo sem ter pulado: a queda só começa depois de tanto tempo no ar (segundos). Correndo
+        //contra a parede ou passando num degrau, o "no chão" pisca por alguns frames: sem a espera, a
+        //animação ficava trocando sem parar. Pulo: a queda começa na hora
+        float fallDelay = 0.5f;
+
+        //estado (não é salvo): há quanto tempo está no ar
+        float airTime = 0.f;
     };
 
     //valor de um arg de componente que o editor sabe mostrar (no Python vira bool, int, float ou str)
@@ -169,6 +176,10 @@ namespace crsdk {
         //os materiais, na ordem das camadas da pintura: o [0] é o chão base (onde nada foi pintado);
         //até TERRAIN_MAX_LAYERS. Sem nenhum: a cor provisória
         std::vector<TerrainLayer> layers{};
+        //como os materiais se misturam onde se encontram: 0 = pela altura (troca seca: as pedras de um
+        //aparecem por cima do outro, a borda é nítida); 1 = vão aparecendo aos poucos, proporcional à
+        //pintura (um some enquanto o outro surge). O meio mistura os dois jeitos
+        float blend = 0.5f;
 
         //tira da paleta os materiais que não aparecem em lugar nenhum (pintados e depois cobertos);
         //o chão base fica. Feito ao salvar: quem controla isso é a engine, não a interface.
@@ -214,6 +225,12 @@ namespace crsdk {
             std::optional<id_t> parentId{};
 
             std::shared_ptr<CrsModel>model{};
+            //colisão que veio no modelo (malhas UCX_/COL_ do .glb): estática, com a forma exata. Vazio =
+            //sem colisão do modelo. Se o objeto tem RigidBody (o card Física), o RigidBody manda e esta
+            //fica de fora. Preenchida pelo setModel (não é salva: sai do modelo ao abrir a cena)
+            std::shared_ptr<const CollisionMesh> collisionMesh{};
+            //troca o modelo e pega a colisão que vem nele
+            void setModel(std::shared_ptr<CrsModel> newModel);
             std::optional<PointLightComponent> pointLight{};
             std::optional<CameraComponent> camera{};
             std::optional<RigidBodyComponent> rigidBody{};

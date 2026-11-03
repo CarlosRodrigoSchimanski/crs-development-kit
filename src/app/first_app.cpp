@@ -10,6 +10,7 @@
 #include "engine/platform/crs_platform.hpp"
 #include "engine/scene/scene_serializer.hpp"
 #include "editor/file_dialog.hpp"
+#include "engine/rendering/crs_gltf_export.hpp"
 
 #include <imgui.h>
 #include <ImGuizmo.h>
@@ -114,6 +115,7 @@ namespace crsdk {
         pointLightSystem = std::make_unique<PointLightSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         shadowRenderSystem = std::make_unique<ShadowRenderSystem>(crsDevice, shadowMap, globalLayout);
         gizmoRenderSystem = std::make_unique<GizmoRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
+        collisionRenderSystem = std::make_unique<CollisionRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         selectionOutlineSystem = std::make_unique<SelectionOutlineSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         terrainRenderSystem = std::make_unique<TerrainRenderSystem>(crsDevice, colorFormat, depthFormat, globalLayout);
         skinningSystem = std::make_unique<SkinningSystem>(crsDevice, animationLibrary);
@@ -515,12 +517,43 @@ namespace crsdk {
             std::shared_ptr<CrsModel> model = modelCache.load(*chosen);
             auto& obj = crsScene.createGameObject();
             obj.name = std::filesystem::path{*chosen}.stem().string();
-            obj.model = model;
+            obj.setModel(model);  //com a colisão que vier no arquivo (malhas UCX_)
             obj.transform.translation = editor.getFocusPoint();
             editor.select(obj.getId());
             sceneFileStatus = "Importado: " + *chosen;
         } catch (const std::exception &e) {
             sceneFileStatus = std::string{"Erro ao importar: "} + e.what();
+        }
+    }
+
+    void FirstApp::exportGroupDialog() {
+        try {
+            CrsGameObject *root = editor.getSelected(crsScene);
+            if (!root) return;
+            const std::string base = root->name.empty() ? "grupo" : root->name;
+            auto chosen = saveFileDialog("Modelo glTF", "glb", MODEL_FOLDER, base + "_molde.glb");
+            if (!chosen) return;
+            //a geometria de cada peça vem do arquivo do modelo dela (lido uma vez por arquivo)
+            std::map<std::string, CrsModel::Builder> builders;
+            auto geometryOf = [&](const CrsGameObject &obj) -> const CrsModel::Builder * {
+                if (!obj.model || obj.model->getFilePath().empty()) return nullptr;
+                const std::string &path = obj.model->getFilePath();
+                auto found = builders.find(path);
+                if (found == builders.end()) {
+                    found = builders.emplace(path, CrsModel::Builder{}).first;
+                    found->second.loadModel(path);
+                }
+                return &found->second;
+            };
+            const std::vector<ExportMesh> meshes = collectGroupMeshes(crsScene, root->getId(), geometryOf);
+            if (meshes.empty()) {
+                sceneFileStatus = "Nada pra exportar: o grupo não tem peças com modelo";
+                return;
+            }
+            writeGlb(*chosen, meshes);
+            sceneFileStatus = "Exportado (" + std::to_string(meshes.size()) + " peças): " + *chosen;
+        } catch (const std::exception &e) {
+            sceneFileStatus = std::string{"Erro ao exportar: "} + e.what();
         }
     }
 
@@ -661,7 +694,7 @@ namespace crsdk {
             editor.updateCamera(crsWindow, camera);
         }
         //far de 4 km: enxerga o terreno inteiro (até 2048 m de lado) de qualquer ponto dele
-        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 4000.f);
+        camera.setPerspectiveProjection(EDITOR_FOV_Y, aspect, 0.1f, 4000.f);
     }
 
     glm::mat4 FirstApp::computeLightSpaceMatrix(CrsGameObject* gameCamera, glm::vec3 lightDirection, uint32_t shadowMapSize) {
@@ -698,6 +731,9 @@ namespace crsdk {
         //gizmos: transparentes, depois do que é opaco
         if (!frameInfo.playing) {
             gizmoRenderSystem->render(frameInfo);
+            //a colisão dos modelos (UCX_): no Play ela é invisível
+            const CrsGameObject *selectedObject = editor.getSelected(frameInfo.crsScene);
+            collisionRenderSystem->render(frameInfo, selectedObject ? std::optional{selectedObject->getId()} : std::nullopt);
         }
         //aura por cima da cena e dos gizmos, embaixo da interface
         selectionOutlineSystem->renderOutline(frameInfo);
@@ -778,6 +814,8 @@ namespace crsdk {
             //pincel antes da seleção: esculpindo, o clique é dele
             editor.updateTerrainBrush(crsScene, crsInput, camera, sceneArea, frameTime);
             editor.updateSelection(crsScene, crsInput, camera, sceneArea);
+            //Del do teclado numérico: enquadra o selecionado
+            editor.updateFrameSelected(crsScene, crsInput);
             editor.updateShortcuts(crsInput);
         }
 
@@ -794,7 +832,7 @@ namespace crsdk {
             characterController.update(*playScene);
             physicsSystem.update(*playScene, frameTime);
             characterController.faceMovement(*playScene, frameTime);
-            characterAnimationSystem.update(*playScene);
+            characterAnimationSystem.update(*playScene, frameTime);
             cameraRigSystem.placeCamera(*playScene);
             animatorSystem.update(*playScene, frameTime);
         }
@@ -834,6 +872,7 @@ namespace crsdk {
                 if (requests.saveScene) saveSceneFile();
                 if (requests.saveSceneAs) saveSceneAsDialog();
                 if (requests.importModel) importModelDialog();
+                if (requests.exportGroup) exportGroupDialog();
                 if (requests.add != AddKind::None) addObject(requests.add);
                 if (requests.addTerrainTiles > 0) addTerrain(requests.addTerrainTiles);
                 if (requests.quit) glfwSetWindowShouldClose(crsWindow.getGLFWwindow(), GLFW_TRUE);

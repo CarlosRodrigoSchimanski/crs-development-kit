@@ -151,15 +151,29 @@ vec3 layeredColor(vec3 normal, int layerCount) {
     //nada pintado (ponto sem peso): o chão base
     if (best < 0.0) { score[0] = 1.0; best = 1.0; }
 
-    //2) só as camadas perto da mais alta entram, cada uma com o quanto passou da linha
+    //2) a parte de cada camada. Pela altura: só as perto da mais alta, cada uma com o quanto passou
+    //da linha (troca seca). Suave: o quanto foi pintado (vai surgindo aos poucos). A "Mistura" do
+    //terreno (options.w) escolhe entre os dois
+    float byHeight[MAX_LAYERS];
+    float heightTotal = 0.0;
+    float paintTotal = 0.0;
+    for (int i = 0; i < MAX_LAYERS; i++) {
+        byHeight[i] = max(score[i] - (best - BLEND_DEPTH), 0.0);
+        heightTotal += byHeight[i];
+        if (score[i] >= 0.0) paintTotal += painted[i];
+    }
+    float softness = clamp(push.options.w, 0.0, 1.0);
+
     vec3 albedo = vec3(0.0);
     vec3 shadingNormal = vec3(0.0);
     float roughness = 0.0;
     float ao = 0.0;
     float total = 0.0;
     for (int i = 0; i < MAX_LAYERS; i++) {
-        float blend = max(score[i] - (best - BLEND_DEPTH), 0.0);
-        if (blend <= 0.0) continue;
+        //sem pintura nenhuma no ponto (só o chão base): o suave é igual ao pela altura
+        float soft = paintTotal > 0.0 ? (score[i] >= 0.0 ? painted[i] / paintTotal : 0.0) : byHeight[i] / heightTotal;
+        float blend = mix(byHeight[i] / heightTotal, soft, softness);
+        if (blend <= 0.001) continue;
         float scale = push.layerScales[i / 4][i % 4];
         albedo += sampleTriplanar(albedoMaps[i], tp, scale).rgb * blend;
         shadingNormal += sampleTriplanarNormal(normalMaps[i], tp, scale, normal) * blend;

@@ -13,11 +13,14 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include <algorithm>
@@ -120,9 +123,51 @@ namespace crsdk {
         bool operator==(const ShapeKey &) const = default;
     };
 
-    static ShapeKey shapeKey(const CrsGameObject &obj) {
+    //onde o objeto está no MUNDO (somado com os pais): é ali que o corpo dele fica na Jolt. Um collider
+    //filho de um grupo (a escada dentro do castelo) anda e gira junto com o pai
+    struct WorldPose {
+        glm::vec3 translation;
+        glm::mat3 rotation;
+        glm::vec3 scale;
+    };
+
+    static const CrsGameObject *parentOf(CrsScene &scene, const CrsGameObject &obj) {
+        return obj.parentId ? scene.findGameObjectById(*obj.parentId) : nullptr;
+    }
+
+    static WorldPose worldPose(CrsScene &scene, const CrsGameObject &obj) {
+        //sem pai: o transform já é no mundo (direto, sem desmontar matriz: nada de erro de arredondamento)
+        if (!parentOf(scene, obj)) return {obj.transform.translation, obj.transform.rotationMatrix(), obj.transform.scale};
+        TransformComponent world{};
+        world.setFromMatrix(scene.worldMatrix(obj));
+        return {world.translation, world.rotationMatrix(), world.scale};
+    }
+
+    //grava no objeto uma posição/rotação do mundo (a que a Jolt calculou); com pai, vira relativa a ele
+    static void setWorldPose(CrsScene &scene, CrsGameObject &obj, const glm::vec3 &translation, const glm::mat3 &rotation) {
+        const CrsGameObject *parent = parentOf(scene, obj);
+        if (!parent) {
+            obj.transform.translation = translation;
+            obj.transform.setRotationMatrix(rotation);
+            return;
+        }
+        const glm::vec3 scale = worldPose(scene, obj).scale;
+        const glm::mat4 world = glm::translate(glm::mat4{1.f}, translation) * glm::mat4{rotation} * glm::scale(glm::mat4{1.f}, scale);
+        obj.transform.setFromMatrix(glm::inverse(scene.worldMatrix(*parent)) * world);
+    }
+
+    //quase igual: a pose de um filho volta da matriz com um erro de arredondamento minúsculo, que não
+    //pode contar como "alguém moveu o objeto" (senão o corpo seria teleportado todo frame)
+    static bool nearlyEqual(const glm::vec3 &a, const glm::vec3 &b) {
+        return glm::all(glm::lessThanEqual(glm::abs(a - b), glm::vec3{1e-4f}));
+    }
+    static bool nearlyEqual(const glm::mat3 &a, const glm::mat3 &b) {
+        return nearlyEqual(a[0], b[0]) && nearlyEqual(a[1], b[1]) && nearlyEqual(a[2], b[2]);
+    }
+
+    static ShapeKey shapeKey(const CrsGameObject &obj, const glm::vec3 &worldScale) {
         const RigidBodyComponent &b = *obj.rigidBody;
-        return {b.type, b.shape, b.halfExtents, b.radius, b.height, b.center, b.mass, obj.transform.scale};
+        return {b.type, b.shape, b.halfExtents, b.radius, b.height, b.center, b.mass, worldScale};
     }
 
     //a forma da Jolt pro componente, já com a escala do objeto; a origem da forma = a origem do objeto
@@ -204,8 +249,8 @@ namespace crsdk {
         struct Body {
             JPH::BodyID id;
             ShapeKey key;
-            glm::vec3 translation;
-            glm::vec3 rotation;
+            glm::vec3 translation;  //no mundo
+            glm::mat3 rotation;     //no mundo
             glm::vec3 velocity;
         };
         std::unordered_map<CrsGameObject::id_t, Body> bodies{};
@@ -213,7 +258,7 @@ namespace crsdk {
         struct Character {
             JPH::Ref<JPH::CharacterVirtual> character;
             ShapeKey key;
-            glm::vec3 translation;
+            glm::vec3 translation;  //no mundo
         };
         //depois do physics: o personagem tira o corpo de dentro dele do mundo ao ser destruído
         std::unordered_map<CrsGameObject::id_t, Character> characters{};
@@ -227,6 +272,22 @@ namespace crsdk {
         };
         std::unordered_map<CrsGameObject::id_t, Terrain> terrains{};
 
+        //colisão que veio no modelo (malhas UCX_): um corpo estático com a malha exata. A forma é feita
+        //uma vez por malha e dividida por todos os objetos com o mesmo modelo (as 20 escadas iguais)
+        struct MeshBody {
+            JPH::BodyID id;  //inválido = a malha não virou forma (triângulos degenerados): não tenta de novo
+            std::shared_ptr<const CollisionMesh> mesh;
+            glm::vec3 scale;        //no mundo: mudou = refaz o corpo
+            glm::vec3 translation;  //no mundo
+            glm::mat3 rotation;     //no mundo
+        };
+        std::unordered_map<CrsGameObject::id_t, MeshBody> meshBodies{};
+        struct MeshShapeEntry {
+            std::shared_ptr<const CollisionMesh> mesh;  //segura a malha viva enquanto a forma existir
+            JPH::RefConst<JPH::Shape> shape;
+        };
+        std::unordered_map<const CollisionMesh *, MeshShapeEntry> meshShapes{};
+
         World() {
             physics.Init(10240, 0, 65536, 10240, broadPhaseLayers, objectVsBroadPhase, objectPairs);
             physics.SetContactListener(&contacts);
@@ -239,6 +300,7 @@ namespace crsdk {
                 bodyInterface.DestroyBody(kv.second.id);
             }
             for (auto &kv : terrains) removeTerrain(kv.second);
+            for (auto &kv : meshBodies) removeMeshBody(kv.second);
         }
 
         static std::vector<uint64_t> tileVersions(const TerrainData &data) {
@@ -285,20 +347,69 @@ namespace crsdk {
             terrains[obj.getId()] = std::move(terrain);
         }
 
+        //a forma da Jolt pra malha (feita na primeira vez; nullptr = não deu: nenhum triângulo válido)
+        JPH::RefConst<JPH::Shape> meshShape(const std::shared_ptr<const CollisionMesh> &mesh) {
+            if (auto found = meshShapes.find(mesh.get()); found != meshShapes.end()) return found->second.shape;
+            JPH::VertexList vertices;
+            vertices.reserve(mesh->vertices.size());
+            for (const glm::vec3 &v : mesh->vertices) vertices.push_back(JPH::Float3{v.x, v.y, v.z});
+            JPH::IndexedTriangleList triangles;
+            for (size_t i = 0; i + 2 < mesh->indices.size(); i += 3) {
+                triangles.push_back(JPH::IndexedTriangle{mesh->indices[i], mesh->indices[i + 1], mesh->indices[i + 2], 0});
+            }
+            JPH::MeshShapeSettings settings{std::move(vertices), std::move(triangles)};
+            JPH::ShapeSettings::ShapeResult result = settings.Create();
+            JPH::RefConst<JPH::Shape> shape = result.HasError() ? nullptr : result.Get();
+            meshShapes[mesh.get()] = {mesh, shape};
+            return shape;
+        }
+
+        void addMeshBody(const CrsGameObject &obj, const WorldPose &pose) {
+            MeshBody entry{JPH::BodyID{}, obj.collisionMesh, pose.scale, pose.translation, pose.rotation};
+            JPH::RefConst<JPH::Shape> shape = meshShape(obj.collisionMesh);
+            if (shape) {
+                //escala do objeto (e dos pais): a mesma forma, esticada (a malha é a do arquivo)
+                if (!nearlyEqual(pose.scale, glm::vec3{1.f})) shape = new JPH::ScaledShape(shape, toJolt(pose.scale));
+                JPH::BodyCreationSettings settings{shape, toJolt(pose.translation), toJolt(glm::quat_cast(pose.rotation)),
+                    JPH::EMotionType::Static, layers::STATIC};
+                settings.mUserData = obj.getId();
+                entry.id = physics.GetBodyInterface().CreateAndAddBody(settings, JPH::EActivation::DontActivate);
+            }
+            meshBodies[obj.getId()] = entry;
+        }
+
+        void removeMeshBody(const MeshBody &body) {
+            if (body.id.IsInvalid()) return;
+            JPH::BodyInterface &bodyInterface = physics.GetBodyInterface();
+            bodyInterface.RemoveBody(body.id);
+            bodyInterface.DestroyBody(body.id);
+        }
+
+        //alguém moveu o objeto (ou o grupo dele): a colisão vai junto
+        void pushMeshTransform(MeshBody &body, const WorldPose &pose) {
+            if (nearlyEqual(pose.translation, body.translation) && nearlyEqual(pose.rotation, body.rotation)) return;
+            if (!body.id.IsInvalid()) {
+                physics.GetBodyInterface().SetPositionAndRotation(body.id, toJolt(pose.translation),
+                    toJolt(glm::quat_cast(pose.rotation)), JPH::EActivation::DontActivate);
+            }
+            body.translation = pose.translation;
+            body.rotation = pose.rotation;
+        }
+
         void removeBody(const Body &body) {
             JPH::BodyInterface &bodyInterface = physics.GetBodyInterface();
             bodyInterface.RemoveBody(body.id);
             bodyInterface.DestroyBody(body.id);
         }
 
-        void addBody(CrsGameObject &obj) {
+        void addBody(CrsGameObject &obj, const WorldPose &pose) {
             const RigidBodyComponent &rigidBody = *obj.rigidBody;
             const bool dynamic = rigidBody.type == BodyType::Dynamic;
-            const glm::quat rotation = glm::quat_cast(obj.transform.rotationMatrix());
+            const glm::quat rotation = glm::quat_cast(pose.rotation);
 
             JPH::BodyCreationSettings settings{
-                makeShape(rigidBody, obj.transform.scale),
-                toJolt(obj.transform.translation),
+                makeShape(rigidBody, pose.scale),
+                toJolt(pose.translation),
                 toJolt(rotation),
                 dynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static,
                 dynamic ? layers::MOVING : layers::STATIC};
@@ -313,41 +424,43 @@ namespace crsdk {
             const JPH::BodyID id = physics.GetBodyInterface().CreateAndAddBody(
                 settings, dynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
             if (id.IsInvalid()) return;  //mundo cheio (10240 corpos): o objeto fica sem física
-            bodies[obj.getId()] = {id, shapeKey(obj), obj.transform.translation, obj.transform.rotation, rigidBody.velocity};
+            bodies[obj.getId()] = {id, shapeKey(obj, pose.scale), pose.translation, pose.rotation, rigidBody.velocity};
         }
 
-        void addCharacter(CrsGameObject &obj) {
+        void addCharacter(CrsGameObject &obj, const WorldPose &pose) {
             const RigidBodyComponent &rigidBody = *obj.rigidBody;
             JPH::CharacterVirtualSettings settings{};
-            settings.mShape = makeShape(rigidBody, obj.transform.scale);
+            settings.mShape = makeShape(rigidBody, pose.scale);
             //um corpo de verdade junto do personagem: assim o que cai ou rola também bate nele
             settings.mInnerBodyShape = settings.mShape;
             settings.mInnerBodyLayer = layers::MOVING;
-            settings.mSupportingVolume = JPH::Plane{JPH::Vec3::sAxisY(), -supportHeight(rigidBody, obj.transform.scale)};
+            settings.mSupportingVolume = JPH::Plane{JPH::Vec3::sAxisY(), -supportHeight(rigidBody, pose.scale)};
             settings.mMaxSlopeAngle = JPH::DegreesToRadians(50.f);
             settings.mMass = std::max(rigidBody.mass, 0.01f);
             settings.mMaxStrength = 300.f;  //força pra empurrar caixas (newtons)
 
             JPH::Ref<JPH::CharacterVirtual> character = new JPH::CharacterVirtual(
-                &settings, toJolt(obj.transform.translation), JPH::Quat::sIdentity(), obj.getId(), &physics);
-            characters[obj.getId()] = {character, shapeKey(obj), obj.transform.translation};
+                &settings, toJolt(pose.translation), JPH::Quat::sIdentity(), obj.getId(), &physics);
+            characters[obj.getId()] = {character, shapeKey(obj, pose.scale), pose.translation};
         }
 
-        void moveCharacter(CrsGameObject &obj, Character &entry, const glm::vec3 &gravity, float dt) {
+        void moveCharacter(CrsScene &scene, CrsGameObject &obj, Character &entry, const WorldPose &pose, const glm::vec3 &gravity, float dt) {
             JPH::CharacterVirtual &character = *entry.character;
             RigidBodyComponent &rigidBody = *obj.rigidBody;
 
-            //alguém moveu o objeto (editor, script): o personagem vai junto
-            if (obj.transform.translation != entry.translation) {
-                character.SetPosition(toJolt(obj.transform.translation));
+            //alguém moveu o objeto (editor, script, o pai): o personagem vai junto
+            if (!nearlyEqual(pose.translation, entry.translation)) {
+                character.SetPosition(toJolt(pose.translation));
             }
 
             //a velocidade de andar (x, z) vem do CharacterControllerSystem; a vertical é a gravidade.
-            //Apoiado e sem pular: não acumula queda
+            //Apoiado e sem pular: sem gravidade nenhuma. Com ela, na ladeira a Jolt desvia o "pra baixo"
+            //ao longo da rampa e o personagem parado escorrega (descer andando continua grudado no chão:
+            //o ExtendedUpdate puxa ele pro chão sozinho). Rampa íngreme demais não conta como apoio: escorrega
             glm::vec3 velocity = rigidBody.velocity;
             const bool supported = character.GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround;
             if (supported && velocity.y <= 0.f) velocity.y = 0.f;
-            velocity.y += gravity.y * dt;
+            else velocity.y += gravity.y * dt;
             character.SetLinearVelocity(toJolt(velocity));
 
             const glm::vec3 before = toGlm(character.GetPosition());
@@ -360,7 +473,12 @@ namespace crsdk {
                 {}, tempAllocator);
             const glm::vec3 after = toGlm(character.GetPosition());
 
-            obj.transform.translation = after;
+            //no objeto: direto, ou relativo ao pai (o personagem não gira: só a posição)
+            if (const CrsGameObject *parent = parentOf(scene, obj)) {
+                obj.transform.translation = glm::vec3{glm::inverse(scene.worldMatrix(*parent)) * glm::vec4{after, 1.f}};
+            } else {
+                obj.transform.translation = after;
+            }
             entry.translation = after;
             rigidBody.onGround = character.GetGroundState() == JPH::CharacterVirtual::EGroundState::OnGround;
             //a velocidade de verdade (andando contra a parede = parado): animação e o virar do visual usam ela
@@ -372,14 +490,14 @@ namespace crsdk {
             else rigidBody.velocity.y = velocity.y;
         }
 
-        //alguém moveu um corpo (editor, script): leva ele pro lugar novo
-        void pushTransform(CrsGameObject &obj, Body &body) {
-            if (obj.transform.translation == body.translation && obj.transform.rotation == body.rotation) return;
-            const glm::quat rotation = glm::quat_cast(obj.transform.rotationMatrix());
-            physics.GetBodyInterface().SetPositionAndRotation(body.id, toJolt(obj.transform.translation), toJolt(rotation),
+        //alguém moveu um corpo (editor, script, ou o pai dele): leva ele pro lugar novo
+        void pushTransform(CrsGameObject &obj, Body &body, const WorldPose &pose) {
+            if (nearlyEqual(pose.translation, body.translation) && nearlyEqual(pose.rotation, body.rotation)) return;
+            const glm::quat rotation = glm::quat_cast(pose.rotation);
+            physics.GetBodyInterface().SetPositionAndRotation(body.id, toJolt(pose.translation), toJolt(rotation),
                 obj.rigidBody->type == BodyType::Dynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
-            body.translation = obj.transform.translation;
-            body.rotation = obj.transform.rotation;
+            body.translation = pose.translation;
+            body.rotation = pose.rotation;
         }
 
         //o script mudou a velocidade (ex: um impulso pra cima): passa pra Jolt
@@ -390,15 +508,16 @@ namespace crsdk {
         }
 
         //depois da simulação: a Jolt devolve onde o corpo dinâmico foi parar
-        void pullTransform(CrsGameObject &obj, Body &body) {
+        void pullTransform(CrsScene &scene, CrsGameObject &obj, Body &body) {
             JPH::BodyInterface &bodyInterface = physics.GetBodyInterface();
-            obj.transform.translation = toGlm(bodyInterface.GetPosition(body.id));
-            obj.transform.setRotationMatrix(glm::mat3_cast(toGlm(bodyInterface.GetRotation(body.id))));
+            const glm::vec3 translation = toGlm(bodyInterface.GetPosition(body.id));
+            const glm::mat3 rotation = glm::mat3_cast(toGlm(bodyInterface.GetRotation(body.id)));
+            setWorldPose(scene, obj, translation, rotation);
             obj.rigidBody->velocity = toGlm(bodyInterface.GetLinearVelocity(body.id));
             //corpo parado há um tempo "dorme" e a Jolt para de avisar os contatos dele: fica o que era
             if (bodyInterface.IsActive(body.id)) obj.rigidBody->onGround = contacts.isGrounded(body.id);
-            body.translation = obj.transform.translation;
-            body.rotation = obj.transform.rotation;
+            body.translation = translation;
+            body.rotation = rotation;
             body.velocity = obj.rigidBody->velocity;
         }
     };
@@ -424,19 +543,35 @@ namespace crsdk {
         //1) some o corpo de quem foi apagado, perdeu o RigidBody, virou/deixou de ser personagem ou mudou de forma
         std::erase_if(w.bodies, [&](auto &kv) {
             CrsGameObject *obj = scene.findGameObjectById(kv.first);
-            const bool keep = obj && obj->rigidBody && !obj->character && shapeKey(*obj) == kv.second.key;
+            const bool keep = obj && obj->rigidBody && !obj->character && shapeKey(*obj, worldPose(scene, *obj).scale) == kv.second.key;
             if (!keep) w.removeBody(kv.second);
             return !keep;
         });
         std::erase_if(w.characters, [&](auto &kv) {
             CrsGameObject *obj = scene.findGameObjectById(kv.first);
-            return !(obj && obj->rigidBody && obj->character && shapeKey(*obj) == kv.second.key);
+            return !(obj && obj->rigidBody && obj->character && shapeKey(*obj, worldPose(scene, *obj).scale) == kv.second.key);
         });
         std::erase_if(w.terrains, [&](auto &kv) {
             CrsGameObject *obj = scene.findGameObjectById(kv.first);
             const bool keep = obj && obj->terrain && World::sameTerrain(*obj, kv.second);
             if (!keep) w.removeTerrain(kv.second);
             return !keep;
+        });
+        //colisão do modelo: sai se o objeto sumiu, ganhou o card Física (ele manda), trocou de modelo ou
+        //mudou de escala
+        std::erase_if(w.meshBodies, [&](auto &kv) {
+            CrsGameObject *obj = scene.findGameObjectById(kv.first);
+            const bool keep = obj && !obj->rigidBody && obj->collisionMesh == kv.second.mesh
+                && nearlyEqual(worldPose(scene, *obj).scale, kv.second.scale);
+            if (!keep) w.removeMeshBody(kv.second);
+            return !keep;
+        });
+        //forma que nenhum corpo usa mais (o modelo saiu da cena): sai da memória
+        std::erase_if(w.meshShapes, [&](auto &kv) {
+            for (const auto &body : w.meshBodies) {
+                if (body.second.mesh.get() == kv.first) return false;
+            }
+            return true;
         });
         //terrenos antes dos personagens: quem nasce em cima dele já tem chão no primeiro frame
         for (auto &kv : scene.getGameObjects()) {
@@ -446,15 +581,23 @@ namespace crsdk {
         //2) cria o que é novo, leva pro lugar novo o que alguém moveu, e anda com os personagens
         for (auto &kv : scene.getGameObjects()) {
             CrsGameObject &obj = kv.second;
+            //sem o card Física, mas com colisão no modelo: o corpo estático da malha
+            if (!obj.rigidBody && obj.collisionMesh && !obj.collisionMesh->empty()) {
+                const WorldPose pose = worldPose(scene, obj);
+                if (auto found = w.meshBodies.find(obj.getId()); found != w.meshBodies.end()) w.pushMeshTransform(found->second, pose);
+                else w.addMeshBody(obj, pose);
+                continue;
+            }
             if (!obj.rigidBody) continue;
+            const WorldPose pose = worldPose(scene, obj);
             if (obj.character) {
-                if (!w.characters.contains(obj.getId())) w.addCharacter(obj);
-                w.moveCharacter(obj, w.characters.at(obj.getId()), gravity, dt);
+                if (!w.characters.contains(obj.getId())) w.addCharacter(obj, pose);
+                w.moveCharacter(scene, obj, w.characters.at(obj.getId()), pose, gravity, dt);
             } else if (auto found = w.bodies.find(obj.getId()); found != w.bodies.end()) {
-                w.pushTransform(obj, found->second);
+                w.pushTransform(obj, found->second, pose);
                 w.pushVelocity(obj, found->second);
             } else {
-                w.addBody(obj);
+                w.addBody(obj, pose);
             }
         }
 
@@ -466,7 +609,7 @@ namespace crsdk {
         //4) devolve o resultado dos dinâmicos pros objetos
         for (auto &kv : w.bodies) {
             CrsGameObject *obj = scene.findGameObjectById(kv.first);
-            if (obj && obj->rigidBody->type == BodyType::Dynamic) w.pullTransform(*obj, kv.second);
+            if (obj && obj->rigidBody->type == BodyType::Dynamic) w.pullTransform(scene, *obj, kv.second);
         }
     }
 

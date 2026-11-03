@@ -26,6 +26,8 @@ namespace crsdk {
 
     //o que o Asset Manager vai mandar ao arrastar um material (os bytes são a pasta dele)
     constexpr const char *MATERIAL_DRAG_PAYLOAD = "CRS_MATERIAL";
+    //um objeto arrastado no Outliner (o id dele): soltar em outro objeto troca o pai
+    constexpr const char *OBJECT_DRAG_PAYLOAD = "CRS_OBJECT";
 
     //uma linha do pincel Checar: o material e quanto ele cobre dentro do círculo (0..1)
     struct MaterialCheck {
@@ -39,6 +41,8 @@ namespace crsdk {
         bool saveScene = false;
         bool saveSceneAs = false;
         bool importModel = false;
+        //Arquivo > Exportar grupo para o Blender: o selecionado e os filhos viram um .glb (o molde)
+        bool exportGroup = false;
         AddKind add = AddKind::None;
         //Adicionar > Terreno: pedaços por lado do terreno novo (0 = nada pedido; o menu pede 1)
         int addTerrainTiles = 0;
@@ -48,6 +52,9 @@ namespace crsdk {
         //Generate Component: o nome da classe nova (vazio = nada pedido)
         std::string generateComponent{};
     };
+
+    //campo de visão (vertical) da câmera do editor
+    constexpr float EDITOR_FOV_Y = 0.8726646f;  //50 graus
 
     //ferramentas do editor (seleção; depois painéis e gizmo): o FirstApp só chama
     class CrsEditor {
@@ -62,6 +69,11 @@ namespace crsdk {
             void saveView(const std::string &filepath) const;
             //false = sem arquivo ou inválido: a vista fica como está
             bool loadView(const std::string &filepath);
+            //enquadrar o selecionado ("View Selected" do Blender): a câmera vai até ele e afasta o
+            //suficiente pra ele caber na tela (terreno: inteiro). false = nada selecionado
+            bool frameSelected(CrsScene &scene);
+            //Del (ou ponto) do teclado numérico enquadra o selecionado
+            void updateFrameSelected(CrsScene &scene, const CrsInput &input);
             //atalhos do editor, como no Blender: G move, R gira, S escala, Shift+A menu Adicionar
             void updateShortcuts(const CrsInput &input);
             //clique esquerdo seleciona o objeto sob o cursor (fora das janelas e do gizmo)

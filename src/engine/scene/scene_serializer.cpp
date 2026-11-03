@@ -121,6 +121,7 @@ namespace crsdk {
                 {"run", obj.characterAnimation->run},
                 {"fall", obj.characterAnimation->fall},
                 {"fadeTime", rounded(obj.characterAnimation->fadeTime)},
+                {"fallDelay", rounded(obj.characterAnimation->fallDelay)},
             };
         }
         if (obj.animator) {
@@ -208,6 +209,7 @@ namespace crsdk {
             anims.run = c.value("run", anims.run);
             anims.fall = c.value("fall", anims.fall);
             anims.fadeTime = c.value("fadeTime", anims.fadeTime);
+            anims.fallDelay = c.value("fallDelay", anims.fallDelay);
             obj.characterAnimation = anims;
         }
         if (j.contains("animator")) {
@@ -278,7 +280,8 @@ namespace crsdk {
                 //tamanho troca por outras) e a paleta (a pintura em si vai pelo histórico das pinceladas)
                 json layers = json::array();
                 for (const TerrainLayer &layer : obj->terrain->layers) layers.push_back({layer.material, layer.textureSize});
-                j["terrain"] = {{"data", reinterpret_cast<std::uintptr_t>(obj->terrain->data.get())}, {"layers", layers}};
+                j["terrain"] = {{"data", reinterpret_cast<std::uintptr_t>(obj->terrain->data.get())}, {"layers", layers},
+                                {"blend", obj->terrain->blend}};
             }
             objects.push_back(j);
         }
@@ -309,7 +312,8 @@ namespace crsdk {
                 for (const TerrainLayer &layer : obj->terrain->layers) {
                     layers.push_back({{"material", layer.material}, {"textureSize", rounded(layer.textureSize)}});
                 }
-                j["terrain"] = {{"tiles", obj->terrain->data->tilesPerSide()}, {"folder", folder}, {"layers", layers}};
+                j["terrain"] = {{"tiles", obj->terrain->data->tilesPerSide()}, {"folder", folder}, {"layers", layers},
+                                {"blend", rounded(obj->terrain->blend)}};
             }
             objects.push_back(j);
         }
@@ -337,7 +341,7 @@ namespace crsdk {
         CrsGameObject &obj = scene.createGameObject(j.at("id").get<CrsGameObject::id_t>());
         obj.name = j.value("name", "");
         if (j.contains("model")) {
-            obj.model = loadModel(j["model"].get<std::string>());
+            obj.setModel(loadModel(j["model"].get<std::string>()));
         }
         if (j.contains("parent")) {
             obj.parentId = j["parent"].get<CrsGameObject::id_t>();
@@ -376,6 +380,7 @@ namespace crsdk {
                 obj.terrain.emplace();
                 const std::string folder = resolveFromScene(filepath, c.value("folder", std::string{}));
                 obj.terrain->data = std::make_shared<TerrainData>(TerrainData::load(folder, c.value("tiles", 1)));
+                obj.terrain->blend = c.value("blend", obj.terrain->blend);
                 if (c.contains("layers")) {
                     for (const json &l : c.at("layers")) {
                         TerrainLayer layer{};

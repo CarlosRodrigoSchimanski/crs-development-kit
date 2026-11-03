@@ -2,6 +2,9 @@
 
 #include <imgui.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace crsdk {
 
     void OrbitCameraController::update(CrsWindow &crsWindow, CrsCamera &camera) {
@@ -59,6 +62,13 @@ namespace crsdk {
             distance = glm::max(distance, minDistance);
         }
 
+        //enquadrar em andamento: o usuário mexeu na câmera, ele manda (a animação para onde está)
+        if (middleDown || (!uiWantsMouse && scrollDelta != 0.f)) framingProgress = 1.f;
+        const double now = glfwGetTime();
+        const float dt = lastTime < 0.0 ? 0.f : static_cast<float>(now - lastTime);
+        lastTime = now;
+        advanceFrame(dt);
+
         //recalcula a direção já com os ângulos atualizados, pra posicionar a câmera de fato
         glm::vec3 position = target + distance * orbitDirection();
         camera.setViewTarget(position, target);
@@ -71,6 +81,33 @@ namespace crsdk {
             glm::sin(pitch),
             glm::cos(pitch) * glm::cos(yaw)
         };
+    }
+
+    //quanto dura a ida até o objeto enquadrado
+    constexpr float FRAME_SECONDS = 0.3f;
+    //folga: a esfera ocupa ~90% da altura da tela
+    constexpr float FRAME_MARGIN = 1.1f;
+
+    float OrbitCameraController::frameDistance(float radius, float verticalFov) {
+        //a esfera encosta nas bordas de cima e de baixo quando distância = raio / seno(meio campo de visão)
+        return std::max(radius * FRAME_MARGIN / std::sin(verticalFov * 0.5f), 1.f);
+    }
+
+    void OrbitCameraController::frame(glm::vec3 center, float radius, float verticalFov) {
+        frameFromTarget = target;
+        frameFromDistance = distance;
+        frameToTarget = center;
+        frameToDistance = std::max(frameDistance(radius, verticalFov), minDistance);
+        framingProgress = 0.f;
+    }
+
+    void OrbitCameraController::advanceFrame(float dt) {
+        if (framingProgress >= 1.f) return;
+        framingProgress = std::min(framingProgress + dt / FRAME_SECONDS, 1.f);
+        //sai rápido e chega devagar (sem tranco no fim)
+        const float t = 1.f - (1.f - framingProgress) * (1.f - framingProgress) * (1.f - framingProgress);
+        target = glm::mix(frameFromTarget, frameToTarget, t);
+        distance = glm::mix(frameFromDistance, frameToDistance, t);
     }
 
     void OrbitCameraController::setOrbitDirection(glm::vec3 direction) {
