@@ -16,8 +16,16 @@ namespace crsdk {
             //os 3 construtores só GRAVAM o envio dos pixels no lote: a textura só pode ser usada
             //depois do batch.submit() (quem cria o lote decide quando enviar)
             CrsTexture(CrsDevice &device, const std::string &filepath, CrsUploadBatch &batch, TextureKind kind = TextureKind::Color);
-            //imagem codificada (png/jpg) já na memória, ex: embutida num .glb
-            CrsTexture(CrsDevice &device, const std::vector<unsigned char> &encodedImage, CrsUploadBatch &batch, TextureKind kind = TextureKind::Color);
+
+            //imagem codificada (png/jpg) já na memória, ex: embutida num .glb. forceOpaque: ignora o alpha
+            //da imagem (material sem recorte: um alpha que sobrou no png não pode apagar pixel)
+            CrsTexture(CrsDevice &device,
+                const std::vector<unsigned char> &encodedImage,
+                CrsUploadBatch &batch,
+                TextureKind kind = TextureKind::Color,
+                bool forceOpaque = false
+            );
+            
             //pixels RGBA crus, ex: textura branca 1x1 de reserva
             CrsTexture(CrsDevice &device, uint32_t width, uint32_t height, const unsigned char *rgbaPixels, CrsUploadBatch &batch,
                        TextureKind kind = TextureKind::Color);

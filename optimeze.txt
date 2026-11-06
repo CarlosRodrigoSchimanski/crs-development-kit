@@ -45,6 +45,39 @@ itens — a lista abaixo é um RASCUNHO, a ordem e o que mais faltar saem do uso
   - Depois: seleção múltipla + Ctrl+G (agrupar selecionados num Empty); "prefab" no Asset Manager;
     colisão do modelo dinâmica (precisaria de formas convexas); o raycast da cena (scene.raycast) ainda
     não enxerga a colisão do modelo, só as do card Física e o terreno
+  ✅ (2026-11-04) RECORTE POR TRANSPARÊNCIA (alphaMode MASK/BLEND do glTF -> discard no
+     simple_shader.frag; textura sem recorte sobe com alpha 255, forceOpaque na CrsTexture),
+     "FAZ SOMBRA" por objeto (castShadow, salvo na cena, card Objeto) e SOMBRA RECORTADA
+     (shadow_cutout.vert/.frag, pipeline separada só pros modelos com recorte). Manual: README
+  ORDEM COMBINADA (usuário, 2026-11-05): 1) terminar os itens do kit da taverna -> 2) PBR nos
+  modelos -> 3) culling (frustum + occlusion) -> 4) só então montar as cenas; streaming/LOD depois
+  ("não vale de nada carregar o mapa aos poucos se estou computando objeto que não aparece").
+  Desempenho (OBRIGATÓRIO na 1.0 — decisão do usuário, 2026-11-05: "a ideia de fazer a engine
+  era aplicar as técnicas e deixar o mais performático possível; senão eu faria em Python"):
+  - FRUSTUM CULLING: só desenhar o que está na frente da câmera (caixa do objeto no mundo contra os
+    6 planos da câmera), na cena E na sombra (essa com a câmera do sol). Hoje NADA é descartado:
+    todo modelo é desenhado sempre, até o que está atrás da câmera (só o terreno tem algum corte)
+  - OCCLUSION CULLING: não desenhar o que está atrás de paredes (castelo, salas). Caminho provável:
+    Hi-Z na GPU (profundidade do frame anterior em mipmaps, teste da caixa de cada objeto) — combina
+    com o desenho pela GPU do degrau 4 abaixo. Alternativa mais simples pra interiores: portais/salas
+  - medir antes/depois (painel: objetos e chamadas desenhados); cena de teste grande (o kit da taverna)
+  Escada de desempenho depois da 1.0 (rumo a um "Nanite caseiro", conversa de 2026-11-05):
+    LOD automático (item 9, meshoptimizer) -> desenho pela GPU (indirect draw, a GPU decide o que
+    desenhar) -> meshlets + mesh shaders (VK_EXT_mesh_shader; RTX 5060 suporta) com culling por
+    cluster -> LOD por cluster em árvore (o que o Nanite faz; meshoptimizer tem clusterlod).
+    Nanite = malha cortada em clusters de ~128 triângulos com versões simplificadas em árvore; por
+    frame a GPU escolhe cluster por cluster (~1 triângulo por pixel) e carrega do disco só o necessário
+  Assets (fluxo do kit da taverna, 2026-11-04/05): faltam no motor pra eles aparecerem como no Blender:
+  - PBR NOS MODELOS: o .glb já traz normal, rugosidade e metálico, mas o simple_shader lê só a cor.
+    Ler os mapas no loader, TANGENTES (do glTF ou calculadas, mikktspace) e o applyPbrLighting do
+    terreno no shader dos modelos; sem o mapa = valor neutro
+  - TRANSPARÊNCIA COM MISTURA (alphaMode BLEND): hoje BLEND vira recorte (corte em 50%). Vitral da
+    taverna (window_01) tem 40% do alpha intermediário e precisa de mistura de verdade: passe próprio
+    DEPOIS dos opacos, ordenado do mais longe pro mais perto, sem gravar profundidade; sombra: recorte
+  - CACHE DE TEXTURA: a mesma imagem em vários .glb é carregada uma vez (hoje cada modelo carrega a
+    sua). COMPRESSÃO BC7 (÷4 na memória; as texturas do kit já saem em múltiplos de 4)
+  - editor: girar digitando (R + número + Enter; X/Y/Z troca o eixo, padrão Y; Esc cancela; undo
+    como o Duplicar) e SNAP com Ctrl nas setas (0,5 m / 15°) pra montar o kit encaixando
   Cenário (falta):
   - salvamento automático (cópia de segurança a cada poucos minutos) — o usuário perdeu trabalho
     fechando sem salvar em 2026-11-02 (a pergunta resolve o fechar; o auto cobre travar/acabar a luz)
@@ -205,6 +238,7 @@ Fase 2 — performance (esperam cena grande pra medir):
 5. Layout de dados: estruturas compactas e contíguas em vez de objetos com muitos campos sem uso.
 6. Batching: agrupar objetos do mesmo pipeline/material em vez de uma chamada de desenho cada.
 7. Culling (frustum/occlusion): descartar o que está fora da câmera ou escondido.
+   -> virou OBRIGATÓRIO da 1.0 (ver "Desempenho" no marco 1.0, 2026-11-05).
 9. Redundância aceitável (ex: findQueueFamilies várias vezes na inicialização): só revisitar se
    algo parecido aparecer rodando por frame.
 10. Limite que ficou do redimensionar no Windows: segurar a borda parada ou MOVER a janela pela
@@ -500,6 +534,11 @@ Pendências pequenas do que já foi feito:
 ===============================================================================
 DECISÕES DE PROJETO
 ===============================================================================
+- DESEMPENHO É O MOTIVO DA ENGINE EXISTIR (usuário, 2026-11-05): aplicar as técnicas de verdade
+  (culling, LOD, desenho pela GPU...) e deixar o mais performática possível. Na dúvida entre o
+  simples e o rápido em código que roda todo frame, o rápido — medido, não suposto.
+- Assets: densidade constante (~256 px/m; o dobro com texto), imagem do tamanho do item, uma
+  de cada FORMA (repetidos se duplicam no motor). Detalhe fino no normal map, malha leve.
 - Formato de modelo: glTF (.glb), exportado direto do Blender (tem esqueleto/skinning, que o
   equipamento precisa).
 - Formato de cena: JSON (nlohmann/json), texto pra ler/editar/ver no git; ler/gravar fica isolado

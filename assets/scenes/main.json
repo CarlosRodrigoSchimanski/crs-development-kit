@@ -13,6 +13,7 @@
                 0.0
             ],
             "useTexture": true,
+            "castShadow": true,
             "transform": {
                 "translation": [
                     -4.078259,
@@ -59,6 +60,7 @@
                 0.0
             ],
             "useTexture": true,
+            "castShadow": true,
             "transform": {
                 "translation": [
                     3.0,
@@ -117,6 +119,7 @@
                 0.0
             ],
             "useTexture": true,
+            "castShadow": true,
             "transform": {
                 "translation": [
                     0.0,
@@ -143,7 +146,8 @@
                 "walk": "walking_01",
                 "run": "running_01",
                 "fall": "fall_01",
-                "fadeTime": 0.2
+                "fadeTime": 0.2,
+                "fallDelay": 0.5
             },
             "animator": {
                 "clip": "idle_01",
@@ -170,6 +174,7 @@
                 0.0
             ],
             "useTexture": true,
+            "castShadow": true,
             "transform": {
                 "translation": [
                     0.0,
@@ -207,6 +212,7 @@
                 0.0
             ],
             "useTexture": true,
+            "castShadow": true,
             "transform": {
                 "translation": [
                     0.0,
@@ -240,6 +246,7 @@
                 0.0
             ],
             "useTexture": true,
+            "castShadow": true,
             "transform": {
                 "translation": [
                     0.0,
@@ -299,6 +306,36 @@
                     }
                 ],
                 "blend": 0.0
+            }
+        },
+        {
+            "id": 6,
+            "name": "grass_tall_high_01",
+            "model": "assets/models/grass/grass_tall_high_01.glb",
+            "editorOnly": false,
+            "color": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "useTexture": true,
+            "castShadow": false,
+            "transform": {
+                "translation": [
+                    14.261751,
+                    6.27111,
+                    0.0
+                ],
+                "rotation": [
+                    -0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
             }
         }
     ]

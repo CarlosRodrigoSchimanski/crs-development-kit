@@ -192,6 +192,14 @@ namespace crsdk {
                 }
                 theme::fieldLabel("Escala");
                 ImGui::DragFloat3("##escala", &transform.scale.x, 0.01f);
+                //só faz sentido em quem é desenhado (vazio, luz e câmera não têm sombra)
+                if (selected->model && !selected->terrain) {
+                    ImGui::Checkbox("Faz sombra", &selected->castShadow);
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("Desligado: o objeto não projeta sombra, mas continua recebendo a dos outros.\n"
+                                          "Bom pra grama baixa e coisas pequenas e numerosas (economiza o passe de sombra)");
+                    }
+                }
             }
             theme::endCard();
 

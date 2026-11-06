@@ -36,8 +36,9 @@ namespace crsdk {
             CrsInstanceBatches &operator=(const CrsInstanceBatches &) = delete;
 
             //agrupa os objetos da cena que têm modelo, não são só do editor e não estão animados, e
-            //escreve as matrizes na lista deste frame. Chamar uma vez por frame, antes de desenhar
-            const std::vector<Batch> &build(CrsScene &scene, int frameIndex);
+            //escreve as matrizes na lista deste frame. Chamar uma vez por frame, antes de desenhar.
+            //shadowCastersOnly: deixa de fora quem tem castShadow desligado (o passe de sombra)
+            const std::vector<Batch> &build(CrsScene &scene, int frameIndex, bool shadowCastersOnly = false);
             //liga a lista deste frame como o buffer de vértice 'binding' (o modelo fica no 0)
             void bind(VkCommandBuffer commandBuffer, int frameIndex, uint32_t binding = 1) const;
 

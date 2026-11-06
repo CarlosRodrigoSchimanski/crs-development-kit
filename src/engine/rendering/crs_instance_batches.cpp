@@ -8,12 +8,13 @@ namespace crsdk {
 
     CrsInstanceBatches::CrsInstanceBatches(CrsDevice &device) : crsDevice{device} {}
 
-    const std::vector<CrsInstanceBatches::Batch> &CrsInstanceBatches::build(CrsScene &scene, int frameIndex) {
+    const std::vector<CrsInstanceBatches::Batch> &CrsInstanceBatches::build(CrsScene &scene, int frameIndex, bool shadowCastersOnly) {
         //grupos pela chave (modelo, usa textura): a textura vem do modelo, então isso basta
         std::map<std::pair<const CrsModel *, bool>, std::vector<CrsGameObject *>> groups;
         for (auto &kv : scene.getGameObjects()) {
             CrsGameObject &obj = kv.second;
             if (obj.model == nullptr || obj.editorOnly || obj.isAnimated()) continue;
+            if (shadowCastersOnly && !obj.castShadow) continue;
             groups[{obj.model.get(), obj.useTexture}].push_back(&obj);
         }
 

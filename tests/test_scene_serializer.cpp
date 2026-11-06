@@ -94,6 +94,7 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     CrsGameObject &player = original.createGameObject();
     player.color = {0.2f, 0.4f, 0.6f};
     player.useTexture = false;
+    player.castShadow = false;
     player.rigidBody.emplace();
     player.rigidBody->type = BodyType::Static;
     player.rigidBody->halfExtents = {0.5f, 0.87f, 0.49f};
@@ -143,6 +144,7 @@ TEST_CASE("cena: os componentes voltam com as configurações, o estado do momen
     CrsGameObject &p = *loaded.findGameObjectById(player.getId());
     CHECK(p.color.z == doctest::Approx(0.6f));
     CHECK_FALSE(p.useTexture);
+    CHECK_FALSE(p.castShadow);
     REQUIRE(p.rigidBody.has_value());
     CHECK(p.rigidBody->type == BodyType::Static);
     CHECK(p.rigidBody->halfExtents.y == doctest::Approx(0.87f));
@@ -211,6 +213,8 @@ TEST_CASE("cena: campo que falta no arquivo fica com o padrão do componente") {
     //cena de antes das formas: sem "shape" é caixa
     CHECK(obj.rigidBody->shape == ColliderShape::Box);
     CHECK(obj.useTexture);
+    //cena de antes do "Faz sombra": projeta sombra
+    CHECK(obj.castShadow);
 }
 
 TEST_CASE("cena: a forma de colisão volta com tipo, tamanhos e massa") {

@@ -42,6 +42,8 @@ namespace crsdk {
                 std::vector<uint32_t> indices{};
                 //imagem de cor do material (png/jpg ainda codificado); vazio = modelo sem textura
                 std::vector<unsigned char> baseColorImage{};
+                //o material pede recorte (alphaMode MASK/BLEND no glTF): onde a textura é transparente, não desenha
+                bool alphaCutout = false;
 
                 //pares de índices: as arestas reais (onde a superfície dobra), pros gizmos
                 std::vector<uint32_t> edgeIndices{};
@@ -79,6 +81,8 @@ namespace crsdk {
 
             //nullptr se o modelo não tem textura
             CrsTexture *getTexture() const;
+            //tem textura e o material pede recorte (grama, folhas): a sombra também é recortada
+            bool hasAlphaCutout() const { return alphaCutout; }
             //a colisão que veio no arquivo (malhas UCX_/COL_); nullptr = o modelo não tem
             std::shared_ptr<const CollisionMesh> getCollisionMesh() const { return collisionMesh; }
             //caixa em volta do modelo, no espaço dele (menor e maior ponto dos vértices; modelo só de
@@ -117,6 +121,7 @@ namespace crsdk {
             std::unique_ptr<CrsBuffer> skinVertexBuffer;
 
             std::unique_ptr<CrsTexture> texture;
+            bool alphaCutout = false;
 
             glm::vec3 boundsMin{0.f};
             glm::vec3 boundsMax{0.f};

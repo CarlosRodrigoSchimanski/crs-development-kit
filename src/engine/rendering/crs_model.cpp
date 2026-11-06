@@ -36,7 +36,8 @@ namespace crsdk {
         }
 
         if (!builder.baseColorImage.empty()) {
-            texture = std::make_unique<CrsTexture>(device, builder.baseColorImage, upload);
+            texture = std::make_unique<CrsTexture>(device, builder.baseColorImage, upload, TextureKind::Color, !builder.alphaCutout);
+            alphaCutout = builder.alphaCutout;
         }
 
         //caixa em volta de todos os vértices (seleção por clique)
@@ -268,6 +269,7 @@ namespace crsdk {
         skinVertices.clear();
         indices.clear();
         baseColorImage.clear();
+        alphaCutout = false;
         collision = CollisionMesh{};
 
         cgltf_options options{};
@@ -370,6 +372,7 @@ namespace crsdk {
                         const cgltf_buffer_view *view = colorTexture->image->buffer_view;
                         const unsigned char *bytes = static_cast<const unsigned char *>(view->buffer->data) + view->offset;
                         baseColorImage.assign(bytes, bytes + view->size);
+                        alphaCutout = primitive.material->alpha_mode != cgltf_alpha_mode_opaque;
                     }
                 }
 

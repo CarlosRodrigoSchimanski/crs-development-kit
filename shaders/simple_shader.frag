@@ -16,6 +16,10 @@ layout(set = 1, binding = 0) uniform sampler2D texSampler;
 
 void main() {
     //objetos sem textura recebem a branca 1x1, então isso vira só fragColor
-    vec3 surfaceColor = texture(texSampler, fragUv).rgb * fragColor;
+    vec4 texel = texture(texSampler, fragUv);
+    //recorte: pixel transparente não é desenhado (texturas sem recorte chegam com alpha 1, ver CrsTexture)
+    if (texel.a < 0.5) discard;
+    vec3 surfaceColor = texel.rgb * fragColor;
     outColor = vec4(applyLighting(surfaceColor, fragNormalWorldSpace, fragPosWorldSpace, fragPosLightSpace), 1.0);
 }
+

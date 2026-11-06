@@ -258,6 +258,7 @@ namespace crsdk {
         j["editorOnly"] = obj.editorOnly;
         j["color"] = vec3ToJson(obj.color);
         j["useTexture"] = obj.useTexture;
+        j["castShadow"] = obj.castShadow;
         j["transform"] = {
             {"translation", vec3ToJson(obj.transform.translation)},
             {"rotation", vec3ToJson(obj.transform.rotation)},
@@ -349,6 +350,8 @@ namespace crsdk {
         obj.editorOnly = j.value("editorOnly", false);
         obj.color = vec3Or(j, "color", obj.color);
         obj.useTexture = j.value("useTexture", obj.useTexture);
+        //cena de antes da opção: todo mundo projeta sombra
+        obj.castShadow = j.value("castShadow", obj.castShadow);
 
         const json &transform = j.at("transform");
         obj.transform.translation = vec3FromJson(transform.at("translation"));

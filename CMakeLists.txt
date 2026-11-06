@@ -210,6 +210,8 @@ set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/point_light.frag
     ${CMAKE_SOURCE_DIR}/shaders/shadow.vert
     ${CMAKE_SOURCE_DIR}/shaders/shadow.frag
+    ${CMAKE_SOURCE_DIR}/shaders/shadow_cutout.vert
+    ${CMAKE_SOURCE_DIR}/shaders/shadow_cutout.frag
     ${CMAKE_SOURCE_DIR}/shaders/gizmo.vert
     ${CMAKE_SOURCE_DIR}/shaders/gizmo.frag
     ${CMAKE_SOURCE_DIR}/shaders/collision.vert
@@ -370,6 +372,7 @@ set(TEST_SOURCES
     tests/test_scene.cpp
     tests/test_scene_serializer.cpp
     tests/test_collision_mesh.cpp
+    tests/test_model_material.cpp
     tests/test_ray.cpp
     tests/test_transform.cpp
     tests/test_camera_rig.cpp

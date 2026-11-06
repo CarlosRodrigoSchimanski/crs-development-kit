@@ -4,8 +4,12 @@
 #include <glm/glm.hpp>
 
 #include <cassert>
+#include <stdexcept>
 
 namespace crsdk {
+    //quantas texturas com recorte diferentes cabem no pool da sombra
+    constexpr uint32_t MAX_CUTOUT_TEXTURES = 100;
+
     //o passe de sombra só precisa posicionar o vértice, então só a matriz do modelo
     struct ShadowPushConstantData {
         glm::mat4 modelMatrix{1.f};
@@ -30,6 +34,20 @@ namespace crsdk {
             {globalSetLayout},
             VK_SHADER_STAGE_VERTEX_BIT,
             sizeof(SkinnedShadowPushConstantData));
+
+        //recorte: set 1 = a textura do modelo (mesmo formato do set 1 do SimpleRenderSystem)
+        textureSetLayout = CrsDescriptorSetLayout::Builder{crsDevice}
+            .addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .build();
+        texturePool = CrsDescriptorPool::Builder{crsDevice}
+            .setMaxSets(MAX_CUTOUT_TEXTURES)
+            .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_CUTOUT_TEXTURES)
+            .build();
+        cutoutPipelineLayout = CrsPipeline::createPipelineLayout(
+            crsDevice,
+            {globalSetLayout, textureSetLayout->getDescriptorSetLayout()},
+            VK_SHADER_STAGE_VERTEX_BIT,
+            sizeof(ShadowPushConstantData));
         createPipeline();
     }
 
@@ -46,15 +64,22 @@ namespace crsdk {
         pipelineConfig.rasterizationInfo.depthBiasEnable = VK_TRUE;
         pipelineConfig.rasterizationInfo.depthBiasConstantFactor = 1.25f;
         pipelineConfig.rasterizationInfo.depthBiasSlopeFactor = 1.75f;
-        //o shadow.vert só lê a posição (location 0); cor, normal e uv ficam de fora
+        //o shadow.vert só lê a posição (location 0); cor, normal e uv ficam de fora.
+        //O de recorte lê também o uv (location 3)
+        const std::vector<VkVertexInputAttributeDescription> modelAttributes = pipelineConfig.attributeDescriptions;
         std::vector<VkVertexInputAttributeDescription> positionOnly{};
-        for (auto& attribute : pipelineConfig.attributeDescriptions) {
+        std::vector<VkVertexInputAttributeDescription> positionAndUv{};
+        for (auto& attribute : modelAttributes) {
             if (attribute.location == 0) positionOnly.push_back(attribute);
+            if (attribute.location == 0 || attribute.location == 3) positionAndUv.push_back(attribute);
         }
-        pipelineConfig.attributeDescriptions = positionOnly;
         //instancing: a matriz de cada cópia vem da lista de cópias (binding 1, locations 4..7)
         pipelineConfig.bindingDescriptions.push_back(CrsInstanceBatches::bindingDescription());
-        for (const auto &attribute : CrsInstanceBatches::attributeDescriptions(false)) pipelineConfig.attributeDescriptions.push_back(attribute);
+        for (const auto &attribute : CrsInstanceBatches::attributeDescriptions(false)) {
+            positionOnly.push_back(attribute);
+            positionAndUv.push_back(attribute);
+        }
+        pipelineConfig.attributeDescriptions = positionOnly;
         //dynamic rendering: sem render pass, o pipeline só precisa saber o formato da profundidade
         pipelineConfig.depthAttachmentFormat = shadowMap.getFormat();
         pipelineConfig.pipelineLayout = pipelineLayout.get();
@@ -62,6 +87,15 @@ namespace crsdk {
             crsDevice,
             "shaders/shadow.vert.spv",
             "shaders/shadow.frag.spv",
+            pipelineConfig);
+
+        //recorte: mesma configuração, com o uv e a textura (set 1)
+        pipelineConfig.attributeDescriptions = positionAndUv;
+        pipelineConfig.pipelineLayout = cutoutPipelineLayout.get();
+        cutoutPipeline = std::make_unique<CrsPipeline>(
+            crsDevice,
+            "shaders/shadow_cutout.vert.spv",
+            "shaders/shadow_cutout.frag.spv",
             pipelineConfig);
 
         //objetos animados: mesma configuração, mas lê também os pesos dos ossos (binding 1)
@@ -139,10 +173,35 @@ namespace crsdk {
             0,
             nullptr);
 
-        //objetos parados: um desenho por grupo de modelo (instancing); os só do editor não projetam sombra
-        const std::vector<CrsInstanceBatches::Batch> &groups = batches.build(frameInfo.crsScene, frameInfo.frameIndex);
+        //objetos parados: um desenho por grupo de modelo (instancing); os só do editor e os com
+        //"Faz sombra" desligado não projetam sombra
+        const std::vector<CrsInstanceBatches::Batch> &groups = batches.build(frameInfo.crsScene, frameInfo.frameIndex, true);
         batches.bind(frameInfo.commandBuffer, frameInfo.frameIndex);
+        //recorta quem tem recorte E está usando a textura (com useTexture desligado o objeto aparece
+        //inteiro na tela, então a sombra também é inteira)
+        auto isCutout = [](const CrsInstanceBatches::Batch &group) {
+            const CrsModel &model = *group.first->model;
+            return model.hasAlphaCutout() && model.getTexture() != nullptr && group.first->useTexture;
+        };
+        //primeiro os sólidos, todos na pipeline sem textura
         for (const CrsInstanceBatches::Batch &group : groups) {
+            if (isCutout(group)) continue;
+            group.first->model->bind(frameInfo.commandBuffer);
+            group.first->model->draw(frameInfo.commandBuffer, group.count, group.firstInstance);
+        }
+        //depois os com recorte: troca de pipeline uma vez só (a lista de cópias continua ligada)
+        bool cutoutBound = false;
+        for (const CrsInstanceBatches::Batch &group : groups) {
+            if (!isCutout(group)) continue;
+            if (!cutoutBound) {
+                cutoutPipeline->bind(frameInfo.commandBuffer);
+                vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    cutoutPipelineLayout.get(), 0, 1, &frameInfo.globalDescriptorSet, 0, nullptr);
+                cutoutBound = true;
+            }
+            VkDescriptorSet textureSet = getTextureSet(*group.first->model->getTexture());
+            vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                cutoutPipelineLayout.get(), 1, 1, &textureSet, 0, nullptr);
             group.first->model->bind(frameInfo.commandBuffer);
             group.first->model->draw(frameInfo.commandBuffer, group.count, group.firstInstance);
         }
@@ -153,7 +212,7 @@ namespace crsdk {
             skinnedPipelineLayout.get(), 0, 1, &frameInfo.globalDescriptorSet, 0, nullptr);
         for (auto& kv : frameInfo.crsScene.getGameObjects()) {
             auto& obj = kv.second;
-            if (!obj.isAnimated() || obj.editorOnly) continue;
+            if (!obj.isAnimated() || obj.editorOnly || !obj.castShadow) continue;
 
             SkinnedShadowPushConstantData push{};
             push.modelMatrix = frameInfo.crsScene.worldMatrix(obj);
@@ -173,5 +232,22 @@ namespace crsdk {
             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+    }
+
+    VkDescriptorSet ShadowRenderSystem::getTextureSet(const CrsTexture &texture) {
+        auto existing = textureSets.find(&texture);
+        if (existing != textureSets.end()) return existing->second;
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.sampler = texture.getSampler();
+        imageInfo.imageView = texture.getImageView();
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkDescriptorSet textureSet;
+        if (!CrsDescriptorWriter(*textureSetLayout, *texturePool).writeImage(0, &imageInfo).build(textureSet)) {
+            throw std::runtime_error("failed to allocate shadow cutout descriptor set (pool cheio?)");
+        }
+        textureSets.emplace(&texture, textureSet);
+        return textureSet;
     }
 }

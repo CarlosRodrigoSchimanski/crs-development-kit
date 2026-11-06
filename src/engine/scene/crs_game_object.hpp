@@ -219,6 +219,9 @@ namespace crsdk {
             glm::vec3 color{};
             //false = usa a textura branca em vez da do modelo (fica só a cor do vértice)
             bool useTexture{true};
+            //false = não aparece no mapa de sombra (não projeta sombra), mas continua recebendo a dos
+            //outros. Pra coisa pequena e numerosa (grama baixa), onde a sombra quase não se vê e custa caro
+            bool castShadow{true};
             bool editorOnly{false};
             TransformComponent transform{};
             //pai na cena (o transform passa a ser relativo a ele); vazio = raiz

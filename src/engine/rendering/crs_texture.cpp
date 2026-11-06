@@ -28,8 +28,13 @@ namespace crsdk {
         upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels.get(), batch);
     }
 
-    CrsTexture::CrsTexture(CrsDevice &device, const std::vector<unsigned char> &encodedImage, CrsUploadBatch &batch, TextureKind kind)
-        : crsDevice{device}, format{formatFor(kind)} {
+        CrsTexture::CrsTexture(
+            CrsDevice &device,
+            const std::vector<unsigned char> &encodedImage,
+            CrsUploadBatch &batch,
+            TextureKind kind,
+            bool forceOpaque
+        ) : crsDevice{device}, format{formatFor(kind)} {
         //mesmo decodificador do stbi_load, só que lendo de um buffer em vez de um arquivo
         int width, height, channels;
         StbPixels pixels{stbi_load_from_memory(
@@ -38,6 +43,12 @@ namespace crsdk {
         if (!pixels) {
             throw std::runtime_error("failed to decode texture image from memory");
         }
+                if (forceOpaque) {
+            //RGBA: o 4º byte de cada pixel é o alpha
+            stbi_uc *data = pixels.get();
+            for (size_t i = 3; i < static_cast<size_t>(width) * height * 4; i += 4) data[i] = 255;
+        }
+
         upload(static_cast<uint32_t>(width), static_cast<uint32_t>(height), pixels.get(), batch);
     }
 
